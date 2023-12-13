@@ -26,7 +26,7 @@ map_value!(
         Value::Object(v) => Ok(v),
         Value::Int(v) => {
             let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::Int(v));
+            map.insert(Value::Int(Int::from(0)), Value::Int(v));
             Ok(Object(map))
         }
         Value::Float(v) => {

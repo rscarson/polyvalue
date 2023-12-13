@@ -66,6 +66,18 @@ map_value!(
     }
 );
 
+impl From<usize> for Int {
+    fn from(v: usize) -> Self {
+        Int(v as IntInner)
+    }
+}
+
+impl From<i32> for Int {
+    fn from(v: i32) -> Self {
+        Int(v as IntInner)
+    }
+}
+
 impl FromStr for Int {
     type Err = Error;
 
