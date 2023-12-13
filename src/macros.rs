@@ -29,11 +29,11 @@ macro_rules! map_value {
 /// - `source`: The type to convert from
 /// - `handler`: A closure that takes in a `Source` and returns a `Result<Target, Error>`
 macro_rules! map_type {
-    (into = $target:ty, from = $source:ty, $handler:expr) => {
-        impl TryFrom<$source> for $target {
+    ($target:ty, $source:ty) => {
+        impl TryFrom<$target> for $source {
             type Error = crate::Error;
-            fn try_from(value: $source) -> Result<Self, Self::Error> {
-                $handler(value)
+            fn try_from(value: $target) -> Result<Self, Self::Error> {
+                Self::try_from(Value::from(value))
             }
         }
     };
@@ -81,7 +81,7 @@ macro_rules! map_primitive {
 /// Will also generate a Display and Debug implementation for the type.
 /// Those implementations will use the `TryInto<Str>` implementation.
 macro_rules! impl_value {
-    ($own_type:ty, $inner_type:ty) => {
+    ($own_type:ty, $inner_type:ty, $to_string:expr) => {
         impl $crate::ValueTrait<$inner_type> for $own_type {
             fn new(inner: $inner_type) -> Self {
                 Self(inner)
@@ -100,21 +100,7 @@ macro_rules! impl_value {
 
         impl std::fmt::Display for $own_type {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(
-                    f,
-                    "{}",
-                    TryInto::<$crate::types::Str>::try_into(self.clone()).unwrap()
-                )
-            }
-        }
-
-        impl std::fmt::Debug for $own_type {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(
-                    f,
-                    "{}",
-                    TryInto::<$crate::types::Str>::try_into(self.clone()).unwrap()
-                )
+                write!(f, "{}", $to_string(self))
             }
         }
     };

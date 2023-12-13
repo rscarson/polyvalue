@@ -2,7 +2,7 @@ use crate::{operations::*, types::*, Value, ValueTrait};
 use serde::{Deserialize, Serialize};
 
 /// Inner type of `Currency`
-#[derive(Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
+#[derive(Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct CurrencyInner {
     symbol: Option<String>,
     value: Fixed,
@@ -42,24 +42,30 @@ impl PartialEq for CurrencyInner {
 
 /// Subtype of `Value` that represents a currency
 /// This is a wrapper around `Fixed` that adds a currency symbol
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct Currency(CurrencyInner);
-impl_value!(Currency, CurrencyInner);
+impl_value!(Currency, CurrencyInner, |v: &Self| {
+    let symbol = v.inner().symbol().clone().unwrap_or_default();
+    let value = v.inner().value().to_string();
+    format!("{}{}", symbol, value)
+});
 
 map_value!(
     from = Currency,
     handle_into = |v: Currency| Value::Currency(v),
-    handle_from = |v: Value| match v {
-        Value::Currency(v) => Ok(v),
-        Value::Int(v) => v.try_into(),
-        Value::Float(v) => v.try_into(),
-        Value::Fixed(v) => v.try_into(),
-        Value::Bool(v) => v.try_into(),
-        Value::String(v) => v.try_into(),
-        Value::Array(v) => v.try_into(),
-        Value::Object(v) => v.try_into(),
+    handle_from = |v: Value| {
+        let value = Fixed::try_from(v)?;
+        Ok(Currency::without_symbol(value))
     }
 );
+
+map_type!(Array, Currency);
+map_type!(Object, Currency);
+map_type!(Int, Currency);
+map_type!(Float, Currency);
+map_type!(Fixed, Currency);
+map_type!(Bool, Currency);
+map_type!(Str, Currency);
 
 impl Currency {
     /// Create a new `Currency` with a symbol
@@ -90,53 +96,9 @@ impl ArithmeticOperationExt for Currency {
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
         let symbol = left.symbol().clone();
-        let left = Fixed::try_from(left.clone())?;
-        let right = Fixed::try_from(right.clone())?;
-        let result = Fixed::arithmetic_op(&left, &right, operation)?;
+        let left = left.inner().value();
+        let right = right.inner().value();
+        let result = Fixed::arithmetic_op(left, right, operation)?;
         Ok(Currency::with_symbol(symbol, result))
     }
 }
-
-//
-// Conversion from other types
-//
-
-map_type!(into = Bool, from = Currency, |v: Currency| {
-    Ok((*v.inner().value().inner() != FixedInner::ZERO).into())
-});
-
-map_type!(into = Fixed, from = Currency, |v: Currency| {
-    Ok(v.inner().value().clone())
-});
-
-map_type!(into = Float, from = Currency, |v: Currency| {
-    Ok(v.inner().value().clone().try_into().unwrap())
-});
-
-map_type!(into = Int, from = Currency, |v: Currency| {
-    let cooef = v.inner().value().inner().trunc().coefficient() as IntInner;
-    Ok(cooef.into())
-});
-
-map_type!(into = Str, from = Currency, |v: Currency| {
-    Ok(format!(
-        "{}{}",
-        v.inner().symbol.clone().unwrap_or_default(),
-        v.inner().value()
-    )
-    .into())
-});
-
-map_type!(into = Array, from = Currency, |v: Currency| {
-    Ok(vec![Value::from(v)].into())
-});
-
-map_type!(into = Object, from = Currency, |v: Currency| {
-    let index = Value::from(Int::new(0));
-    let value = Value::from(v);
-
-    // Convert [index, value] into ObjectInner
-    let map: ObjectInner = vec![(index, value)].into_iter().collect();
-
-    Ok(map.into())
-});

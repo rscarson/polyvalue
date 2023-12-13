@@ -58,4 +58,8 @@ pub enum Error {
     /// An error caused by parsing a value from a string
     #[error("invalid integer value")]
     ParseIntError(#[from] std::num::ParseIntError),
+
+    /// An error caused by parsing a Decimal
+    #[error("invalid decimal value")]
+    DecimalError(#[from] fpdec::DecimalError),
 }

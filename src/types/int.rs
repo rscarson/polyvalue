@@ -1,30 +1,76 @@
-use std::str::FromStr;
-
-use crate::{operations::*, types::*, Error, Value, ValueTrait};
+use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 
 /// Inner type of `Int`
 pub type IntInner = i64;
 
 /// Subtype of `Value` that represents an integer
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct Int(IntInner);
-impl_value!(Int, IntInner);
+impl_value!(Int, IntInner, |v: &Self| v.inner().to_string());
 
 map_value!(
     from = Int,
     handle_into = |v: Int| Value::Int(v),
     handle_from = |v: Value| match v {
         Value::Int(v) => Ok(v),
-        Value::Fixed(v) => v.try_into(),
-        Value::Float(v) => v.try_into(),
-        Value::Currency(v) => v.try_into(),
-        Value::Bool(v) => v.try_into(),
-        Value::String(v) => v.try_into(),
-        Value::Array(v) => v.try_into(),
-        Value::Object(v) => v.try_into(),
+        Value::Fixed(v) => {
+            let p = *v.inner();
+            let p: IntInner = p.trunc().coefficient() as IntInner;
+            Ok(Int::from(p))
+        }
+        Value::Float(v) => {
+            let p = *v.inner();
+            let p = p as i64;
+            Ok(Int::from(p))
+        }
+        Value::Currency(v) => {
+            let p = *v.inner().value().inner();
+            let p: IntInner = p.trunc().coefficient() as IntInner;
+            Ok(Int::from(p))
+        }
+        Value::Bool(v) => {
+            let p = *v.inner() as i64;
+            Ok(Int::from(p))
+        }
+        Value::String(_) => {
+            Err(Error::ValueConversion {
+                src_type: ValueType::String,
+                dst_type: ValueType::Int,
+            })
+        }
+        Value::Array(v) => {
+            if v.inner().len() == 1 {
+                let v = v.inner()[0].clone();
+                Int::try_from(v)
+            } else {
+                Err(Error::ValueConversion {
+                    src_type: ValueType::Array,
+                    dst_type: ValueType::Int,
+                })
+            }
+        }
+        Value::Object(v) => {
+            if v.inner().len() == 1 {
+                let v = v.inner().values().next().unwrap().clone();
+                Int::try_from(v)
+            } else {
+                Err(Error::ValueConversion {
+                    src_type: ValueType::Object,
+                    dst_type: ValueType::Int,
+                })
+            }
+        }
     }
 );
+
+map_type!(Array, Int);
+map_type!(Bool, Int);
+map_type!(Fixed, Int);
+map_type!(Float, Int);
+map_type!(Currency, Int);
+map_type!(Str, Int);
+map_type!(Object, Int);
 
 impl ArithmeticOperationExt for Int {
     fn arithmetic_op(
@@ -54,41 +100,3 @@ impl ArithmeticOperationExt for Int {
         Ok(result.into())
     }
 }
-
-//
-// Conversion from other types
-//
-
-map_type!(into = Bool, from = Int, |v: Int| {
-    Ok((*v.inner() != 0).into())
-});
-
-map_type!(into = Fixed, from = Int, |v: Int| {
-    Fixed::from_str(&v.to_string())
-});
-
-map_type!(into = Float, from = Int, |v: Int| {
-    Ok((*v.inner() as f64).into())
-});
-
-map_type!(into = Currency, from = Int, |v: Int| {
-    Ok(Currency::without_symbol(v.try_into()?))
-});
-
-map_type!(into = Str, from = Int, |v: Int| {
-    Ok(v.to_string().into())
-});
-
-map_type!(into = Array, from = Int, |v: Int| {
-    Ok(vec![Value::from(v)].into())
-});
-
-map_type!(into = Object, from = Int, |v: Int| {
-    let index = Value::from(Int::new(0));
-    let value = Value::from(v);
-
-    // Convert [index, value] into ObjectInner
-    let map: ObjectInner = vec![(index, value)].into_iter().collect();
-
-    Ok(map.into())
-});

@@ -2,9 +2,9 @@ use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 
 /// Subtype of `Value` that represents a string
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct Str(String);
-impl_value!(Str, String);
+impl_value!(Str, String, |v: &Self| v.inner().clone());
 
 impl From<&str> for Str {
     fn from(value: &str) -> Self {
@@ -23,15 +23,17 @@ map_value!(
     handle_into = |v: Str| Value::String(v),
     handle_from = |v: Value| match v {
         Value::String(v) => Ok(v),
-        Value::Bool(v) => v.try_into(),
-        Value::Fixed(v) => v.try_into(),
-        Value::Float(v) => v.try_into(),
-        Value::Currency(v) => v.try_into(),
-        Value::Int(v) => v.try_into(),
-        Value::Array(v) => v.try_into(),
-        Value::Object(v) => v.try_into(),
+        _ => Ok(Str::from(v.to_string())),
     }
 );
+
+map_type!(Bool, Str);
+map_type!(Int, Str);
+map_type!(Float, Str);
+map_type!(Fixed, Str);
+map_type!(Currency, Str);
+map_type!(Array, Str);
+map_type!(Object, Str);
 
 impl ArithmeticOperationExt for Str {
     fn arithmetic_op(
@@ -83,53 +85,3 @@ impl IndexingOperationExt for Str {
         Ok(())
     }
 }
-
-//
-// Conversion from other types
-//
-
-map_type!(into = Bool, from = Str, |v: Str| {
-    Ok((!v.inner().is_empty()).into())
-});
-
-map_type!(into = Fixed, from = Str, |_: Str| {
-    Err(Error::ValueConversion {
-        src_type: ValueType::String,
-        dst_type: ValueType::Fixed,
-    })
-});
-
-map_type!(into = Float, from = Str, |_: Str| {
-    Err(Error::ValueConversion {
-        src_type: ValueType::String,
-        dst_type: ValueType::Float,
-    })
-});
-
-map_type!(into = Currency, from = Str, |_: Str| {
-    Err(Error::ValueConversion {
-        src_type: ValueType::String,
-        dst_type: ValueType::Currency,
-    })
-});
-
-map_type!(into = Int, from = Str, |_: Str| {
-    Err(Error::ValueConversion {
-        src_type: ValueType::String,
-        dst_type: ValueType::Int,
-    })
-});
-
-map_type!(into = Array, from = Str, |v: Str| {
-    Ok(vec![Value::from(v)].into())
-});
-
-map_type!(into = Object, from = Str, |v: Str| {
-    let index = Value::from(Int::new(0));
-    let value = Value::from(v);
-
-    // Convert [index, value] into ObjectInner
-    let map: ObjectInner = vec![(index, value)].into_iter().collect();
-
-    Ok(map.into())
-});

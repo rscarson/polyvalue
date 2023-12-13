@@ -1,29 +1,76 @@
 use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Inner type used for object storage
-pub type ObjectInner = HashMap<Value, Value>;
+pub type ObjectInner = BTreeMap<Value, Value>;
 
 /// Subtype of `Value` that represents an object
-#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default, Debug)]
 pub struct Object(ObjectInner);
-impl_value!(Object, ObjectInner);
+impl_value!(Object, ObjectInner, |v: &Self| {
+    format!(
+        "{{{}}}",
+        v.inner()
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k.to_string(), v.to_string()))
+            .collect::<Vec<String>>()
+            .join(", ")
+    )
+});
 
 map_value!(
     from = Object,
     handle_into = |v: Object| Value::Object(v),
     handle_from = |v: Value| match v {
         Value::Object(v) => Ok(v),
-        Value::Int(v) => v.try_into(),
-        Value::Float(v) => v.try_into(),
-        Value::Fixed(v) => v.try_into(),
-        Value::Currency(v) => v.try_into(),
-        Value::Bool(v) => v.try_into(),
-        Value::String(v) => v.try_into(),
-        Value::Array(v) => v.try_into(),
+        Value::Int(v) => {
+            let mut map = ObjectInner::new();
+            map.insert(Value::Int(0.into()), Value::Int(v));
+            Ok(Object(map))
+        }
+        Value::Float(v) => {
+            let mut map = ObjectInner::new();
+            map.insert(Value::Int(0.into()), Value::Float(v));
+            Ok(Object(map))
+        }
+        Value::Fixed(v) => {
+            let mut map = ObjectInner::new();
+            map.insert(Value::Int(0.into()), Value::Fixed(v));
+            Ok(Object(map))
+        }
+        Value::Currency(v) => {
+            let mut map = ObjectInner::new();
+            map.insert(Value::Int(0.into()), Value::Currency(v));
+            Ok(Object(map))
+        }
+        Value::Bool(v) => {
+            let mut map = ObjectInner::new();
+            map.insert(Value::Int(0.into()), Value::Bool(v));
+            Ok(Object(map))
+        }
+        Value::String(v) => {
+            let mut map = ObjectInner::new();
+            map.insert(Value::Int(0.into()), Value::String(v));
+            Ok(Object(map))
+        }
+        Value::Array(v) => {
+            let mut map = ObjectInner::new();
+            for (i, v) in v.inner().iter().enumerate() {
+                map.insert(Value::Int((i as i64).into()), v.clone());
+            }
+            Ok(Object(map))
+        }
     }
 );
+
+map_type!(Bool, Object);
+map_type!(Int, Object);
+map_type!(Float, Object);
+map_type!(Fixed, Object);
+map_type!(Currency, Object);
+map_type!(Str, Object);
+map_type!(Array, Object);
 
 //
 // Trait implementations
@@ -86,48 +133,3 @@ impl IndexingOperationExt for Object {
         Ok(())
     }
 }
-
-//
-// Conversion from other types
-//
-
-macro_rules! into_singleton {
-    ($type:ident) => {
-        map_type!(into = $type, from = Object, |v: Object| {
-            if v.inner().len() == 1 {
-                let first = v.inner().values().next().unwrap().clone();
-                first.try_into()
-            } else {
-                Err(crate::Error::ValueConversion {
-                    src_type: ValueType::Object,
-                    dst_type: ValueType::$type,
-                })
-            }
-        });
-    };
-}
-
-map_type!(into = Bool, from = Object, |v: Object| {
-    Ok((v.inner().len() != 0).into())
-});
-
-into_singleton!(Fixed);
-into_singleton!(Float);
-into_singleton!(Int);
-into_singleton!(Currency);
-
-map_type!(into = Str, from = Object, |v: Object| {
-    Ok(format!(
-        "{{{}}}",
-        v.inner()
-            .iter()
-            .map(|v| format!("{}:{}", v.0, v.1))
-            .collect::<Vec<String>>()
-            .join(", ")
-    )
-    .into())
-});
-
-map_type!(into = Array, from = Object, |v: Object| {
-    Ok(v.inner().values().cloned().collect::<Vec<Value>>().into())
-});

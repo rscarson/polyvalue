@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::{operations::*, types::*, Error, Value, ValueTrait};
+use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use fpdec::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Decimal};
 use serde::{Deserialize, Serialize};
 
@@ -8,24 +8,72 @@ use serde::{Deserialize, Serialize};
 pub type FixedInner = Decimal;
 
 /// Subtype of `Value` that represents a fixed-point decimal
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug)]
 pub struct Fixed(FixedInner);
-impl_value!(Fixed, FixedInner);
+impl_value!(Fixed, FixedInner, |v: &Self| v.inner().to_string());
 
 map_value!(
     from = Fixed,
     handle_into = |v: Fixed| Value::Fixed(v),
     handle_from = |v: Value| match v {
         Value::Fixed(v) => Ok(v),
-        Value::Int(v) => v.try_into(),
-        Value::Float(v) => v.try_into(),
-        Value::Currency(v) => v.try_into(),
-        Value::Bool(v) => v.try_into(),
-        Value::String(v) => v.try_into(),
-        Value::Array(v) => v.try_into(),
-        Value::Object(v) => v.try_into(),
+        Value::Int(v) => {
+            let p = *v.inner();
+            let p: Decimal = p.into();
+            Ok(Fixed::from(p))
+        }
+        Value::Float(v) => {
+            let p = *v.inner();
+            let p = Decimal::try_from(p)?;
+            Ok(Fixed::from(p))
+        }
+        Value::Currency(v) => {
+            Ok(v.inner().value().clone())
+        }
+        Value::Bool(v) => {
+            if *v.inner() {
+                Ok(Fixed::from(Decimal::ONE))
+            } else {
+                Ok(Fixed::from(Decimal::ZERO))
+            }
+        }
+        Value::String(_) => {
+            Err(Error::ValueConversion {
+                src_type: ValueType::String,
+                dst_type: ValueType::Fixed,
+            })
+        }
+        Value::Array(v) => {
+            if v.inner().len() == 1 {
+                let v = v.inner()[0].clone();
+                Fixed::try_from(v)
+            } else {
+                Err(Error::ValueConversion {
+                    src_type: ValueType::Array,
+                    dst_type: ValueType::Fixed,
+                })
+            }
+        }
+        Value::Object(v) => {
+            if v.inner().len() == 1 {
+                let v = v.inner().values().next().unwrap().clone();
+                Fixed::try_from(v)
+            } else {
+                Err(Error::ValueConversion {
+                    src_type: ValueType::Object,
+                    dst_type: ValueType::Fixed,
+                })
+            }
+        }
     }
 );
+
+map_type!(Array, Fixed);
+map_type!(Object, Fixed);
+map_type!(Int, Fixed);
+map_type!(Float, Fixed);
+map_type!(Currency, Fixed);
+map_type!(Str, Fixed);
 
 //
 // Trait implementations
@@ -41,7 +89,9 @@ impl FromStr for Fixed {
 
 impl std::hash::Hash for Fixed {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Float::try_from(self.clone()).unwrap().hash(state)
+        Float::try_from(Value::from(self.clone()))
+            .unwrap()
+            .hash(state)
     }
 }
 
@@ -62,11 +112,11 @@ impl ArithmeticOperationExt for Fixed {
             ArithmeticOperation::Modulo => left_.checked_rem(right_),
             ArithmeticOperation::Exponentiate => {
                 // Convert to floats
-                let left = Float::try_from(left.clone())?;
-                let right = Float::try_from(right.clone())?;
+                let left = Float::try_from(Value::from(left.clone()))?;
+                let right = Float::try_from(Value::from(right.clone()))?;
 
                 let result = Float::arithmetic_op(&left, &right, operation)?;
-                Some(Fixed::try_from(result)?.inner().clone())
+                Some(Fixed::try_from(Value::from(result))?.inner().clone())
             }
             ArithmeticOperation::Negate => Some(-left_),
         }
@@ -75,41 +125,3 @@ impl ArithmeticOperationExt for Fixed {
         Ok(result.into())
     }
 }
-
-//
-// Conversion from other types
-//
-
-map_type!(into = Bool, from = Fixed, |v: Fixed| {
-    Ok((*v.inner() != FixedInner::ZERO).into())
-});
-
-map_type!(into = Float, from = Fixed, |v: Fixed| {
-    Float::from_str(&v.to_string())
-});
-
-map_type!(into = Int, from = Fixed, |v: Fixed| {
-    Ok((v.inner().trunc().coefficient() as i64).into())
-});
-
-map_type!(into = Currency, from = Fixed, |v: Fixed| {
-    Ok(Currency::without_symbol(v).into())
-});
-
-map_type!(into = Str, from = Fixed, |v: Fixed| {
-    Ok(v.to_string().into())
-});
-
-map_type!(into = Array, from = Fixed, |v: Fixed| {
-    Ok(vec![v.into()].into())
-});
-
-map_type!(into = Object, from = Fixed, |v: Fixed| {
-    let index = Value::from(Int::new(0));
-    let value = Value::from(v);
-
-    // Convert [index, value] into ObjectInner
-    let map: ObjectInner = vec![(index, value)].into_iter().collect();
-
-    Ok(map.into())
-});
