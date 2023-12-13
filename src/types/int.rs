@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 
@@ -63,6 +65,14 @@ map_value!(
         }
     }
 );
+
+impl FromStr for Int {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(s.parse::<IntInner>()?.into())
+    }
+}
 
 map_type!(Array, Int);
 map_type!(Bool, Int);

@@ -1,7 +1,7 @@
-use crate::{operations::*, types::*, Value, ValueTrait};
+use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use fpdec::Decimal;
 use serde::{Deserialize, Serialize};
-use std::hash::Hash;
+use std::{hash::Hash, str::FromStr};
 
 /// Subtype of `Value` that represents a boolean
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
@@ -40,6 +40,20 @@ map_value!(
         }
     }
 );
+
+impl FromStr for Bool {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "true" => Ok(Bool::from(true)),
+            "false" => Ok(Bool::from(false)),
+            _ => Err(Error::ValueConversion {
+                src_type: ValueType::String,
+                dst_type: ValueType::Bool,
+            }),
+        }
+    }
+}
 
 map_type!(Array, Bool);
 map_type!(Object, Bool);
