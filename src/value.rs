@@ -274,6 +274,11 @@ impl Value {
         Ok(value)
     }
 
+    /// Resolves a value to the given type
+    pub fn as_a<T: std::convert::TryFrom<Value, Error = Error>>(&self) -> Result<T, Error> {
+        T::try_from(self.clone())
+    }
+
     /// Returns true if the value is of the given type
     pub fn matches_type(&self, type_name: ValueType) -> bool {
         match type_name {
