@@ -122,8 +122,14 @@ impl ArithmeticOperationExt for Object {
 }
 
 impl IndexingOperationExt for Object {
-    fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
-        self.inner().get(index).cloned().ok_or(Error::Index {
+    fn get_index(&self, index: &Value) -> Result<&Value, crate::Error> {
+        self.inner().get(index).ok_or(Error::Index {
+            key: index.to_string(),
+        })
+    }
+
+    fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
+        self.inner_mut().get_mut(index).ok_or(Error::Index {
             key: index.to_string(),
         })
     }

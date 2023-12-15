@@ -69,10 +69,21 @@ impl ArithmeticOperationExt for Array {
 }
 
 impl IndexingOperationExt for Array {
-    fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
+    fn get_index(&self, index: &Value) -> Result<&Value, crate::Error> {
         let index = *Int::try_from(index.clone())?.inner() as usize;
         if let Some(value) = self.inner().get(index) {
-            Ok(value.clone())
+            Ok(value)
+        } else {
+            Err(Error::Index {
+                key: index.to_string(),
+            })?
+        }
+    }
+
+    fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
+        let index = *Int::try_from(index.clone())?.inner() as usize;
+        if let Some(value) = self.inner_mut().get_mut(index) {
+            Ok(value)
         } else {
             Err(Error::Index {
                 key: index.to_string(),

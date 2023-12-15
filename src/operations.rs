@@ -164,7 +164,10 @@ pub trait BooleanOperationExt {
 /// Indexing operation trait
 pub trait IndexingOperationExt {
     /// Get a value from an index
-    fn get_index(&self, index: &Value) -> Result<Value, crate::Error>;
+    fn get_index(&self, index: &Value) -> Result<&Value, crate::Error>;
+
+    /// Get a value from an index, mutably
+    fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error>;
 
     /// Set a value at an index
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error>;

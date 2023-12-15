@@ -54,34 +54,3 @@ impl ArithmeticOperationExt for Str {
         Ok(result.into())
     }
 }
-
-impl IndexingOperationExt for Str {
-    fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
-        let chars = self
-            .inner()
-            .chars()
-            .map(|c| Value::from(c.to_string()))
-            .collect::<Vec<_>>();
-        let chars = Value::from(chars);
-        chars.get_index(index)
-    }
-
-    fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
-        let chars = self
-            .inner()
-            .chars()
-            .map(|c| Value::from(c.to_string()))
-            .collect::<Vec<_>>();
-        let mut chars = Value::from(chars);
-        chars.set_index(index, value)?;
-
-        let str = Array::try_from(chars)?
-            .inner()
-            .iter()
-            .map(|v| v.to_string())
-            .collect::<String>();
-        self.inner_mut().clear();
-        self.inner_mut().push_str(str.as_str());
-        Ok(())
-    }
-}

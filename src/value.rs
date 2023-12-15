@@ -481,9 +481,8 @@ impl BitwiseOperationExt for Value {
 }
 
 impl IndexingOperationExt for Value {
-    fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
+    fn get_index(&self, index: &Value) -> Result<&Value, crate::Error> {
         match self {
-            Value::String(v) => v.get_index(index),
             Value::Array(v) => v.get_index(index),
             Value::Object(v) => v.get_index(index),
 
@@ -494,9 +493,20 @@ impl IndexingOperationExt for Value {
         }
     }
 
+    fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
+        match self {
+            Value::Array(v) => v.get_index_mut(index),
+            Value::Object(v) => v.get_index_mut(index),
+
+            _ => Err(Error::ValueType {
+                actual_type: self.own_type(),
+                expected_type: ValueType::Compound,
+            })?,
+        }
+    }
+
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
         match self {
-            Value::String(v) => v.set_index(index, value),
             Value::Array(v) => v.set_index(index, value),
             Value::Object(v) => v.set_index(index, value),
 
