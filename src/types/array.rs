@@ -93,7 +93,7 @@ impl IndexingOperationExt for Array {
 
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
         let index = *Int::try_from(index.clone())?.inner() as usize;
-        if index > 0 && index <= self.inner().len() {
+        if index >= 0 && index <= self.inner().len() {
             self.inner_mut().insert(index, value);
             Ok(())
         } else {
