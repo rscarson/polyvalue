@@ -473,7 +473,9 @@ impl BitwiseOperationExt for Value {
             BitwiseOperation::Xor => left ^ right,
             BitwiseOperation::LeftShift => left << right,
             BitwiseOperation::RightShift => left >> right,
-            BitwiseOperation::Not => !left,
+
+            // This is to remove the side-effects of the way the ints are stored
+            BitwiseOperation::Not => left ^ (std::u64::MAX >> left.leading_zeros()) as IntInner,
         };
 
         Ok(result.into())
