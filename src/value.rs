@@ -402,21 +402,39 @@ impl Ord for Value {
 
 impl BooleanOperationExt for Value {
     fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Self, Error> {
-        let left = *Bool::try_from(left.clone())?.inner();
-        let right = *Bool::try_from(right.clone())?.inner();
-        let result = match operation {
-            BooleanOperation::And => left && right,
-            BooleanOperation::Or => left || right,
-            BooleanOperation::LT => left < right,
-            BooleanOperation::GT => left > right,
-            BooleanOperation::LTE => left <= right,
-            BooleanOperation::GTE => left >= right,
-            BooleanOperation::EQ => left == right,
-            BooleanOperation::NEQ => left != right,
-            BooleanOperation::Not => !left,
-        };
+        let (left, right) = left.resolve(right)?;
+        match (left, right) {
+            (Value::Bool(l), Value::Bool(r)) => Bool::boolean_op(&l, &r, operation).map(Into::into),
+            (Value::Fixed(l), Value::Fixed(r)) => {
+                Fixed::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (Value::Float(l), Value::Float(r)) => {
+                Float::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (Value::Currency(l), Value::Currency(r)) => {
+                Currency::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (Value::Int(l), Value::Int(r)) => Int::boolean_op(&l, &r, operation).map(Into::into),
+            (Value::String(l), Value::String(r)) => {
+                Str::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (Value::Array(l), Value::Array(r)) => {
+                Array::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (Value::Object(l), Value::Object(r)) => {
+                Object::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            _ => Err(Error::Internal(
+                "Invalid type combination during boolean operation".to_string(),
+            )),
+        }
+    }
 
-        Ok(result.into())
+    fn boolean_not(&self) -> Result<Value, crate::Error>
+    where
+        Self: Sized,
+    {
+        Self::boolean_op(self, &self.clone(), BooleanOperation::Not)
     }
 }
 
@@ -450,11 +468,17 @@ impl ArithmeticOperationExt for Value {
             (Value::Object(l), Value::Object(r)) => {
                 Object::arithmetic_op(&l, &r, operation).map(Into::into)
             }
-            _ => Err(Error::UnsupportedOperation {
-                operation: operation,
-                actual_type: ValueType::Any,
-            }),
+            _ => Err(Error::Internal(
+                "Invalid type combination during arithmetic operation".to_string(),
+            )),
         }
+    }
+
+    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    where
+        Self: Sized,
+    {
+        Self::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
     }
 }
 
@@ -480,6 +504,13 @@ impl BitwiseOperationExt for Value {
 
         Ok(result.into())
     }
+
+    fn bitwise_not(&self) -> Result<Self, crate::Error>
+    where
+        Self: Sized,
+    {
+        Self::bitwise_op(self, &self.clone(), BitwiseOperation::Not)
+    }
 }
 
 impl IndexingOperationExt for Value {
@@ -495,10 +526,34 @@ impl IndexingOperationExt for Value {
         }
     }
 
+    fn get_indices(&self, index: &Value) -> Result<Vec<&Value>, crate::Error> {
+        match self {
+            Value::Array(v) => v.get_indices(index),
+            Value::Object(v) => v.get_indices(index),
+
+            _ => Err(Error::ValueType {
+                actual_type: self.own_type(),
+                expected_type: ValueType::Compound,
+            })?,
+        }
+    }
+
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
         match self {
             Value::Array(v) => v.get_index_mut(index),
             Value::Object(v) => v.get_index_mut(index),
+
+            _ => Err(Error::ValueType {
+                actual_type: self.own_type(),
+                expected_type: ValueType::Compound,
+            })?,
+        }
+    }
+
+    fn get_indices_mut(&mut self, index: &Value) -> Result<Vec<&mut Value>, crate::Error> {
+        match self {
+            Value::Array(v) => v.get_indices_mut(index),
+            Value::Object(v) => v.get_indices_mut(index),
 
             _ => Err(Error::ValueType {
                 actual_type: self.own_type(),

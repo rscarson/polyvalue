@@ -1,4 +1,12 @@
-use crate::{operations::*, types::*, Value, ValueTrait};
+//! Currency type
+//!
+//! This is a wrapper around `Fixed` that adds a currency symbol
+//!
+//! Like all subtypes, it is hashable, serializable, and fully comparable
+//! It is represented as a string in the form of `<symbol><value>`
+//!
+use crate::{operations::*, types::*, Error, Value, ValueTrait};
+use fpdec::Decimal;
 use serde::{Deserialize, Serialize};
 
 /// Inner type of `Currency`
@@ -94,11 +102,50 @@ impl ArithmeticOperationExt for Currency {
         left: &Self,
         right: &Self,
         operation: ArithmeticOperation,
-    ) -> Result<Self, crate::Error> {
+    ) -> Result<Self, Error> {
         let symbol = left.symbol().clone();
         let left = left.inner().value();
         let right = right.inner().value();
         let result = Fixed::arithmetic_op(left, right, operation)?;
         Ok(Currency::with_symbol(symbol, result))
+    }
+
+    fn arithmetic_neg(&self) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        Currency::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
+    }
+}
+
+impl BooleanOperationExt for Currency {
+    fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
+        let result = match operation {
+            BooleanOperation::And => {
+                *left.inner().value().inner() == Decimal::ZERO
+                    && *right.inner().value().inner() == Decimal::ZERO
+            }
+            BooleanOperation::Or => {
+                *left.inner().value().inner() == Decimal::ZERO
+                    || *right.inner().value().inner() == Decimal::ZERO
+            }
+
+            BooleanOperation::LT => *left.inner() < *right.inner(),
+            BooleanOperation::GT => *left.inner() > *right.inner(),
+            BooleanOperation::LTE => *left.inner() <= *right.inner(),
+            BooleanOperation::GTE => *left.inner() >= *right.inner(),
+            BooleanOperation::EQ => *left.inner() == *right.inner(),
+            BooleanOperation::NEQ => *left.inner() != *right.inner(),
+            BooleanOperation::Not => *left.inner().value().inner() != Decimal::ZERO,
+        };
+
+        Ok(result.into())
+    }
+
+    fn boolean_not(&self) -> Result<Value, Error>
+    where
+        Self: Sized,
+    {
+        Currency::boolean_op(self, &self.clone(), BooleanOperation::Not)
     }
 }

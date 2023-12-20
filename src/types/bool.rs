@@ -1,3 +1,10 @@
+//! `Bool` type
+//!
+//! This type wraps a `bool`. All other types can be successfully converted to a `Bool`:
+//!
+//! Like all subtypes, it is hashable, serializable, and fully comparable
+//! It is represented as a string in the form of `true` or `false`
+//!
 use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use fpdec::Decimal;
 use serde::{Deserialize, Serialize};
@@ -73,5 +80,37 @@ impl ArithmeticOperationExt for Bool {
         let right = Int::try_from(Value::from(right.clone()))?;
         let result = Int::arithmetic_op(&left, &right, operation)?;
         Ok(Value::from(result).try_into()?)
+    }
+
+    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    where
+        Self: Sized,
+    {
+        Bool::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
+    }
+}
+
+impl BooleanOperationExt for Bool {
+    fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
+        let result = match operation {
+            BooleanOperation::And => *left.inner() && *right.inner(),
+            BooleanOperation::Or => *left.inner() || *right.inner(),
+            BooleanOperation::LT => *left.inner() < *right.inner(),
+            BooleanOperation::GT => *left.inner() > *right.inner(),
+            BooleanOperation::LTE => *left.inner() <= *right.inner(),
+            BooleanOperation::GTE => *left.inner() >= *right.inner(),
+            BooleanOperation::EQ => *left.inner() == *right.inner(),
+            BooleanOperation::NEQ => *left.inner() != *right.inner(),
+            BooleanOperation::Not => !*left.inner(),
+        };
+
+        Ok(result.into())
+    }
+
+    fn boolean_not(&self) -> Result<Value, crate::Error>
+    where
+        Self: Sized,
+    {
+        Bool::boolean_op(self, &self.clone(), BooleanOperation::Not)
     }
 }

@@ -5,6 +5,10 @@ use thiserror::Error;
 /// Error type for Polyvalue
 #[derive(Error, Debug)]
 pub enum Error {
+    /// An error caused by a fault within Polyvalue
+    #[error("internal error: {0}")]
+    Internal(String),
+
     /// An error caused by attempting to use an operator on
     /// the wrong type
     #[error("could not perform arithmetic {operation} on {actual_type}")]

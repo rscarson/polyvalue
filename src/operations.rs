@@ -47,11 +47,42 @@ impl std::fmt::Display for ArithmeticOperation {
 /// Trait for arithmetic operations
 pub trait ArithmeticOperationExt {
     /// Perform an arithmetic operation on two values
+    /// If the operation is not supported on the given type,
+    /// an `Error::UnsupportedOperation` will be returned
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::operations::{ArithmeticOperation, ArithmeticOperationExt};
+    ///
+    /// let a = Value::from(1);
+    /// let b = Value::from(2);
+    ///
+    /// let result = Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
+    /// assert_eq!(result, Value::from(3));
+    /// ```
     fn arithmetic_op(
         left: &Self,
         right: &Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error>
+    where
+        Self: Sized;
+
+    /// Perform an arithmetic negation on a value
+    /// This is equivalent to `arithmetic_op with ArithmeticOperation::Negate`
+    /// but is provided for convenience
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::operations::{ArithmeticOperation, ArithmeticOperationExt};
+    ///
+    /// let a = Value::from(1);
+    /// let result = a.arithmetic_neg().unwrap();
+    /// assert_eq!(result, Value::from(-1));
+    /// ```
+    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
     where
         Self: Sized;
 }
@@ -94,11 +125,46 @@ impl std::fmt::Display for BitwiseOperation {
 /// Trait for bitwise operations
 pub trait BitwiseOperationExt {
     /// Perform a bitwise operation on two values
+    /// If the operation is not supported on the given type,
+    /// an `Error::UnsupportedOperation` will be returned
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::operations::{BitwiseOperation, BitwiseOperationExt};
+    ///
+    /// let a = Value::from(0x0F);
+    /// let b = Value::from(0xF0);
+    ///
+    /// let result = Value::bitwise_op(&a, &b, BitwiseOperation::And).unwrap();
+    /// assert_eq!(result, Value::from(0x00));
+    /// ```
     fn bitwise_op(
         left: &Self,
         right: &Self,
         operation: BitwiseOperation,
     ) -> Result<Self, crate::Error>
+    where
+        Self: Sized;
+
+    /// Perform a bitwise not on a value
+    /// This is equivalent to `bitwise_op with BitwiseOperation::Not`
+    /// but is provided for convenience
+    ///
+    /// Please note that a mask is applied to the result of this operation
+    /// in order to ensure that the result is the same size as the input
+    /// and correct for the way the underlying data is stored
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::operations::{BitwiseOperation, BitwiseOperationExt};
+    ///
+    /// let a = Value::from(0xA0);
+    ///
+    /// let result = a.bitwise_not().unwrap();
+    /// assert_eq!(result, Value::from(0x5F));
+    fn bitwise_not(&self) -> Result<Self, crate::Error>
     where
         Self: Sized;
 }
@@ -152,11 +218,43 @@ impl std::fmt::Display for BooleanOperation {
 /// Trait for boolean operations
 pub trait BooleanOperationExt {
     /// Perform a boolean operation on two values
+    /// If the operation is not supported on the given type,
+    /// an `Error::UnsupportedOperation` will be returned
+    ///
+    /// This type of operation will always return a boolean value
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::operations::{BooleanOperation, BooleanOperationExt};
+    ///
+    /// let a = Value::from(1);
+    /// let b = Value::from(2);
+    ///
+    /// let result = Value::boolean_op(&a, &b, BooleanOperation::LT).unwrap();
+    /// assert_eq!(result, Value::from(true));
     fn boolean_op(
         left: &Self,
         right: &Self,
         operation: BooleanOperation,
-    ) -> Result<Self, crate::Error>
+    ) -> Result<Value, crate::Error>
+    where
+        Self: Sized;
+
+    /// Perform a boolean not on a value
+    /// This is equivalent to `boolean_op with BooleanOperation::Not`
+    /// but is provided for convenience
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::operations::{BooleanOperation, BooleanOperationExt};
+    ///
+    /// let a = Value::from(true);
+    /// let result = a.boolean_not().unwrap();
+    /// assert_eq!(result, Value::from(false));
+    /// ```
+    fn boolean_not(&self) -> Result<Value, crate::Error>
     where
         Self: Sized;
 }
@@ -164,11 +262,68 @@ pub trait BooleanOperationExt {
 /// Indexing operation trait
 pub trait IndexingOperationExt {
     /// Get a value from an index
+    /// Returns a reference to the value, or an `Error::Index` if the index is not found
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::types::{Object};
+    /// use polyvalue::operations::{IndexingOperationExt};
+    ///
+    /// let a = Value::from(vec![1.into(), 2.into(), 3.into()]);
+    /// let index = Value::from(1);
+    /// let result = a.get_index(&index).unwrap();
+    /// assert_eq!(result, &Value::from(2));
+    ///
+    /// let b = Object::from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]);
+    /// let index = Value::from("b");
+    /// let result = b.get_index(&index).unwrap();
+    /// assert_eq!(result, &Value::from(2));
+    /// ```
     fn get_index(&self, index: &Value) -> Result<&Value, crate::Error>;
 
-    /// Get a value from an index, mutably
+    /// Get values from one or more indices
+    /// Returns a vector of references to the values, or an `Error::Index` if any of the indices are not found
+    ///
+    /// Acts as a convenience wrapper around `get_index` where array values are treated as a set of indices
+    fn get_indices(&self, index: &Value) -> Result<Vec<&Value>, crate::Error>;
+
+    /// Get a value from an index
+    /// Returns a mutable reference to the value, or an `Error::Index` if the index is not found
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::types::{Object};
+    /// use polyvalue::operations::{IndexingOperationExt};
+    ///
+    /// let mut b = Object::from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]);
+    /// let index = Value::from("b");
+    /// let result = b.get_index_mut(&index).unwrap();
+    /// *result = Value::from(3);
+    ///
+    /// assert_eq!(b.get_index(&index).unwrap(), &Value::from(3));
+    /// ```
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error>;
 
+    /// Get values from one or more indices, mutably
+    /// Returns a vector of references to the values, or an `Error::Index` if any of the indices are not found
+    ///
+    /// Acts as a convenience wrapper around `get_index` where array values are treated as a set of indices
+    fn get_indices_mut(&mut self, index: &Value) -> Result<Vec<&mut Value>, crate::Error>;
+
     /// Set a value at an index
+    /// Returns an `Error::Index` if the index is not found
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::operations::{IndexingOperationExt};
+    ///
+    /// let mut a = Value::from(vec![1.into(), 2.into(), 3.into()]);
+    /// let index = Value::from(1);
+    /// a.set_index(&index, Value::from(4)).unwrap();
+    /// assert_eq!(a.get_index(&index).unwrap(), &Value::from(4));
+    /// ```
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error>;
 }
