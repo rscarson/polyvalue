@@ -654,3 +654,504 @@ impl IndexingOperationExt for Value {
         }
     }
 }
+
+//
+// Tests
+//
+
+#[cfg(test)]
+mod test {
+    use fpdec::Decimal;
+
+    use crate::CurrencyInner;
+
+    use super::*;
+
+    #[test]
+    fn test_resolve() {
+        let a = Value::from(1.0);
+        let b = Value::from(2);
+        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        assert!(a.own_type() == ValueType::Float);
+        assert!(b.own_type() == ValueType::Float);
+
+        let a = Value::from(1);
+        let b = Value::from(2);
+        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        assert!(a.own_type() == ValueType::Int);
+        assert!(b.own_type() == ValueType::Int);
+
+        let a = Value::from("abc");
+        let b = Value::from(2);
+        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        assert!(a.own_type() == ValueType::String);
+        assert!(b.own_type() == ValueType::String);
+
+        let a = Value::from(1);
+        let b = Value::from(vec![Value::from(1)]);
+        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        assert!(a.own_type() == ValueType::Array);
+        assert!(b.own_type() == ValueType::Array);
+
+        let a = Value::from(vec![Value::from(1)]);
+        let b = Value::from(vec![(Value::from("a"), Value::from(1))]);
+        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        assert!(a.own_type() == ValueType::Object);
+        assert!(b.own_type() == ValueType::Object);
+
+        let a = Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO)));
+        let b = Value::from(Fixed::from(Decimal::ZERO));
+        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        assert!(a.own_type() == ValueType::Fixed);
+        assert!(b.own_type() == ValueType::Fixed);
+    }
+
+    #[test]
+    fn test_own_type() {
+        assert_eq!(Value::from(false).own_type(), ValueType::Bool);
+        assert_eq!(Value::from(1.0).own_type(), ValueType::Float);
+        assert_eq!(Value::from(1).own_type(), ValueType::Int);
+        assert_eq!(Value::from("abc").own_type(), ValueType::String);
+        assert_eq!(
+            Value::from(vec![Value::from(1)]).own_type(),
+            ValueType::Array
+        );
+        assert_eq!(
+            Value::from(vec![(Value::from("a"), Value::from(1))]).own_type(),
+            ValueType::Object
+        );
+
+        assert_eq!(
+            Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO))).own_type(),
+            ValueType::Currency
+        );
+
+        assert_eq!(
+            Value::from(Fixed::from(Decimal::ZERO)).own_type(),
+            ValueType::Fixed
+        );
+    }
+
+    #[test]
+    fn either_type() {
+        let a = Value::from(1.0);
+        let b = Value::from(2);
+        assert!(a.either_type(&b, ValueType::Float));
+
+        let a = Value::from(1);
+        let b = Value::from(2);
+        assert!(a.either_type(&b, ValueType::Int));
+
+        let a = Value::from("abc");
+        let b = Value::from(2);
+        assert!(a.either_type(&b, ValueType::String));
+
+        let a = Value::from(vec![Value::from(1)]);
+        let b = Value::from(2);
+        assert!(a.either_type(&b, ValueType::Compound));
+    }
+
+    #[test]
+    fn test_as_a() {
+        let value = Value::from(1.0);
+        let int = value
+            .as_a::<Int>()
+            .expect("Value could not be converted to int!");
+        assert_eq!(int, Int::from(1));
+
+        let value = Value::from(1);
+        let float = value
+            .as_a::<Float>()
+            .expect("Value could not be converted to float!");
+        assert_eq!(float, Float::from(1.0));
+
+        let value = Value::from("error");
+        value
+            .as_a::<Float>()
+            .expect_err("Value should not be convertible to float!");
+
+        let value = Value::from(1.0);
+        let object = value
+            .as_a::<Object>()
+            .expect("Value could not be converted to object!");
+        assert_eq!(
+            object,
+            Object::from(vec![(Value::from("0"), Value::from(1.0))])
+        );
+    }
+
+    #[test]
+    fn test_is_a() {
+        let value = Value::from(1.0);
+        assert!(!value.is_a(ValueType::Int));
+
+        let value = Value::from(1);
+        assert!(value.is_a(ValueType::Int));
+
+        let value = Value::from("abc");
+        assert!(value.is_a(ValueType::String));
+
+        let value = Value::from(vec![Value::from(1)]);
+        assert!(value.is_a(ValueType::Array));
+        assert!(value.is_a(ValueType::Compound));
+        assert!(!value.is_a(ValueType::Object));
+    }
+
+    #[test]
+    fn test_as_type() {
+        let value = Value::from(1.0);
+        let int = value
+            .as_type(ValueType::Int)
+            .expect("Value could not be converted to int!");
+        assert_eq!(int, Value::from(1));
+
+        let value = Value::from(1);
+        let float = value
+            .as_type(ValueType::Float)
+            .expect("Value could not be converted to float!");
+        assert_eq!(float, Value::from(1.0));
+
+        let value = Value::from("error");
+        value
+            .as_type(ValueType::Float)
+            .expect_err("Value should not be convertible to float!");
+
+        let value = Value::from(1.0);
+        value
+            .as_type(ValueType::Compound)
+            .expect_err("Value should not be convertible to compound!");
+    }
+
+    #[test]
+    fn test_type_for_comparison() {
+        // int/float = float
+        let a = Value::from(1.0);
+        let b = Value::from(2);
+        assert_eq!(a.type_for_comparison(&b), ValueType::Float);
+
+        // int/bool = int
+        let a = Value::from(1);
+        let b = Value::from(true);
+        assert_eq!(a.type_for_comparison(&b), ValueType::Int);
+
+        // int/string = string
+        let a = Value::from(1);
+        let b = Value::from("abc");
+        assert_eq!(a.type_for_comparison(&b), ValueType::String);
+
+        // int/array = array
+        let a = Value::from(1);
+        let b = Value::from(vec![Value::from(1)]);
+        assert_eq!(a.type_for_comparison(&b), ValueType::Array);
+
+        // array/object = object
+        let a = Value::from(vec![Value::from(1)]);
+        let b = Value::from(vec![(Value::from("a"), Value::from(1))]);
+        assert_eq!(a.type_for_comparison(&b), ValueType::Object);
+
+        // int/currency = currency
+        let a = Value::from(1);
+        let b = Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO)));
+        assert_eq!(a.type_for_comparison(&b), ValueType::Currency);
+
+        // fixed/currency = fixed
+        let a = Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO)));
+        let b = Value::from(Fixed::from(Decimal::ZERO));
+        assert_eq!(a.type_for_comparison(&b), ValueType::Fixed);
+    }
+
+    #[test]
+    fn test_display() {
+        assert_eq!(Value::from(1.0).to_string(), "1.0");
+        assert_eq!(Value::from(1).to_string(), "1");
+        assert_eq!(Value::from("abc").to_string(), "abc");
+        assert_eq!(Value::from(vec![Value::from(1)]).to_string(), "[1]");
+        assert_eq!(
+            Value::from(vec![(Value::from("a"), Value::from(1))]).to_string(),
+            "{a: 1}"
+        );
+
+        assert_eq!(Value::from(true).to_string(), "true");
+        assert_eq!(Value::from(false).to_string(), "false");
+
+        assert_eq!(
+            Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO))).to_string(),
+            "$0.00"
+        );
+    }
+
+    #[test]
+    fn test_ord() {
+        // 2 of the same - string to string
+        assert!(Value::from("abc") < Value::from("def"));
+        assert!(Value::from("def") > Value::from("abc"));
+        assert!(Value::from("abc") == Value::from("abc"));
+
+        // 2 different, but comparable - float to int
+        assert!(Value::from(1.0) < Value::from(2));
+        assert!(Value::from(2.0) > Value::from(1));
+        assert!(Value::from(1.0) == Value::from(1));
+
+        // int to string should work as string to string
+        assert!(Value::from(1) < Value::from("def"));
+        assert!(Value::from(1) == Value::from("1"));
+
+        // 2 different, not comparable - big array to int
+        assert!(Value::from(vec![Value::from(1), Value::from(2)]) > Value::from(1));
+
+        // object to array
+        assert!(
+            Value::from(vec![(Value::from("a"), Value::from(1))])
+                > Value::from(vec![Value::from(1), Value::from(2)])
+        );
+    }
+
+    #[test]
+    fn test_eq() {
+        // 2 of the same - string to string
+        assert_eq!(Value::from("abc"), Value::from("abc"));
+        assert_ne!(Value::from("cba"), Value::from("abc"));
+
+        // 2 different, but comparable - float to int
+        assert_eq!(Value::from(1.0), Value::from(1));
+        assert_ne!(Value::from(1.0), Value::from(2));
+
+        // 2 different, not comparable - big array to int
+        assert_ne!(
+            Value::from(vec![Value::from(1), Value::from(2)]),
+            Value::from(1)
+        );
+
+        // object to array
+        assert_ne!(
+            Value::from(vec![(Value::from("a"), Value::from(1))]),
+            Value::from(vec![Value::from(1), Value::from(2)])
+        );
+    }
+
+    #[test]
+    fn test_arithmetic_op() {
+        let a = Value::from(10);
+        let b = Value::from(5.0);
+
+        assert_eq!(
+            Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap(),
+            Value::from(15)
+        );
+
+        assert_eq!(
+            Value::arithmetic_op(&a, &b, ArithmeticOperation::Subtract).unwrap(),
+            Value::from(5)
+        );
+
+        assert_eq!(
+            Value::arithmetic_op(&a, &b, ArithmeticOperation::Multiply).unwrap(),
+            Value::from(50)
+        );
+
+        assert_eq!(
+            Value::arithmetic_op(&a, &b, ArithmeticOperation::Divide).unwrap(),
+            Value::from(2)
+        );
+
+        assert_eq!(
+            Value::arithmetic_op(&a, &b, ArithmeticOperation::Modulo).unwrap(),
+            Value::from(0)
+        );
+
+        assert_eq!(
+            Value::arithmetic_op(&a, &b, ArithmeticOperation::Exponentiate).unwrap(),
+            Value::from(100000)
+        );
+
+        assert_eq!(
+            Value::arithmetic_op(&a, &b, ArithmeticOperation::Negate).unwrap(),
+            Value::from(-10)
+        );
+    }
+
+    #[test]
+    fn test_boolean_logic() {
+        let a = Value::from(true);
+        let b = Value::from(0);
+
+        assert_eq!(
+            Value::boolean_op(&a, &b, BooleanOperation::And).unwrap(),
+            Value::from(false)
+        );
+
+        assert_eq!(
+            Value::boolean_op(&a, &b, BooleanOperation::Or).unwrap(),
+            Value::from(true)
+        );
+
+        assert_eq!(
+            Value::boolean_op(&a, &b, BooleanOperation::Not).unwrap(),
+            Value::from(false)
+        );
+
+        assert_eq!(
+            Value::boolean_op(&a, &b, BooleanOperation::LT).unwrap(),
+            Value::from(false)
+        );
+
+        assert_eq!(
+            Value::boolean_op(&a, &b, BooleanOperation::GT).unwrap(),
+            Value::from(true)
+        );
+
+        assert_eq!(
+            Value::boolean_op(&a, &b, BooleanOperation::LTE).unwrap(),
+            Value::from(false)
+        );
+
+        assert_eq!(
+            Value::boolean_op(&a, &b, BooleanOperation::GTE).unwrap(),
+            Value::from(true)
+        );
+
+        assert_eq!(
+            Value::boolean_op(&a, &b, BooleanOperation::EQ).unwrap(),
+            Value::from(false)
+        );
+
+        assert_eq!(
+            Value::boolean_op(&a, &b, BooleanOperation::NEQ).unwrap(),
+            Value::from(true)
+        );
+    }
+
+    #[test]
+    fn test_indexing() {
+        // Get index on array
+        let array = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
+        let v = array.get_index(&Value::from(1)).unwrap();
+        assert_eq!(v, &Value::from(2));
+
+        // Get index on object
+        let object = Value::from(vec![(Value::from("a"), Value::from(1))]);
+        let v = object.get_index(&Value::from("a")).unwrap();
+        assert_eq!(v, &Value::from(1));
+
+        // Get index on string
+        Value::from("abc")
+            .get_index(&Value::from(1))
+            .expect_err("Expected error");
+
+        // Get indices on array
+        let array = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
+        let v = array
+            .get_indices(&Value::from(vec![Value::from(0), Value::from(1)]))
+            .unwrap();
+        assert_eq!(v, vec![&Value::from(1), &Value::from(2)]);
+
+        // Get indices on object
+        let object = Value::from(vec![
+            (Value::from("a"), Value::from(1)),
+            (Value::from("b"), Value::from(2)),
+        ]);
+        let v = object
+            .get_indices(&Value::from(vec![Value::from("a"), Value::from("b")]))
+            .unwrap();
+        assert_eq!(v, vec![&Value::from(1), &Value::from(2)]);
+
+        // Get indices on int
+        Value::from(1)
+            .get_indices(&Value::from(vec![Value::from(0), Value::from(1)]))
+            .expect_err("Expected error");
+
+        // Get index_mut on array
+        let mut array = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
+        let v = array.get_index_mut(&Value::from(1)).unwrap();
+        assert_eq!(v, &mut Value::from(2));
+
+        // Get index_mut on object
+        let mut object = Value::from(vec![(Value::from("a"), Value::from(1))]);
+        let v = object.get_index_mut(&Value::from("a")).unwrap();
+        assert_eq!(v, &mut Value::from(1));
+
+        // Get index_mut on string
+        Value::from("abc")
+            .get_index_mut(&Value::from(1))
+            .expect_err("Expected error");
+
+        // Get indices_mut on array
+        let mut array = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
+        let v = array
+            .get_indices_mut(&Value::from(vec![Value::from(0), Value::from(1)]))
+            .unwrap();
+        assert_eq!(v, vec![&mut Value::from(1), &mut Value::from(2)]);
+
+        // Get indices_mut on object
+        let mut object = Value::from(vec![
+            (Value::from("a"), Value::from(1)),
+            (Value::from("b"), Value::from(2)),
+        ]);
+        let v = object
+            .get_indices_mut(&Value::from(vec![Value::from("a"), Value::from("b")]))
+            .unwrap();
+        assert_eq!(v, vec![&mut Value::from(1), &mut Value::from(2)]);
+
+        // Get indices_mut on int
+        Value::from(1)
+            .get_indices_mut(&Value::from(vec![Value::from(0), Value::from(1)]))
+            .expect_err("Expected error");
+
+        // Set index on array
+        let mut array = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
+        array.set_index(&Value::from(1), Value::from(4)).unwrap();
+        assert_eq!(
+            array,
+            Value::from(vec![Value::from(1), Value::from(4), Value::from(3)])
+        );
+
+        // Set index on object
+        let mut object = Value::from(vec![(Value::from("a"), Value::from(1))]);
+        object.set_index(&Value::from("a"), Value::from(2)).unwrap();
+        assert_eq!(
+            object,
+            Value::from(vec![(Value::from("a"), Value::from(2))])
+        );
+
+        // Set index on float
+        Value::from(1)
+            .set_index(&Value::from(1), Value::from(2))
+            .expect_err("Expected error");
+    }
+
+    #[test]
+    fn test_bitwise_op() {
+        let l = Value::from(0b1010);
+        let r = Value::from(0b1100);
+
+        assert_eq!(
+            Value::bitwise_op(&l, &r, BitwiseOperation::And).unwrap(),
+            Value::from(0b1000)
+        );
+
+        assert_eq!(
+            Value::bitwise_op(&l, &r, BitwiseOperation::Or).unwrap(),
+            Value::from(0b1110)
+        );
+
+        assert_eq!(
+            Value::bitwise_op(&l, &r, BitwiseOperation::Xor).unwrap(),
+            Value::from(0b0110)
+        );
+
+        assert_eq!(
+            Value::bitwise_op(&l, &Value::from(2), BitwiseOperation::LeftShift).unwrap(),
+            Value::from(0b101000)
+        );
+
+        assert_eq!(
+            Value::bitwise_op(&l, &Value::from(2), BitwiseOperation::RightShift).unwrap(),
+            Value::from(0b10)
+        );
+
+        assert_eq!(
+            Value::bitwise_op(&l, &r, BitwiseOperation::Not).unwrap(),
+            Value::from(0b0101)
+        );
+    }
+}
