@@ -114,3 +114,112 @@ impl BooleanOperationExt for Bool {
         Bool::boolean_op(self, &self.clone(), BooleanOperation::Not)
     }
 }
+
+//
+// Tests
+//
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_arithmetic() {
+        let result = Bool::arithmetic_op(
+            &Bool::from(true),
+            &Bool::from(true),
+            ArithmeticOperation::Add,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true));
+    }
+
+    #[test]
+    fn test_boolean_logic() {
+        let result =
+            Bool::boolean_op(&Bool::from(true), &Bool::from(true), BooleanOperation::And).unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result =
+            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::And).unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result =
+            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::Or).unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result =
+            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::LT).unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result =
+            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::GT).unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result =
+            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::LTE).unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result =
+            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::GTE).unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result =
+            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::EQ).unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result =
+            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::NEQ).unwrap();
+        assert_eq!(result, Bool::from(true).into());
+    }
+
+    #[test]
+    fn test_to_string() {
+        assert_eq!(Bool::from(true).to_string(), "true");
+        assert_eq!(Bool::from(false).to_string(), "false");
+    }
+
+    #[test]
+    fn test_from() {
+        assert_eq!(Bool::from(true), Bool::from(true));
+        assert_eq!(Bool::from(false), Bool::from(false));
+
+        // Try-From other types
+        assert_eq!(Bool::try_from(Value::from(1)).unwrap(), Bool::from(true));
+        assert_eq!(Bool::try_from(Value::from(0)).unwrap(), Bool::from(false));
+
+        assert_eq!(Bool::try_from(Value::from(1.0)).unwrap(), Bool::from(true));
+        assert_eq!(Bool::try_from(Value::from(0.0)).unwrap(), Bool::from(false));
+
+        assert_eq!(
+            Bool::try_from(Value::from(Decimal::from_str("1.0").unwrap())).unwrap(),
+            Bool::from(true)
+        );
+        assert_eq!(
+            Bool::try_from(Value::from(Decimal::from_str("0.0").unwrap())).unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(
+            Bool::try_from(Value::from("true")).unwrap(),
+            Bool::from(true)
+        );
+        assert_eq!(Bool::try_from(Value::from("")).unwrap(), Bool::from(false));
+
+        let array: Vec<Value> = vec![1.into(), 2.into(), 3.into()];
+        assert_eq!(
+            Bool::try_from(Value::from(array)).unwrap(),
+            Bool::from(true)
+        );
+        let array: Vec<Value> = vec![];
+        assert_eq!(
+            Bool::try_from(Value::from(array)).unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(
+            Bool::try_from(Value::from(vec![(1.into(), 2.into())])).unwrap(),
+            Bool::from(true)
+        );
+    }
+}

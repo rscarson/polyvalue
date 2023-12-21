@@ -1,9 +1,13 @@
+//! This module defines the `Value` type, and the `ValueTrait` trait.
+//! The `Value` type is an enum that can hold any of the supported value types.
+//!
 use crate::operations::*;
 use crate::types::*;
 use crate::Error;
 use serde::{Deserialize, Serialize};
 
 /// A trait that all values must implement
+/// It enforces a set of common traits and accessors
 pub trait ValueTrait<T>:
     std::fmt::Display
     + std::fmt::Debug
@@ -26,6 +30,22 @@ pub trait ValueTrait<T>:
 }
 
 /// The set of types that can be used as values
+/// Bool, Fixed, Float, Currency, Int, String, Array, Object represent real types
+/// whereas Numeric, Compound, and Any are virtual types representing a set of types
+///
+/// Numeric is a set of Fixed, Float, Currency, and Int
+/// Compound is a set of Array and Object
+/// Any is a set of all types
+///
+/// When operations are performed on values, the type of the result is determined
+/// using the following order of priority:
+/// - Object
+/// - Array
+/// - String
+/// - Fixed
+/// - Float
+/// - Int
+/// - Bool
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
 pub enum ValueType {
     /// A boolean value
@@ -212,9 +232,9 @@ impl Value {
         }
     }
 
-    /// Returns the type of the value
+    /// returns true if either value is of the given type
     pub fn either_type(&self, other: &Self, match_on: ValueType) -> bool {
-        self.own_type() == match_on || other.own_type() == match_on
+        self.is_a(match_on) || other.is_a(match_on)
     }
 
     /// Resolves the type of two values based on a priority system:
@@ -248,12 +268,16 @@ impl Value {
         } else if self.either_type(other, ValueType::Bool) {
             return ValueType::Bool;
         } else {
-            // Unreachable
-            return ValueType::Any;
+            panic!(
+                "Type {:?} was not recognized; this should never happen",
+                self
+            );
         }
     }
 
     /// Resolves a value to the given type
+    /// Will fail if the value cannot be converted to the given type,
+    /// or if type_name is not a real type (Numeric, Compound, or Any)
     pub fn resolve_to(&self, type_name: ValueType) -> Result<Value, Error> {
         let value = match type_name {
             ValueType::Bool => Bool::try_from(self.clone())?.into(),
@@ -275,12 +299,25 @@ impl Value {
     }
 
     /// Resolves a value to the given type
+    /// Use with the types defined in [`crate::types`]
+    ///
+    /// Useful for enforcing a specific type, when you still wish to allow type-cooersion
+    /// Float to Int, for example
+    ///
+    /// # Example
+    /// ```rust
+    /// use polyvalue::Value;
+    /// use polyvalue::types::Int;
+    ///
+    /// let value = Value::from(1.0);
+    /// let int = value.as_a::<Int>().expect("Value could not be converted to int!");
+    /// ```
     pub fn as_a<T: std::convert::TryFrom<Value, Error = Error>>(&self) -> Result<T, Error> {
         T::try_from(self.clone())
     }
 
     /// Returns true if the value is of the given type
-    pub fn matches_type(&self, type_name: ValueType) -> bool {
+    pub fn is_a(&self, type_name: ValueType) -> bool {
         match type_name {
             ValueType::Numeric => {
                 Int::try_from(self.clone()).is_ok()
@@ -315,6 +352,8 @@ impl std::fmt::Display for Value {
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
+        println!("Comparing {:?} and {:?}", self, other);
+
         if let Ok((a, b)) = self.resolve(other) {
             match a.own_type() {
                 ValueType::Bool => Bool::try_from(a).unwrap() == Bool::try_from(b).unwrap(),

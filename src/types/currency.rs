@@ -62,8 +62,13 @@ map_value!(
     from = Currency,
     handle_into = |v: Currency| Value::Currency(v),
     handle_from = |v: Value| {
-        let value = Fixed::try_from(v)?;
-        Ok(Currency::without_symbol(value))
+        match v {
+            Value::Currency(v) => Ok(v),
+            _ => {
+                let value = Fixed::try_from(v)?;
+                Ok(Currency::without_symbol(value))
+            }
+        }
     }
 );
 

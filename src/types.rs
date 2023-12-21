@@ -10,6 +10,20 @@
 //! - [`Str`](crate::types::Str)
 //! - [`Array`](crate::types::Array)
 //! - [`Object`](crate::types::Object)
+//!
+//! See the individual types for more information.
+//!
+//! All subtypes wrap an inner type, which is accessible via the `inner()` method.
+//! and for most types is defined as a type alias, such as [`IntInner`](crate::types::IntInner).
+//!
+//! ## Type conversion
+//! All types implement the [`TryFrom`](std::convert::From) trait, allowing them to be converted
+//! to and from the [`Value`](crate::Value) type.
+//!
+//! Any of the operations listed in [operations](crate::operations) can be performed on 2 values of
+//! the same type, or on Value directly, which will determine the best type to use for the operation
+//! and attempt to convert both values to that type.
+//!
 mod array;
 pub use array::{Array, ArrayInner};
 

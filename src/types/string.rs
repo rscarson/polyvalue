@@ -199,6 +199,10 @@ impl BooleanOperationExt for Str {
     }
 }
 
+//
+// Tests
+//
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -228,5 +232,91 @@ mod test {
         let mut s = Str::from("S👋🌎");
         s.set_index(&2.into()..&2.into(), "B".into()).unwrap();
         assert_eq!(s, "S👋B".into());
+    }
+
+    #[test]
+    fn test_arithmetic() {
+        let result = Str::arithmetic_op(
+            &Str::from("Hello, "),
+            &Str::from("world!"),
+            ArithmeticOperation::Add,
+        )
+        .unwrap();
+        assert_eq!(result, Str::from("Hello, world!"));
+
+        let result = Str::arithmetic_op(
+            &Str::from("Hello, world!"),
+            &Str::from("d!"),
+            ArithmeticOperation::Subtract,
+        )
+        .unwrap();
+        assert_eq!(result, Str::from("Hello, worl"));
+    }
+
+    #[test]
+    fn test_boolean_logic() {
+        let result = Str::boolean_op(
+            &Str::from("Hello, "),
+            &Str::from("world!"),
+            BooleanOperation::And,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Str::boolean_op(
+            &Str::from("Hello, "),
+            &Str::from("world!"),
+            BooleanOperation::Or,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Str::boolean_op(
+            &Str::from("Hello, "),
+            &Str::from("world!"),
+            BooleanOperation::LT,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Str::boolean_op(
+            &Str::from("Hello, "),
+            &Str::from("world!"),
+            BooleanOperation::GT,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result = Str::boolean_op(
+            &Str::from("Hello, "),
+            &Str::from("world!"),
+            BooleanOperation::LTE,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Str::boolean_op(
+            &Str::from("Hello, "),
+            &Str::from("world!"),
+            BooleanOperation::GTE,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result = Str::boolean_op(
+            &Str::from("Hello, "),
+            &Str::from("world!"),
+            BooleanOperation::EQ,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result = Str::boolean_op(
+            &Str::from("Hello, "),
+            &Str::from("world!"),
+            BooleanOperation::NEQ,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
     }
 }

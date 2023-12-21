@@ -2,7 +2,7 @@ use crate::operations::*;
 use crate::ValueType;
 use thiserror::Error;
 
-/// Error type for Polyvalue
+/// This type is used for all errors that can be returned by Polyvalue
 #[derive(Error, Debug)]
 pub enum Error {
     /// An error caused by a fault within Polyvalue

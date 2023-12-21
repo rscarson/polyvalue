@@ -216,6 +216,8 @@ impl IndexingOperationExt for Array {
 
 #[cfg(test)]
 mod test {
+    use fpdec::{Dec, Decimal};
+
     use super::*;
 
     #[test]
@@ -243,5 +245,128 @@ mod test {
         // test set_index
         array.set_index(&0.into(), 5.into()).unwrap();
         assert_eq!(array.get_index(&0.into()).unwrap(), &5.into());
+    }
+
+    #[test]
+    fn test_arithmetic() {
+        let array = Array::from(vec![1.into(), 2.into(), 3.into()]);
+        assert_eq!(
+            Array::arithmetic_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                ArithmeticOperation::Add
+            )
+            .unwrap(),
+            Array::from(vec![
+                1.into(),
+                2.into(),
+                3.into(),
+                1.into(),
+                2.into(),
+                3.into()
+            ])
+        );
+    }
+
+    #[test]
+    fn test_boolean_logic() {
+        let array = Array::from(vec![1.into(), 2.into(), 3.into()]);
+        assert_eq!(
+            Array::boolean_op(&array, &Array::from(vec![]), BooleanOperation::And).unwrap(),
+            false.into()
+        );
+        assert_eq!(
+            Array::boolean_op(&array, &Array::from(vec![]), BooleanOperation::Or).unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::boolean_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                BooleanOperation::LT
+            )
+            .unwrap(),
+            false.into()
+        );
+        assert_eq!(
+            Array::boolean_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                BooleanOperation::GT
+            )
+            .unwrap(),
+            false.into()
+        );
+        assert_eq!(
+            Array::boolean_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                BooleanOperation::LTE
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::boolean_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                BooleanOperation::GTE
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::boolean_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                BooleanOperation::EQ
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::boolean_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                BooleanOperation::NEQ
+            )
+            .unwrap(),
+            false.into()
+        );
+    }
+
+    #[test]
+    fn test_to_string() {
+        let array = Array::from(vec![1.into(), 2.into(), 3.into()]);
+        assert_eq!(array.to_string(), "[1, 2, 3]");
+    }
+
+    #[test]
+    fn test_from() {
+        let array = Array::from(vec![1.into(), 2.into(), 3.into()]);
+        assert_eq!(array, vec![1.into(), 2.into(), 3.into()].into());
+
+        let array = Array::try_from(Value::from(1)).unwrap();
+        assert_eq!(array, vec![1.into()].into());
+
+        let array = Array::try_from(Value::from(1.0)).unwrap();
+        assert_eq!(array, vec![1.0.into()].into());
+
+        let array = Array::try_from(Value::from(Dec!(1.0))).unwrap();
+        assert_eq!(array, vec![Dec!(1.0).into()].into());
+
+        let currency = Currency::without_symbol(Dec!(1.0).into());
+        let array = Array::try_from(Value::from(currency.clone())).unwrap();
+        assert_eq!(array, vec![currency.into()].into());
+
+        let array = Array::try_from(Value::from("hello")).unwrap();
+        assert_eq!(array, vec!["hello".into()].into());
+
+        let array = Array::try_from(Value::from(true)).unwrap();
+        assert_eq!(array, vec![true.into()].into());
+
+        let object = Object::from(vec![("a".into(), 1.into())]);
+        let array = Array::try_from(Value::from(object.clone())).unwrap();
+        assert_eq!(array, vec![1.into()].into());
     }
 }
