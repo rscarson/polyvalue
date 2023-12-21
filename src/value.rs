@@ -148,19 +148,26 @@ pub enum Value {
 }
 
 impl Value {
-    /// Resolves the type of two values based on a priority system:
-    /// If both values are the same type, return that type
-    /// Otherwise, cooerce both values to the same type using
-    /// the order of priority:
-    /// - Object
-    /// - Array
-    /// - String
-    /// - Fixed
-    /// - Float
-    /// - Int
-    /// - Bool
+    /// Resolves the type of two values based on a priority system.
+    /// If successful, both returned values are guaranteed to be of
+    /// the same type
+    ///
+    /// For details on type resolution, see [`Value::type_for_comparison`]
+    ///
+    /// # Example
+    /// ```rust
+    /// use polyvalue::Value;
+    /// use polyvalue::ValueType;
+    /// use polyvalue::types::Int;
+    ///
+    /// let a = Value::from(1.0);
+    /// let b = Value::from(2);
+    /// let (a, b) = a.resolve(&b).expect("Could not resolve types");
+    /// assert!(a.own_type() == ValueType::Float);
+    /// assert!(b.own_type() == ValueType::Float);
+    /// ```
     pub fn resolve(&self, other: &Self) -> Result<(Value, Value), Error> {
-        let values = match self.resolve_types(other) {
+        let values = match self.type_for_comparison(other) {
             ValueType::Bool => (
                 Bool::try_from(self.clone())?.into(),
                 Bool::try_from(other.clone())?.into(),
@@ -177,18 +184,14 @@ impl Value {
             ),
 
             ValueType::Currency => {
-                let mut values: (Currency, Currency) = (
+                let values: (Currency, Currency) = (
                     Currency::try_from(self.clone())?,
                     Currency::try_from(other.clone())?,
                 );
-                let symbol = if values.0.symbol().is_some() {
-                    values.0.symbol().clone()
-                } else {
-                    values.1.symbol().clone()
-                };
 
-                values.0.set_symbol(symbol.clone());
-                values.1.set_symbol(symbol.clone());
+                // Resolve symbols and precisions too
+                let values = values.0.resolve(&values.1);
+
                 (values.0.into(), values.1.into())
             }
 
@@ -219,6 +222,15 @@ impl Value {
     }
 
     /// Returns the type of the value
+    ///
+    /// # Example
+    /// ```rust
+    /// use polyvalue::Value;
+    /// use polyvalue::ValueType;
+    ///
+    /// let value = Value::from(1.0);
+    /// assert!(value.own_type() == ValueType::Float);
+    /// ```
     pub fn own_type(&self) -> ValueType {
         match self {
             Value::Bool(_) => ValueType::Bool,
@@ -233,11 +245,104 @@ impl Value {
     }
 
     /// returns true if either value is of the given type
+    ///
+    /// # Example
+    /// ```rust
+    /// use polyvalue::Value;
+    /// use polyvalue::ValueType;
+    ///
+    /// let a = Value::from(1.0);
+    /// let b = Value::from(2);
+    /// assert!(a.either_type(&b, ValueType::Float));
+    /// ```
     pub fn either_type(&self, other: &Self, match_on: ValueType) -> bool {
         self.is_a(match_on) || other.is_a(match_on)
     }
 
-    /// Resolves the type of two values based on a priority system:
+    /// Resolves a value to the given type
+    /// Use with the types defined in [`crate::types`]
+    ///
+    /// Useful for enforcing a specific type, when you still wish to allow type-cooersion
+    /// Float to Int, for example
+    ///
+    /// # Example
+    /// ```rust
+    /// use polyvalue::Value;
+    /// use polyvalue::types::Int;
+    ///
+    /// let value = Value::from(1.0);
+    /// let int = value.as_a::<Int>().expect("Value could not be converted to int!");
+    /// ```
+    pub fn as_a<T: std::convert::TryFrom<Value, Error = Error>>(&self) -> Result<T, Error> {
+        T::try_from(self.clone())
+    }
+
+    /// Returns true if the value is of the given type
+    /// Use with the [`ValueType`] enum
+    ///
+    /// # Example
+    /// ```rust
+    /// use polyvalue::Value;
+    /// use polyvalue::ValueType;
+    ///
+    /// let value = Value::from(1.0);
+    /// assert!(!value.is_a(ValueType::Int));
+    /// ```
+    pub fn is_a(&self, type_name: ValueType) -> bool {
+        match type_name {
+            ValueType::Numeric => {
+                Int::try_from(self.clone()).is_ok()
+                    || Float::try_from(self.clone()).is_ok()
+                    || Fixed::try_from(self.clone()).is_ok()
+                    || Currency::try_from(self.clone()).is_ok()
+            }
+            ValueType::Compound => {
+                Array::try_from(self.clone()).is_ok() || Object::try_from(self.clone()).is_ok()
+            }
+            ValueType::Any => true,
+
+            _ => self.own_type() == type_name,
+        }
+    }
+
+    /// Resolves a value to the given type
+    /// Will fail if the value cannot be converted to the given type,
+    /// or if type_name is not a real type (Numeric, Compound, or Any)
+    ///
+    /// Similar to [`Value::as_a`], but for type names in the [`ValueType`] enum
+    /// intead of types in the [`crate::types`] module
+    ///
+    /// # Example
+    /// ```rust
+    /// use polyvalue::Value;
+    /// use polyvalue::ValueType;
+    ///
+    /// let value = Value::from(1.0);
+    /// let int = value.as_type(ValueType::Int).expect("Value could not be converted to int!");
+    /// ```
+    pub fn as_type(&self, type_name: ValueType) -> Result<Value, Error> {
+        let value = match type_name {
+            ValueType::Bool => Bool::try_from(self.clone())?.into(),
+            ValueType::Fixed => Fixed::try_from(self.clone())?.into(),
+            ValueType::Float => Float::try_from(self.clone())?.into(),
+            ValueType::Currency => Currency::try_from(self.clone())?.into(),
+            ValueType::Int => Int::try_from(self.clone())?.into(),
+            ValueType::String => Str::try_from(self.clone())?.into(),
+            ValueType::Array => Array::try_from(self.clone())?.into(),
+            ValueType::Object => Object::try_from(self.clone())?.into(),
+            _ => {
+                return Err(Error::ValueConversion {
+                    src_type: self.own_type(),
+                    dst_type: type_name,
+                })
+            }
+        };
+        Ok(value)
+    }
+
+    /// Resolves the type of two values based on a priority system
+    /// in order to determine how 2 values should be compared
+    ///
     /// If both values are the same type, return that type
     /// Otherwise, cooerce both values to the same type using
     /// the order of priority:
@@ -248,7 +353,7 @@ impl Value {
     /// - Float
     /// - Int
     /// - Bool
-    pub fn resolve_types(&self, other: &Self) -> ValueType {
+    pub fn type_for_comparison(&self, other: &Self) -> ValueType {
         if self.own_type() == other.own_type() {
             return self.own_type();
         } else if self.either_type(other, ValueType::Object) {
@@ -274,65 +379,6 @@ impl Value {
             );
         }
     }
-
-    /// Resolves a value to the given type
-    /// Will fail if the value cannot be converted to the given type,
-    /// or if type_name is not a real type (Numeric, Compound, or Any)
-    pub fn resolve_to(&self, type_name: ValueType) -> Result<Value, Error> {
-        let value = match type_name {
-            ValueType::Bool => Bool::try_from(self.clone())?.into(),
-            ValueType::Fixed => Fixed::try_from(self.clone())?.into(),
-            ValueType::Float => Float::try_from(self.clone())?.into(),
-            ValueType::Currency => Currency::try_from(self.clone())?.into(),
-            ValueType::Int => Int::try_from(self.clone())?.into(),
-            ValueType::String => Str::try_from(self.clone())?.into(),
-            ValueType::Array => Array::try_from(self.clone())?.into(),
-            ValueType::Object => Object::try_from(self.clone())?.into(),
-            _ => {
-                return Err(Error::ValueConversion {
-                    src_type: self.own_type(),
-                    dst_type: type_name,
-                })
-            }
-        };
-        Ok(value)
-    }
-
-    /// Resolves a value to the given type
-    /// Use with the types defined in [`crate::types`]
-    ///
-    /// Useful for enforcing a specific type, when you still wish to allow type-cooersion
-    /// Float to Int, for example
-    ///
-    /// # Example
-    /// ```rust
-    /// use polyvalue::Value;
-    /// use polyvalue::types::Int;
-    ///
-    /// let value = Value::from(1.0);
-    /// let int = value.as_a::<Int>().expect("Value could not be converted to int!");
-    /// ```
-    pub fn as_a<T: std::convert::TryFrom<Value, Error = Error>>(&self) -> Result<T, Error> {
-        T::try_from(self.clone())
-    }
-
-    /// Returns true if the value is of the given type
-    pub fn is_a(&self, type_name: ValueType) -> bool {
-        match type_name {
-            ValueType::Numeric => {
-                Int::try_from(self.clone()).is_ok()
-                    || Float::try_from(self.clone()).is_ok()
-                    || Fixed::try_from(self.clone()).is_ok()
-                    || Currency::try_from(self.clone()).is_ok()
-            }
-            ValueType::Compound => {
-                Array::try_from(self.clone()).is_ok() || Object::try_from(self.clone()).is_ok()
-            }
-            ValueType::Any => true,
-
-            _ => self.resolve_to(type_name).is_ok(),
-        }
-    }
 }
 
 impl std::fmt::Display for Value {
@@ -352,21 +398,16 @@ impl std::fmt::Display for Value {
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        println!("Comparing {:?} and {:?}", self, other);
-
         if let Ok((a, b)) = self.resolve(other) {
-            match a.own_type() {
-                ValueType::Bool => Bool::try_from(a).unwrap() == Bool::try_from(b).unwrap(),
-                ValueType::Fixed => Fixed::try_from(a).unwrap() == Fixed::try_from(b).unwrap(),
-                ValueType::Float => Float::try_from(a).unwrap() == Float::try_from(b).unwrap(),
-                ValueType::Currency => {
-                    Currency::try_from(a).unwrap() == Currency::try_from(b).unwrap()
-                }
-                ValueType::Int => Int::try_from(a).unwrap() == Int::try_from(b).unwrap(),
-                ValueType::String => Str::try_from(a).unwrap() == Str::try_from(b).unwrap(),
-                ValueType::Array => Array::try_from(a).unwrap() == Array::try_from(b).unwrap(),
-                ValueType::Object => Object::try_from(a).unwrap() == Object::try_from(b).unwrap(),
-
+            match (a, b) {
+                (Value::Bool(a), Value::Bool(b)) => a == b,
+                (Value::Fixed(a), Value::Fixed(b)) => a == b,
+                (Value::Float(a), Value::Float(b)) => a == b,
+                (Value::Currency(a), Value::Currency(b)) => a == b,
+                (Value::Int(a), Value::Int(b)) => a == b,
+                (Value::String(a), Value::String(b)) => a == b,
+                (Value::Array(a), Value::Array(b)) => a == b,
+                (Value::Object(a), Value::Object(b)) => a == b,
                 _ => false,
             }
         } else {

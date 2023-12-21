@@ -4,7 +4,7 @@
 //!
 //! Like all subtypes, it is hashable, serializable, and fully comparable
 //! It is represented as a string in the form of `<value>`
-//! 
+//!
 use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -15,7 +15,19 @@ pub type FloatInner = f64;
 /// Subtype of `Value` that represents a float
 #[derive(PartialOrd, Clone, Serialize, Deserialize, Default, Debug)]
 pub struct Float(FloatInner);
-impl_value!(Float, FloatInner, |v: &Self| v.inner().to_string());
+impl_value!(Float, FloatInner, |v: &Self| {
+    let mut v = *v.inner();
+    if v == -0.0 {
+        v = 0.0;
+    }
+
+    let mut f = format!("{:}", v);
+    if !f.contains('.') {
+        f += ".0";
+    }
+
+    f
+});
 
 map_value!(
     from = Float,
@@ -156,8 +168,8 @@ impl ArithmeticOperationExt for Float {
 impl BooleanOperationExt for Float {
     fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
         let result = match operation {
-            BooleanOperation::And => *left.inner() == 0.0 && *right.inner() == 0.0,
-            BooleanOperation::Or => *left.inner() == 0.0 || *right.inner() == 0.0,
+            BooleanOperation::And => *left.inner() != 0.0 && *right.inner() != 0.0,
+            BooleanOperation::Or => *left.inner() != 0.0 || *right.inner() != 0.0,
 
             BooleanOperation::LT => *left.inner() < *right.inner(),
             BooleanOperation::GT => *left.inner() > *right.inner(),
@@ -165,7 +177,7 @@ impl BooleanOperationExt for Float {
             BooleanOperation::GTE => *left.inner() >= *right.inner(),
             BooleanOperation::EQ => *left.inner() == *right.inner(),
             BooleanOperation::NEQ => *left.inner() != *right.inner(),
-            BooleanOperation::Not => *left.inner() != 0.0,
+            BooleanOperation::Not => *left.inner() == 0.0,
         };
 
         Ok(result.into())
@@ -176,5 +188,161 @@ impl BooleanOperationExt for Float {
         Self: Sized,
     {
         Float::boolean_op(self, &self.clone(), BooleanOperation::Not)
+    }
+}
+
+//
+// Tests
+//
+
+#[cfg(test)]
+mod test {
+    use fpdec::{Dec, Decimal};
+
+    use super::*;
+
+    #[test]
+    fn test_arithmetic() {
+        let a = Float::from(1.0);
+        let b = Float::from(2.0);
+
+        assert_eq!(
+            Float::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap(),
+            Float::from(3.0)
+        );
+        assert_eq!(
+            Float::arithmetic_op(&a, &b, ArithmeticOperation::Subtract).unwrap(),
+            Float::from(-1.0)
+        );
+        assert_eq!(
+            Float::arithmetic_op(&a, &b, ArithmeticOperation::Multiply).unwrap(),
+            Float::from(2.0)
+        );
+        assert_eq!(
+            Float::arithmetic_op(&a, &b, ArithmeticOperation::Divide).unwrap(),
+            Float::from(0.5)
+        );
+        assert_eq!(
+            Float::arithmetic_op(&a, &b, ArithmeticOperation::Modulo).unwrap(),
+            Float::from(1.0)
+        );
+        assert_eq!(
+            Float::arithmetic_op(&a, &b, ArithmeticOperation::Exponentiate).unwrap(),
+            Float::from(1.0)
+        );
+        assert_eq!(
+            Float::arithmetic_op(&a, &b, ArithmeticOperation::Negate).unwrap(),
+            Float::from(-1.0)
+        );
+    }
+
+    #[test]
+    fn test_boolean_logic() {
+        let a = Float::from(1.0);
+        let b = Float::from(2.0);
+
+        assert_eq!(
+            Float::boolean_op(&a, &b, BooleanOperation::And).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Float::boolean_op(&a, &b, BooleanOperation::Or).unwrap(),
+            Value::from(true)
+        );
+
+        assert_eq!(
+            Float::boolean_op(&a, &b, BooleanOperation::LT).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Float::boolean_op(&a, &b, BooleanOperation::GT).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            Float::boolean_op(&a, &b, BooleanOperation::LTE).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Float::boolean_op(&a, &b, BooleanOperation::GTE).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            Float::boolean_op(&a, &b, BooleanOperation::EQ).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            Float::boolean_op(&a, &b, BooleanOperation::NEQ).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Float::boolean_op(&a, &b, BooleanOperation::Not).unwrap(),
+            Value::from(false)
+        );
+    }
+
+    #[test]
+    fn test_to_string() {
+        let a = Float::from(1.0);
+        assert_eq!(a.to_string(), "1.0");
+
+        let a = Float::from(1.22);
+        assert_eq!(a.to_string(), "1.22");
+
+        let a = Float::from(-0.0);
+        assert_eq!(a.to_string(), "0.0");
+    }
+
+    #[test]
+    fn test_from() {
+        assert_eq!(Float::try_from(Value::from(1.0)).unwrap(), Float::from(1.0));
+        assert_eq!(Float::try_from(Value::from(1)).unwrap(), Float::from(1.0));
+        assert_eq!(
+            Float::try_from(Value::from(Dec!(1.0))).unwrap(),
+            Float::from(1.0)
+        );
+        assert_eq!(
+            Float::try_from(Value::from(true)).unwrap(),
+            Float::from(1.0)
+        );
+        Float::try_from(Value::from("")).expect_err("Should fail");
+        assert_eq!(
+            Float::try_from(Value::from(Currency::from_fixed(Fixed::from(Dec!(1.0))))).unwrap(),
+            Float::from(1.0)
+        );
+
+        // Array with 1 element
+        assert_eq!(
+            Float::try_from(Value::from(vec![Value::from(1.0)])).unwrap(),
+            Float::from(1.0)
+        );
+
+        // Object with 1 element
+        assert_eq!(
+            Float::try_from(Value::from(vec![(Value::from(1), Value::from(1.0))])).unwrap(),
+            Float::from(1.0)
+        );
+
+        // Array with more than 1 element should fail
+        Float::try_from(Value::from(vec![Value::from(1.0), Value::from(2.0)]))
+            .expect_err("Should fail");
+
+        // Object with more than 1 element should fail
+        Float::try_from(Value::from(vec![
+            (Value::from(1), Value::from(1.0)),
+            (Value::from(2), Value::from(2.0)),
+        ]))
+        .expect_err("Should fail");
+    }
+
+    #[test]
+    fn test_parse() {
+        assert_eq!("1.0".parse::<Float>().unwrap(), Float::from(1.0));
+        assert_eq!("1".parse::<Float>().unwrap(), Float::from(1.0));
+        assert_eq!("1.22".parse::<Float>().unwrap(), Float::from(1.22));
+        assert_eq!("-1.22".parse::<Float>().unwrap(), Float::from(-1.22));
+        assert_eq!("0.0".parse::<Float>().unwrap(), Float::from(0.0));
+        assert_eq!("-0.0".parse::<Float>().unwrap(), Float::from(-0.0));
+        assert!("".parse::<Float>().is_err());
+        assert!("a".parse::<Float>().is_err());
     }
 }

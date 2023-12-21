@@ -222,4 +222,13 @@ mod test {
             Bool::from(true)
         );
     }
+
+    #[test]
+    fn test_parse() {
+        assert_eq!("true".parse::<Bool>().unwrap(), Bool::from(true));
+        assert_eq!("false".parse::<Bool>().unwrap(), Bool::from(false));
+        assert!("".parse::<Bool>().is_err());
+        assert!("1".parse::<Bool>().is_err());
+        assert!("0".parse::<Bool>().is_err());
+    }
 }

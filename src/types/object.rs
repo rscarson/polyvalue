@@ -373,26 +373,13 @@ mod test {
             &Object::from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
+                (Value::Int(2.into()), Value::Int(2.into())),
             ]),
             &Object::from(vec![
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
             ]),
             BooleanOperation::GT,
-        )
-        .unwrap();
-        assert_eq!(result, Value::from(true));
-
-        let result = Object::boolean_op(
-            &Object::from(vec![
-                (Value::Int(0.into()), Value::Int(1.into())),
-                (Value::Int(1.into()), Value::Int(2.into())),
-            ]),
-            &Object::from(vec![
-                (Value::Int(0.into()), Value::Int(3.into())),
-                (Value::Int(1.into()), Value::Int(4.into())),
-            ]),
-            BooleanOperation::LTE,
         )
         .unwrap();
         assert_eq!(result, Value::from(false));
@@ -406,10 +393,24 @@ mod test {
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
             ]),
-            BooleanOperation::GTE,
+            BooleanOperation::LTE,
         )
         .unwrap();
         assert_eq!(result, Value::from(true));
+
+        let result = Object::boolean_op(
+            &Object::from(vec![
+                (Value::Int(0.into()), Value::Int(1.into())),
+                (Value::Int(1.into()), Value::Int(2.into())),
+            ]),
+            &Object::from(vec![
+                (Value::Int(0.into()), Value::Int(3.into())),
+                (Value::Int(1.into()), Value::Int(4.into())),
+            ]),
+            BooleanOperation::GTE,
+        )
+        .unwrap();
+        assert_eq!(result, Value::from(false));
 
         let result = Object::boolean_op(
             &Object::from(vec![
@@ -491,10 +492,7 @@ mod test {
         );
 
         assert_eq!(
-            Object::try_from(Value::from(Currency::without_symbol(Fixed::from(Dec!(
-                1.0
-            )))))
-            .unwrap(),
+            Object::try_from(Value::from(Currency::from_fixed(Fixed::from(Dec!(1.0))))).unwrap(),
             Object::from(vec![(Value::Int(0.into()), Value::Float(1.0.into()))])
         );
 

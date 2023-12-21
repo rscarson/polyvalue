@@ -355,7 +355,7 @@ mod test {
         let array = Array::try_from(Value::from(Dec!(1.0))).unwrap();
         assert_eq!(array, vec![Dec!(1.0).into()].into());
 
-        let currency = Currency::without_symbol(Dec!(1.0).into());
+        let currency = Currency::from_fixed(Dec!(1.0).into());
         let array = Array::try_from(Value::from(currency.clone())).unwrap();
         assert_eq!(array, vec![currency.into()].into());
 

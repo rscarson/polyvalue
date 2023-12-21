@@ -152,8 +152,8 @@ impl ArithmeticOperationExt for Int {
 impl BooleanOperationExt for Int {
     fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
         let result = match operation {
-            BooleanOperation::And => *left.inner() == 0 && *right.inner() == 0,
-            BooleanOperation::Or => *left.inner() == 0 || *right.inner() == 0,
+            BooleanOperation::And => *left.inner() != 0 && *right.inner() != 0,
+            BooleanOperation::Or => *left.inner() != 0 || *right.inner() != 0,
 
             BooleanOperation::LT => *left.inner() < *right.inner(),
             BooleanOperation::GT => *left.inner() > *right.inner(),
@@ -161,7 +161,7 @@ impl BooleanOperationExt for Int {
             BooleanOperation::GTE => *left.inner() >= *right.inner(),
             BooleanOperation::EQ => *left.inner() == *right.inner(),
             BooleanOperation::NEQ => *left.inner() != *right.inner(),
-            BooleanOperation::Not => *left.inner() != 0,
+            BooleanOperation::Not => *left.inner() == 0,
         };
 
         Ok(result.into())
@@ -172,5 +172,141 @@ impl BooleanOperationExt for Int {
         Self: Sized,
     {
         Int::boolean_op(self, &self.clone(), BooleanOperation::Not)
+    }
+}
+
+//
+// Tests
+//
+
+#[cfg(test)]
+mod test {
+    use fpdec::{Dec, Decimal};
+
+    use super::*;
+
+    #[test]
+    fn test_arithmetic() {
+        let a = Int::from(10);
+        let b = Int::from(5);
+
+        assert_eq!(
+            Int::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap(),
+            Int::from(15)
+        );
+        assert_eq!(
+            Int::arithmetic_op(&a, &b, ArithmeticOperation::Subtract).unwrap(),
+            Int::from(5)
+        );
+        assert_eq!(
+            Int::arithmetic_op(&a, &b, ArithmeticOperation::Multiply).unwrap(),
+            Int::from(50)
+        );
+        assert_eq!(
+            Int::arithmetic_op(&a, &b, ArithmeticOperation::Divide).unwrap(),
+            Int::from(2)
+        );
+        assert_eq!(
+            Int::arithmetic_op(&a, &b, ArithmeticOperation::Modulo).unwrap(),
+            Int::from(0)
+        );
+        assert_eq!(
+            Int::arithmetic_op(&a, &b, ArithmeticOperation::Exponentiate).unwrap(),
+            Int::from(100000)
+        );
+        assert_eq!(
+            Int::arithmetic_op(&a, &b, ArithmeticOperation::Negate).unwrap(),
+            Int::from(-10)
+        );
+    }
+
+    #[test]
+    fn test_boolean_logic() {
+        let a = Int::from(10);
+        let b = Int::from(5);
+
+        assert_eq!(
+            Int::boolean_op(&a, &b, BooleanOperation::And).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Int::boolean_op(&a, &b, BooleanOperation::Or).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Int::boolean_op(&a, &b, BooleanOperation::LT).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            Int::boolean_op(&a, &b, BooleanOperation::GT).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Int::boolean_op(&a, &b, BooleanOperation::LTE).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            Int::boolean_op(&a, &b, BooleanOperation::GTE).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Int::boolean_op(&a, &b, BooleanOperation::EQ).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            Int::boolean_op(&a, &b, BooleanOperation::NEQ).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Int::boolean_op(&a, &b, BooleanOperation::Not).unwrap(),
+            Value::from(false)
+        );
+    }
+
+    #[test]
+    fn test_to_string() {
+        let a = Int::from(10);
+        assert_eq!(a.to_string(), "10");
+    }
+
+    #[test]
+    fn test_from() {
+        let a = Int::from(10);
+
+        assert_eq!(Value::from(a.clone()), Value::Int(a.clone()));
+
+        assert_eq!(Int::try_from(Value::from(1.0)).unwrap(), Int::from(1));
+        assert_eq!(Int::try_from(Value::from(1)).unwrap(), Int::from(1));
+        assert_eq!(Int::try_from(Value::from(true)).unwrap(), Int::from(1));
+        assert_eq!(Int::try_from(Value::from(Dec!(1.0))).unwrap(), Int::from(1));
+        assert_eq!(
+            Int::try_from(Value::from(Currency::from_fixed(Fixed::from(Dec!(1.0))))).unwrap(),
+            Int::from(1)
+        );
+        Int::try_from(Value::from("")).expect_err("Should fail");
+
+        // Try from array with one float
+        let a = Array::from(vec![Value::from(1.0)]);
+        assert_eq!(Int::try_from(Value::from(a)).unwrap(), Int::from(1));
+
+        // Try from array with multiple floats ( should fail )
+        let a = Array::from(vec![Value::from(1.0), Value::from(2.0)]);
+        Int::try_from(Value::from(a)).expect_err("Should fail");
+
+        // Try from object with one float
+        let mut o = Object::from(vec![("a".into(), Value::from(1.0))]);
+        assert_eq!(Int::try_from(Value::from(o)).unwrap(), Int::from(1));
+
+        // Try from object with multiple floats ( should fail )
+        o = Object::from(vec![
+            ("a".into(), Value::from(1.0)),
+            ("b".into(), Value::from(2.0)),
+        ]);
+        Int::try_from(Value::from(o)).expect_err("Should fail");
+    }
+
+    #[test]
+    fn test_parse() {
+        assert_eq!(Int::from_str("10").unwrap(), Int::from(10));
     }
 }

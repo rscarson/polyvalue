@@ -35,6 +35,9 @@
 #[macro_use]
 mod macros;
 
+mod inner_currency;
+pub use inner_currency::*;
+
 mod error;
 pub use error::Error;
 

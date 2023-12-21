@@ -270,7 +270,7 @@ pub trait IndexingOperationExt {
     /// use polyvalue::types::{Object};
     /// use polyvalue::operations::{IndexingOperationExt};
     ///
-    /// let a = Value::from(vec![1.into(), 2.into(), 3.into()]);
+    /// let a = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
     /// let index = Value::from(1);
     /// let result = a.get_index(&index).unwrap();
     /// assert_eq!(result, &Value::from(2));
@@ -320,7 +320,7 @@ pub trait IndexingOperationExt {
     /// use polyvalue::{Value};
     /// use polyvalue::operations::{IndexingOperationExt};
     ///
-    /// let mut a = Value::from(vec![1.into(), 2.into(), 3.into()]);
+    /// let mut a = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
     /// let index = Value::from(1);
     /// a.set_index(&index, Value::from(4)).unwrap();
     /// assert_eq!(a.get_index(&index).unwrap(), &Value::from(4));

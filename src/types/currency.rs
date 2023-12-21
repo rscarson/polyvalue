@@ -5,58 +5,28 @@
 //! Like all subtypes, it is hashable, serializable, and fully comparable
 //! It is represented as a string in the form of `<symbol><value>`
 //!
-use crate::{operations::*, types::*, Error, Value, ValueTrait};
-use fpdec::Decimal;
+use crate::{operations::*, types::*, CurrencyInner, Error, Value, ValueTrait};
 use serde::{Deserialize, Serialize};
-
-/// Inner type of `Currency`
-#[derive(Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
-pub struct CurrencyInner {
-    symbol: Option<String>,
-    value: Fixed,
-}
-impl CurrencyInner {
-    /// Create a new `Currency` with a symbol
-    pub fn new(symbol: Option<String>, value: Fixed) -> Self {
-        Self { symbol, value }
-    }
-
-    /// Get the symbol of this `Currency`
-    pub fn symbol(&self) -> &Option<String> {
-        &self.symbol
-    }
-
-    /// Set the symbol of this `Currency`
-    pub fn set_symbol(&mut self, symbol: Option<String>) {
-        self.symbol = symbol;
-    }
-
-    /// Get the value of this `Currency`
-    pub fn value(&self) -> &Fixed {
-        &self.value
-    }
-
-    /// Set the value of this `Currency`
-    pub fn set_value(&mut self, value: Fixed) {
-        self.value = value;
-    }
-}
-
-impl PartialEq for CurrencyInner {
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
-    }
-}
+use std::str::FromStr;
 
 /// Subtype of `Value` that represents a currency
 /// This is a wrapper around `Fixed` that adds a currency symbol
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct Currency(CurrencyInner);
-impl_value!(Currency, CurrencyInner, |v: &Self| {
-    let symbol = v.inner().symbol().clone().unwrap_or_default();
-    let value = v.inner().value().to_string();
-    format!("{}{}", symbol, value)
-});
+impl_value!(Currency, CurrencyInner, |v: &Self| v.inner().to_string());
+
+impl Currency {
+    /// Create a new `Currency` from a `Fixed`
+    pub fn from_fixed(value: Fixed) -> Self {
+        Self::from(CurrencyInner::from_fixed(value))
+    }
+
+    /// Resolve the precision of this `Currency` with another `Currency`
+    pub fn resolve(&self, other: &Self) -> (Self, Self) {
+        let (left, right) = self.inner().resolve(other.inner());
+        (Self(left), Self(right))
+    }
+}
 
 map_value!(
     from = Currency,
@@ -66,7 +36,8 @@ map_value!(
             Value::Currency(v) => Ok(v),
             _ => {
                 let value = Fixed::try_from(v)?;
-                Ok(Currency::without_symbol(value))
+                let value = CurrencyInner::from_fixed(value);
+                Ok(Currency(value))
             }
         }
     }
@@ -81,24 +52,27 @@ map_type!(Bool, Currency);
 map_type!(Str, Currency);
 
 impl Currency {
-    /// Create a new `Currency` with a symbol
-    pub fn with_symbol(symbol: Option<String>, value: Fixed) -> Self {
-        Self(CurrencyInner::new(symbol, value))
-    }
-
-    /// Create a new `Currency` without a symbol
-    pub fn without_symbol(value: Fixed) -> Self {
-        Self(CurrencyInner::new(None, value))
-    }
-
     /// Get the symbol of this `Currency`
     pub fn symbol(&self) -> &Option<String> {
         self.inner().symbol()
     }
 
-    /// Set the symbol of this `Currency`
-    pub fn set_symbol(&mut self, symbol: Option<String>) {
-        self.inner_mut().set_symbol(symbol)
+    /// Get the precision of this `Currency`
+    pub fn precision(&self) -> u32 {
+        self.inner().precision()
+    }
+
+    /// Get the value of this `Currency`
+    pub fn value(&self) -> &Fixed {
+        self.inner().value()
+    }
+}
+
+impl FromStr for Currency {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value = CurrencyInner::from_str(s)?;
+        Ok(Currency::from(value))
     }
 }
 
@@ -108,11 +82,10 @@ impl ArithmeticOperationExt for Currency {
         right: &Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, Error> {
-        let symbol = left.symbol().clone();
-        let left = left.inner().value();
-        let right = right.inner().value();
-        let result = Fixed::arithmetic_op(left, right, operation)?;
-        Ok(Currency::with_symbol(symbol, result))
+        let (left, right) = left.inner().resolve(right.inner());
+        let resulting_value = Fixed::arithmetic_op(left.value(), right.value(), operation)?;
+        let result = CurrencyInner::new(left.symbol().clone(), left.precision(), resulting_value);
+        Ok(Currency::from(result))
     }
 
     fn arithmetic_neg(&self) -> Result<Self, Error>
@@ -125,26 +98,7 @@ impl ArithmeticOperationExt for Currency {
 
 impl BooleanOperationExt for Currency {
     fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
-        let result = match operation {
-            BooleanOperation::And => {
-                *left.inner().value().inner() == Decimal::ZERO
-                    && *right.inner().value().inner() == Decimal::ZERO
-            }
-            BooleanOperation::Or => {
-                *left.inner().value().inner() == Decimal::ZERO
-                    || *right.inner().value().inner() == Decimal::ZERO
-            }
-
-            BooleanOperation::LT => *left.inner() < *right.inner(),
-            BooleanOperation::GT => *left.inner() > *right.inner(),
-            BooleanOperation::LTE => *left.inner() <= *right.inner(),
-            BooleanOperation::GTE => *left.inner() >= *right.inner(),
-            BooleanOperation::EQ => *left.inner() == *right.inner(),
-            BooleanOperation::NEQ => *left.inner() != *right.inner(),
-            BooleanOperation::Not => *left.inner().value().inner() != Decimal::ZERO,
-        };
-
-        Ok(result.into())
+        Fixed::boolean_op(left.inner().value(), right.inner().value(), operation)
     }
 
     fn boolean_not(&self) -> Result<Value, Error>
@@ -152,5 +106,194 @@ impl BooleanOperationExt for Currency {
         Self: Sized,
     {
         Currency::boolean_op(self, &self.clone(), BooleanOperation::Not)
+    }
+}
+
+//
+// Tests
+//
+
+#[cfg(test)]
+mod test {
+    use fpdec::{Dec, Decimal};
+
+    use super::*;
+
+    #[test]
+    fn test_arithmetic() {
+        let a = Currency::from_str("$10.00").unwrap();
+        let b = Currency::from_str("$5.00").unwrap();
+
+        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
+        assert_eq!(result.to_string(), "$15.00".to_string());
+
+        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Subtract).unwrap();
+        assert_eq!(result.to_string(), "$5.00".to_string());
+
+        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Multiply).unwrap();
+        assert_eq!(result.to_string(), "$50.00".to_string());
+
+        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Divide).unwrap();
+        assert_eq!(result.to_string(), "$2.00".to_string());
+
+        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Exponentiate).unwrap();
+        assert_eq!(result.to_string(), "$100000.00".to_string());
+
+        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Negate).unwrap();
+        assert_eq!(result.to_string(), "$-10.00".to_string());
+
+        // Different symbols and precisions
+        let a = Currency::from_str("$10.00").unwrap();
+        let b = Currency::from_str("¥5").unwrap();
+        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
+        assert_eq!(result.to_string(), "15.00".to_string());
+    }
+
+    #[test]
+    fn test_boolean_logic() {
+        let result = Currency::boolean_op(
+            &Currency::from_str("$0.00").unwrap(),
+            &Currency::from_str("$0.00").unwrap(),
+            BooleanOperation::And,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result = Currency::boolean_op(
+            &Currency::from_str("$0.00").unwrap(),
+            &Currency::from_str("$1.00").unwrap(),
+            BooleanOperation::Or,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Currency::boolean_op(
+            &Currency::from_str("$1.00").unwrap(),
+            &Currency::from_str("$0.00").unwrap(),
+            BooleanOperation::LT,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result = Currency::boolean_op(
+            &Currency::from_str("$1.00").unwrap(),
+            &Currency::from_str("$0.00").unwrap(),
+            BooleanOperation::GT,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Currency::boolean_op(
+            &Currency::from_str("$0.00").unwrap(),
+            &Currency::from_str("$0.00").unwrap(),
+            BooleanOperation::LTE,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Currency::boolean_op(
+            &Currency::from_str("$0.00").unwrap(),
+            &Currency::from_str("$0.00").unwrap(),
+            BooleanOperation::GTE,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Currency::boolean_op(
+            &Currency::from_str("$0.00").unwrap(),
+            &Currency::from_str("$0.00").unwrap(),
+            BooleanOperation::EQ,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Currency::boolean_op(
+            &Currency::from_str("$0.00").unwrap(),
+            &Currency::from_str("$0.00").unwrap(),
+            BooleanOperation::NEQ,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(false).into());
+    }
+
+    #[test]
+    fn test_to_string() {
+        let value = Currency::from_str("$10.00").unwrap();
+        assert_eq!(value.to_string(), "$10.00".to_string());
+
+        let value = Currency::from_str("10").unwrap();
+        assert_eq!(value.to_string(), "10".to_string());
+
+        let value = Currency::from_str("¥10").unwrap();
+        assert_eq!(value.to_string(), "¥10".to_string());
+
+        let value = Currency::new(CurrencyInner::new(None, 5, Fixed::from(Dec!(10.123456789))));
+        assert_eq!(value.to_string(), "10.12345".to_string());
+    }
+
+    #[test]
+    fn test_from() {
+        assert_eq!(
+            Currency::try_from(Value::from(10)).unwrap(),
+            Currency::from_fixed(Fixed::from(Dec!(10.0)))
+        );
+        assert_eq!(
+            Currency::try_from(Value::from(10.0)).unwrap(),
+            Currency::from_fixed(Fixed::from(Dec!(10.0)))
+        );
+        assert_eq!(
+            Currency::try_from(Value::from(Dec!(10.0))).unwrap(),
+            Currency::from_fixed(Fixed::from(Dec!(10.0)))
+        );
+        assert_eq!(
+            Currency::try_from(Value::from(true)).unwrap(),
+            Currency::from_fixed(Fixed::from(Dec!(1)))
+        );
+
+        // string should fail
+        assert!(Currency::try_from(Value::from("")).is_err());
+
+        // array with 1 element
+        let value = Value::from(vec![Value::from(10)]);
+        assert_eq!(
+            Currency::try_from(value).unwrap(),
+            Currency::from_fixed(Fixed::from(Dec!(10.0)))
+        );
+
+        // array with 2 elements should fail
+        let value = Value::from(vec![Value::from(10), Value::from(10)]);
+        assert!(Currency::try_from(value).is_err());
+
+        // object with 1 element
+        let value = Value::from(vec![("a".into(), Value::from(10))]);
+        assert_eq!(
+            Currency::try_from(value).unwrap(),
+            Currency::from_fixed(Fixed::from(Dec!(10.0)))
+        );
+
+        // object with 2 elements should fail
+        let value = Value::from(vec![
+            ("a".into(), Value::from(10)),
+            ("b".into(), Value::from(10)),
+        ]);
+        assert!(Currency::try_from(value).is_err());
+    }
+
+    #[test]
+    fn test_parse() {
+        let value = Currency::from_str("$10.00").unwrap();
+        assert_eq!(value.symbol(), &Some("$".to_string()));
+        assert_eq!(value.precision(), 2);
+        assert_eq!(*value.value().inner(), Dec!(10.00));
+
+        let value = Currency::from_str("10").unwrap();
+        assert_eq!(value.symbol(), &None);
+        assert_eq!(value.precision(), 0);
+        assert_eq!(*value.value().inner(), Dec!(10));
+
+        let value = Currency::from_str("¥10").unwrap();
+        assert_eq!(value.symbol(), &Some("¥".to_string()));
+        assert_eq!(value.precision(), 0);
+        assert_eq!(*value.value().inner(), Dec!(10));
     }
 }
