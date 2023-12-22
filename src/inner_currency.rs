@@ -2,6 +2,7 @@
 //!
 //! This is a wrapper around `Fixed` that adds a currency symbol and a precision
 //!
+use crate::is_currency::IsCurrency;
 use crate::{types::*, Error, ValueTrait};
 use fpdec::Decimal;
 use serde::{Deserialize, Serialize};
@@ -125,6 +126,7 @@ impl CurrencyInner {
 
     /// Resolve differences in currencies
     /// If the symbols are different, they will be stripped
+    /// If only one symbol is present, it will be used
     /// The precision will be set to the highest precision
     ///
     /// This is used for operations
@@ -132,15 +134,25 @@ impl CurrencyInner {
         let mut left = self.clone();
         let mut right = other.clone();
 
-        if left.symbol != right.symbol {
-            left.symbol = None;
-            right.symbol = None;
+        // resolve symbols
+        match (&left.symbol, &right.symbol) {
+            (Some(_), None) => right.symbol = left.symbol.clone(),
+            (None, Some(_)) => left.symbol = right.symbol.clone(),
+            (Some(_), Some(_)) => {
+                if left.symbol != right.symbol {
+                    left.symbol = None;
+                    right.symbol = None;
+                }
+            }
+            (None, None) => {}
         }
 
+        // resolve precision
         let precision = left.precision.max(right.precision);
         left.precision = precision;
         right.precision = precision;
 
+        // round values
         left.value = left.value.round_to_precision(precision);
         right.value = right.value.round_to_precision(precision);
 
@@ -164,10 +176,6 @@ impl PartialEq for CurrencyInner {
     }
 }
 
-const RECOGNIZED_SYMBOLS: [&str; 18] = [
-    "$", "€", "£", "¥", "₹", "₽", "元", "₩", "kr", "USD", "EUR", "GBP", "JPY", "INR", "RUB", "CNY",
-    "KRW", "SEK",
-];
 impl std::str::FromStr for CurrencyInner {
     type Err = Error;
 
@@ -175,12 +183,10 @@ impl std::str::FromStr for CurrencyInner {
         let mut symbol = None;
         let mut value = s.to_string();
 
-        for recognized_symbol in RECOGNIZED_SYMBOLS.iter() {
-            if value.starts_with(recognized_symbol) || value.ends_with(recognized_symbol) {
-                symbol = Some(recognized_symbol.to_string());
-                value = value.replace(recognized_symbol, "");
-                break;
-            }
+        // Check if the string contains a currency symbol
+        if let Some((i, c)) = s.find_currency_symbol() {
+            symbol = Some(c.to_string());
+            value.remove(i);
         }
 
         let value = Fixed::from_str(&value)?;
@@ -208,17 +214,23 @@ mod test {
 
     #[test]
     fn test_resolve() {
-        let left = CurrencyInner::as_dollars(Fixed::from(Dec!(1.0)));
-        let right = CurrencyInner::as_euros(Fixed::from(Dec!(1.0)));
+        let l = CurrencyInner::from_str("$1.00").unwrap();
+        let r = CurrencyInner::from_str("€1.000").unwrap();
+        let (l, r) = l.resolve(&r);
+        assert_eq!(l.to_string(), "1.000");
+        assert_eq!(r.to_string(), "1.000");
 
-        let (left, right) = left.resolve(&right);
+        let l = CurrencyInner::from_str("$1.00").unwrap();
+        let r = CurrencyInner::from_str("1.0").unwrap();
+        let (l, r) = l.resolve(&r);
+        assert_eq!(l.to_string(), "$1.00");
+        assert_eq!(r.to_string(), "$1.00");
 
-        assert_eq!(left.symbol, None);
-        assert_eq!(right.symbol, None);
-        assert_eq!(left.precision, 2);
-        assert_eq!(right.precision, 2);
-        assert_eq!(left.value, Fixed::from(Dec!(1.0)));
-        assert_eq!(right.value, Fixed::from(Dec!(1.0)));
+        let l = CurrencyInner::from_str("1.00").unwrap();
+        let r = CurrencyInner::from_str("1").unwrap();
+        let (l, r) = l.resolve(&r);
+        assert_eq!(l.to_string(), "1.00");
+        assert_eq!(r.to_string(), "1.00");
     }
 
     #[test]
