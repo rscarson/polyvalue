@@ -105,7 +105,7 @@ impl FromStr for Fixed {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(s.parse::<FixedInner>()?.into())
+        Ok(s.replace(",", "").parse::<FixedInner>()?.into())
     }
 }
 

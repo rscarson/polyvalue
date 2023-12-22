@@ -99,7 +99,7 @@ impl FromStr for Float {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(s.parse::<FloatInner>()?.into())
+        Ok(s.replace(",", "").parse::<FloatInner>()?.into())
     }
 }
 

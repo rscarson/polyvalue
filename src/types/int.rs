@@ -162,7 +162,7 @@ impl FromStr for Int {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(s.parse::<IntInner>()?.into())
+        Ok(s.replace(",", "").parse::<IntInner>()?.into())
     }
 }
 
