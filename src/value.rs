@@ -817,9 +817,19 @@ mod test {
             .expect_err("Value should not be convertible to float!");
 
         let value = Value::from(1.0);
-        value
+        let value = value
             .as_type(ValueType::Compound)
-            .expect_err("Value should not be convertible to compound!");
+            .expect("Value could not be converted to compound!");
+        assert_eq!(
+            value,
+            Value::from(vec![(Value::from("0"), Value::from(1.0))])
+        );
+
+        let value = Value::from(1.0);
+        let value = value
+            .as_type(ValueType::Any)
+            .expect("Value could not be converted to any!");
+        assert_eq!(value, Value::from(1.0));
     }
 
     #[test]
