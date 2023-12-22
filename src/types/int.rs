@@ -18,6 +18,67 @@ pub type IntInner = i64;
 pub struct Int(IntInner);
 impl_value!(Int, IntInner, |v: &Self| v.inner().to_string());
 
+impl Int {
+    /// Creates a new Int from a string representation of a base-n number
+    /// The string must be in the form of `0b<binary>`, `0o<octal>`, `0x<hex>`, or `0<octal>`
+    ///
+    /// # Examples
+    /// ```rust
+    /// use polyvalue::types::Int;
+    ///
+    /// let a = Int::from_str_radix("0b1010").unwrap();
+    /// assert_eq!(a, Int::from(10));
+    ///
+    /// let a = Int::from_str_radix("0o12").unwrap();
+    /// assert_eq!(a, Int::from(10));
+    ///
+    /// let a = Int::from_str_radix("012").unwrap();
+    /// assert_eq!(a, Int::from(10));
+    /// ```
+    pub fn from_str_radix(s: &str) -> Result<Self, Error> {
+        if s.len() < 2 {
+            return Err(Error::ValueConversion {
+                src_type: ValueType::String,
+                dst_type: ValueType::Int,
+            });
+        }
+
+        let mut s = s.trim().to_lowercase();
+        if s.remove(0) != '0' {
+            return Err(Error::ValueConversion {
+                src_type: ValueType::String,
+                dst_type: ValueType::Int,
+            });
+        }
+
+        let prefix = s.remove(0);
+        let radix = match prefix {
+            'b' => 2,
+            'o' => 8,
+            '0'..='7' => {
+                s.insert(0, prefix);
+                8
+            }
+            'x' => 16,
+            _ => {
+                return Err(Error::ValueConversion {
+                    src_type: ValueType::String,
+                    dst_type: ValueType::Int,
+                })
+            }
+        };
+
+        println!("Converting {} to int with radix {}", s, radix);
+
+        let value = IntInner::from_str_radix(&s, radix).map_err(|_| Error::ValueConversion {
+            src_type: ValueType::String,
+            dst_type: ValueType::Int,
+        })?;
+
+        Ok(Int::from(value))
+    }
+}
+
 map_value!(
     from = Int,
     handle_into = |v: Int| Value::Int(v),
@@ -308,5 +369,10 @@ mod test {
     #[test]
     fn test_parse() {
         assert_eq!(Int::from_str("10").unwrap(), Int::from(10));
+
+        assert_eq!(Int::from_str_radix("0b1010").unwrap(), Int::from(10));
+        assert_eq!(Int::from_str_radix("0o12").unwrap(), Int::from(10));
+        assert_eq!(Int::from_str_radix("012").unwrap(), Int::from(10));
+        assert_eq!(Int::from_str_radix("0xFAF").unwrap(), Int::from(4015));
     }
 }
