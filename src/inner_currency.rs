@@ -164,7 +164,10 @@ impl PartialEq for CurrencyInner {
     }
 }
 
-const RECOGNIZED_SYMBOLS: [&str; 9] = ["$", "€", "£", "¥", "₹", "₽", "元", "₩", "kr"];
+const RECOGNIZED_SYMBOLS: [&str; 18] = [
+    "$", "€", "£", "¥", "₹", "₽", "元", "₩", "kr", "USD", "EUR", "GBP", "JPY", "INR", "RUB", "CNY",
+    "KRW", "SEK",
+];
 impl std::str::FromStr for CurrencyInner {
     type Err = Error;
 
@@ -173,7 +176,7 @@ impl std::str::FromStr for CurrencyInner {
         let mut value = s.to_string();
 
         for recognized_symbol in RECOGNIZED_SYMBOLS.iter() {
-            if value.starts_with(recognized_symbol) {
+            if value.starts_with(recognized_symbol) || value.ends_with(recognized_symbol) {
                 symbol = Some(recognized_symbol.to_string());
                 value = value.replace(recognized_symbol, "");
                 break;
@@ -184,5 +187,51 @@ impl std::str::FromStr for CurrencyInner {
         let precision = value.inner().n_frac_digits() as u32;
 
         Ok(Self::new(symbol, precision, value))
+    }
+}
+
+impl From<Fixed> for CurrencyInner {
+    fn from(value: Fixed) -> Self {
+        Self::from_fixed(value)
+    }
+}
+
+//
+// Test
+//
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use fpdec::{Dec, Decimal};
+    use std::str::FromStr;
+
+    #[test]
+    fn test_resolve() {
+        let left = CurrencyInner::as_dollars(Fixed::from(Dec!(1.0)));
+        let right = CurrencyInner::as_euros(Fixed::from(Dec!(1.0)));
+
+        let (left, right) = left.resolve(&right);
+
+        assert_eq!(left.symbol, None);
+        assert_eq!(right.symbol, None);
+        assert_eq!(left.precision, 2);
+        assert_eq!(right.precision, 2);
+        assert_eq!(left.value, Fixed::from(Dec!(1.0)));
+        assert_eq!(right.value, Fixed::from(Dec!(1.0)));
+    }
+
+    #[test]
+    fn test_parse() {
+        let mut currency = CurrencyInner::as_dollars(Fixed::from(Dec!(1.0)));
+        currency.set_precision(4);
+
+        let currency = currency.to_string();
+
+        let currency = CurrencyInner::from_str(&currency).unwrap();
+
+        assert_eq!(currency.symbol, Some("$".to_string()));
+        assert_eq!(currency.precision, 4);
+        assert_eq!(currency.value, Fixed::from(Dec!(1.0)));
     }
 }
