@@ -667,11 +667,9 @@ impl IndexingOperationExt for Value {
 
 #[cfg(test)]
 mod test {
-    use fpdec::Decimal;
-
-    use crate::CurrencyInner;
-
     use super::*;
+    use crate::CurrencyInner;
+    use fpdec::Decimal;
 
     #[test]
     fn test_resolve() {

@@ -4,25 +4,15 @@
 //!
 use crate::is_currency::IsCurrency;
 use crate::{types::*, Error, ValueTrait};
-use fpdec::Decimal;
+use fpdec::Round;
 use serde::{Deserialize, Serialize};
 
 trait RoundToPrecision {
-    fn round_to_precision(&self, precision: u32) -> Self;
-}
-impl RoundToPrecision for Decimal {
-    fn round_to_precision(&self, precision: u32) -> Self {
-        let precision_10s = 10u32.pow(precision);
-        let mut value = self * precision_10s;
-        value = value.floor();
-        value = value / precision_10s;
-
-        value
-    }
+    fn round_to_precision(&self, precision: i8) -> Self;
 }
 impl RoundToPrecision for Fixed {
-    fn round_to_precision(&self, precision: u32) -> Self {
-        Self::from(self.inner().round_to_precision(precision))
+    fn round_to_precision(&self, precision: i8) -> Self {
+        Self::from(self.inner().round(precision))
     }
 }
 
@@ -31,13 +21,17 @@ impl RoundToPrecision for Fixed {
 #[derive(Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct CurrencyInner {
     symbol: Option<String>,
-    precision: u32,
+    precision: i8,
     value: Fixed,
 }
 impl CurrencyInner {
+    const MAX_PRECISION: i8 = 5;
+
     /// Create a new `Currency` from a `Fixed`
+    /// Caps precision at 5, to prevent float silliness
     pub fn from_fixed(value: Fixed) -> Self {
-        Self::new(None, value.inner().n_frac_digits() as u32, value)
+        let value = Fixed::from(value.inner().round(Self::MAX_PRECISION));
+        Self::new(None, value.inner().n_frac_digits() as i8, value)
     }
 
     /// Creates a new dollar currency
@@ -86,7 +80,7 @@ impl CurrencyInner {
     }
 
     /// Create a new `Currency` with a symbol
-    pub fn new(symbol: Option<String>, precision: u32, value: Fixed) -> Self {
+    pub fn new(symbol: Option<String>, precision: i8, value: Fixed) -> Self {
         Self {
             symbol,
             precision,
@@ -115,12 +109,12 @@ impl CurrencyInner {
     }
 
     /// Get the precision of this `Currency`
-    pub fn precision(&self) -> u32 {
+    pub fn precision(&self) -> i8 {
         self.precision
     }
 
     /// Set the precision of this `Currency`
-    pub fn set_precision(&mut self, precision: u32) {
+    pub fn set_precision(&mut self, precision: i8) {
         self.precision = precision;
     }
 
@@ -190,7 +184,7 @@ impl std::str::FromStr for CurrencyInner {
         }
 
         let value = Fixed::from_str(&value)?;
-        let precision = value.inner().n_frac_digits() as u32;
+        let precision = value.inner().n_frac_digits() as i8;
 
         Ok(Self::new(symbol, precision, value))
     }

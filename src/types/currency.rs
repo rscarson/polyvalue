@@ -58,7 +58,7 @@ impl Currency {
     }
 
     /// Get the precision of this `Currency`
-    pub fn precision(&self) -> u32 {
+    pub fn precision(&self) -> i8 {
         self.inner().precision()
     }
 
