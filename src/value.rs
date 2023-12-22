@@ -307,7 +307,11 @@ impl Value {
 
     /// Resolves a value to the given type
     /// Will fail if the value cannot be converted to the given type,
-    /// or if type_name is not a real type (Numeric, Compound, or Any)
+    ///
+    /// For virtual types, the highest-priority match will be used
+    /// For any, the input value will be returned
+    /// For numeric, the value will be converted to fixed
+    /// For compound, the value will be converted to object
     ///
     /// Similar to [`Value::as_a`], but for type names in the [`ValueType`] enum
     /// intead of types in the [`crate::types`] module
@@ -323,19 +327,15 @@ impl Value {
     pub fn as_type(&self, type_name: ValueType) -> Result<Value, Error> {
         let value = match type_name {
             ValueType::Bool => Bool::try_from(self.clone())?.into(),
-            ValueType::Fixed => Fixed::try_from(self.clone())?.into(),
+            ValueType::Fixed | ValueType::Numeric => Fixed::try_from(self.clone())?.into(),
             ValueType::Float => Float::try_from(self.clone())?.into(),
             ValueType::Currency => Currency::try_from(self.clone())?.into(),
             ValueType::Int => Int::try_from(self.clone())?.into(),
             ValueType::String => Str::try_from(self.clone())?.into(),
             ValueType::Array => Array::try_from(self.clone())?.into(),
-            ValueType::Object => Object::try_from(self.clone())?.into(),
-            _ => {
-                return Err(Error::ValueConversion {
-                    src_type: self.own_type(),
-                    dst_type: type_name,
-                })
-            }
+            ValueType::Object | ValueType::Compound => Object::try_from(self.clone())?.into(),
+
+            ValueType::Any => self.clone(),
         };
         Ok(value)
     }
