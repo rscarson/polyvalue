@@ -343,12 +343,18 @@ impl Value {
     /// Resolves the type of two values based on a priority system
     /// in order to determine how 2 values should be compared
     ///
+    /// The priority system is designed to prevent loss of information
+    /// when comparing values of different types
+    /// For example, Object -> Array would lose information on non-numeric keys
+    /// Wheres Array -> Object would not
+    ///
     /// If both values are the same type, return that type
     /// Otherwise, cooerce both values to the same type using
     /// the order of priority:
     /// - Object
     /// - Array
     /// - String
+    /// - Currency
     /// - Fixed
     /// - Float
     /// - Int
@@ -362,12 +368,12 @@ impl Value {
             return ValueType::Array;
         } else if self.either_type(other, ValueType::String) {
             return ValueType::String;
+        } else if self.either_type(other, ValueType::Currency) {
+            return ValueType::Currency;
         } else if self.either_type(other, ValueType::Fixed) {
             return ValueType::Fixed;
         } else if self.either_type(other, ValueType::Float) {
             return ValueType::Float;
-        } else if self.either_type(other, ValueType::Currency) {
-            return ValueType::Currency;
         } else if self.either_type(other, ValueType::Int) {
             return ValueType::Int;
         } else if self.either_type(other, ValueType::Bool) {
