@@ -25,12 +25,10 @@ pub struct CurrencyInner {
     value: Fixed,
 }
 impl CurrencyInner {
-    const MAX_PRECISION: i8 = 5;
-
     /// Create a new `Currency` from a `Fixed`
     /// Caps precision at 5, to prevent float silliness
     pub fn from_fixed(value: Fixed) -> Self {
-        let value = Fixed::from(value.inner().round(Self::MAX_PRECISION));
+        let value = Fixed::from(value); // .round(Self::MAX_PRECISION)
         Self::new(None, value.inner().n_frac_digits() as i8, value)
     }
 
@@ -202,6 +200,8 @@ impl From<Fixed> for CurrencyInner {
 
 #[cfg(test)]
 mod test {
+    use crate::Value;
+
     use super::*;
     use fpdec::{Dec, Decimal};
     use std::str::FromStr;
@@ -239,5 +239,20 @@ mod test {
         assert_eq!(currency.symbol, Some("$".to_string()));
         assert_eq!(currency.precision, 4);
         assert_eq!(currency.value, Fixed::from(Dec!(1.0)));
+    }
+
+    #[test]
+    fn test_float_nonsense() {
+        let silly_value = Value::from(2.2);
+        let silly_value = CurrencyInner::from(Fixed::try_from(silly_value).unwrap());
+
+        assert_eq!(silly_value.to_string(), "2.2");
+        assert_eq!(silly_value.precision, 1);
+
+        let l = Value::from(2.2);
+        let r = Value::from(CurrencyInner::from_str("$100.00").unwrap());
+        let (l, r) = l.resolve(&r).unwrap();
+        assert_eq!(l.to_string(), "$2.20");
+        assert_eq!(r.to_string(), "$100.00");
     }
 }

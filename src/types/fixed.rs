@@ -8,7 +8,7 @@
 use std::str::FromStr;
 
 use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
-use fpdec::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Decimal};
+use fpdec::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Decimal, Round};
 use serde::{Deserialize, Serialize};
 
 /// Inner type of `Fixed`
@@ -32,6 +32,21 @@ map_value!(
         Value::Float(v) => {
             let p = *v.inner();
             let p = Decimal::try_from(p)?;
+
+            // Ok this is an ugly hack. A bad bad hack.
+            // It is slow and inefficient, BUT it works.
+            // It is intended to fix floating point errors by leveraging the fact that
+            // f64 strings somehow have the correct precision.
+
+            // Todo: find a better way to do this
+            let intended_precision = v
+                .to_string()
+                .split(".")
+                .last()
+                .map(|s| s.len())
+                .unwrap_or(0);
+            let p = p.round(intended_precision as i8);
+
             Ok(Fixed::from(p))
         }
         Value::Currency(v) => {
