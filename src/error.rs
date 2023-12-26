@@ -47,6 +47,10 @@ pub enum Error {
         key: String,
     },
 
+    /// An error caused by attempting to use an type as an object key
+    #[error("Type {0} cannot be used as an object key")]
+    InvalidTypeForKey(ValueType),
+
     /// An error caused by a calculation that resulted in an overflow
     #[error("arithmetic overflow")]
     Overflow,

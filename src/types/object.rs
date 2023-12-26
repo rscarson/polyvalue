@@ -11,7 +11,72 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// Inner type used for object storage
-pub type ObjectInner = BTreeMap<Value, Value>;
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default, Debug, PartialOrd)]
+pub struct ObjectInner(BTreeMap<Value, Value>);
+impl ObjectInner {
+    /// Create a new `ObjectInner`
+    pub fn new() -> Self {
+        Self(BTreeMap::new())
+    }
+
+    /// Insert a key-value pair into the object, if the key is not a compound type
+    pub fn insert(&mut self, key: Value, value: Value) -> Result<Option<Value>, Error> {
+        if key.is_a(ValueType::Compound) {
+            return Err(Error::InvalidTypeForKey(key.own_type()));
+        }
+        Ok(self.0.insert(key, value))
+    }
+
+    /// Remove a key-value pair from the object
+    pub fn remove(&mut self, key: &Value) -> Option<Value> {
+        self.0.remove(key)
+    }
+
+    /// Invokes the inner `BTreeMap`'s iterator
+    pub fn iter(&self) -> impl Iterator<Item = (&Value, &Value)> {
+        self.0.iter()
+    }
+
+    /// Invokes the inner `BTreeMap`'s mutable iterator
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Value, &mut Value)> {
+        self.0.iter_mut()
+    }
+
+    /// Extends the inner `BTreeMap` with another
+    pub fn extend(&mut self, other: ObjectInner) {
+        self.0.extend(other.0);
+    }
+
+    /// The number of key-value pairs in the inner `BTreeMap`
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns true if the inner `BTreeMap` is empty
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Get a value from the object, if it exists
+    pub fn get(&self, key: &Value) -> Option<&Value> {
+        self.0.get(key)
+    }
+
+    /// Get a mutable value from the object, if it exists
+    pub fn get_mut(&mut self, key: &Value) -> Option<&mut Value> {
+        self.0.get_mut(key)
+    }
+
+    /// Get the keys from the inner `BTreeMap`
+    pub fn keys(&self) -> impl Iterator<Item = &Value> {
+        self.0.keys()
+    }
+
+    /// Get the values from the inner `BTreeMap`
+    pub fn values(&self) -> impl Iterator<Item = &Value> {
+        self.0.values()
+    }
+}
 
 /// Subtype of `Value` that represents an object
 #[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default, Debug)]
@@ -37,7 +102,7 @@ impl From<Vec<(Value, Value)>> for Object {
     fn from(value: Vec<(Value, Value)>) -> Self {
         let mut map = ObjectInner::new();
         for (k, v) in value {
-            map.insert(k, v);
+            map.insert(k, v).ok();
         }
         Object(map)
     }
@@ -46,8 +111,8 @@ impl From<Vec<(Value, Value)>> for Object {
 impl Object {
     /// Insert a key-value pair into the object
     /// If the key already exists, it will be overwritten
-    pub fn insert(&mut self, key: Value, value: Value) {
-        self.inner_mut().insert(key, value);
+    pub fn insert(&mut self, key: Value, value: Value) -> Result<Option<Value>, Error> {
+        self.inner_mut().insert(key, value)
     }
 
     /// Remove a key-value pair from the object
@@ -89,38 +154,38 @@ map_value!(
         Value::Object(v) => Ok(v),
         Value::Int(v) => {
             let mut map = ObjectInner::new();
-            map.insert(Value::Int(Int::from(0)), Value::Int(v));
+            map.insert(Value::Int(Int::from(0)), Value::Int(v)).ok();
             Ok(Object(map))
         }
         Value::Float(v) => {
             let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::Float(v));
+            map.insert(Value::Int(0.into()), Value::Float(v)).ok();
             Ok(Object(map))
         }
         Value::Fixed(v) => {
             let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::Fixed(v));
+            map.insert(Value::Int(0.into()), Value::Fixed(v)).ok();
             Ok(Object(map))
         }
         Value::Currency(v) => {
             let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::Currency(v));
+            map.insert(Value::Int(0.into()), Value::Currency(v)).ok();
             Ok(Object(map))
         }
         Value::Bool(v) => {
             let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::Bool(v));
+            map.insert(Value::Int(0.into()), Value::Bool(v)).ok();
             Ok(Object(map))
         }
         Value::String(v) => {
             let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::String(v));
+            map.insert(Value::Int(0.into()), Value::String(v)).ok();
             Ok(Object(map))
         }
         Value::Array(v) => {
             let mut map = ObjectInner::new();
             for (i, v) in v.inner().iter().enumerate() {
-                map.insert(Value::Int((i as i64).into()), v.clone());
+                map.insert(Value::Int((i as i64).into()), v.clone()).ok();
             }
             Ok(Object(map))
         }
@@ -249,7 +314,7 @@ impl IndexingOperationExt for Object {
     }
 
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
-        self.inner_mut().insert(index.clone(), value);
+        self.inner_mut().insert(index.clone(), value)?;
         Ok(())
     }
 }
