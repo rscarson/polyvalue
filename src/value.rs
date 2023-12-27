@@ -100,20 +100,21 @@ impl std::fmt::Display for ValueType {
     }
 }
 
-impl From<&str> for ValueType {
-    fn from(s: &str) -> Self {
+impl TryFrom<&str> for ValueType {
+    type Error = Error;
+    fn try_from(s: &str) -> Result<Self, Error> {
         match s.to_lowercase().as_str() {
-            "bool" => ValueType::Bool,
-            "fixed" => ValueType::Fixed,
-            "float" => ValueType::Float,
-            "currency" => ValueType::Currency,
-            "int" => ValueType::Int,
-            "string" => ValueType::String,
-            "array" => ValueType::Array,
-            "object" => ValueType::Object,
-            "numeric" => ValueType::Numeric,
-            "compound" => ValueType::Compound,
-            _ => ValueType::Any,
+            "bool" => Ok(ValueType::Bool),
+            "fixed" => Ok(ValueType::Fixed),
+            "float" => Ok(ValueType::Float),
+            "currency" => Ok(ValueType::Currency),
+            "int" => Ok(ValueType::Int),
+            "string" => Ok(ValueType::String),
+            "array" => Ok(ValueType::Array),
+            "object" => Ok(ValueType::Object),
+            "numeric" => Ok(ValueType::Numeric),
+            "compound" => Ok(ValueType::Compound),
+            _ => Err(Error::UnrecognizedType(s.to_string())),
         }
     }
 }

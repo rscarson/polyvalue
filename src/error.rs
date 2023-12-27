@@ -51,6 +51,10 @@ pub enum Error {
     #[error("Type {0} cannot be used as an object key")]
     InvalidTypeForKey(ValueType),
 
+    /// An error caused by attempting to use an unsupported type
+    #[error("Unrecognized type {0}. Expected one of [array, bool, currency, fixed, float, int, object, string]")]
+    UnrecognizedType(String),
+
     /// An error caused by a calculation that resulted in an overflow
     #[error("arithmetic overflow")]
     Overflow,
