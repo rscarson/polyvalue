@@ -102,17 +102,17 @@ impl std::fmt::Display for ValueType {
 
 impl From<&str> for ValueType {
     fn from(s: &str) -> Self {
-        match s {
-            "Bool" => ValueType::Bool,
-            "Fixed" => ValueType::Fixed,
-            "Float" => ValueType::Float,
-            "Currency" => ValueType::Currency,
-            "Int" => ValueType::Int,
-            "String" => ValueType::String,
-            "Array" => ValueType::Array,
-            "Object" => ValueType::Object,
-            "Numeric" => ValueType::Numeric,
-            "Compound" => ValueType::Compound,
+        match s.to_lowercase().as_str() {
+            "bool" => ValueType::Bool,
+            "fixed" => ValueType::Fixed,
+            "float" => ValueType::Float,
+            "currency" => ValueType::Currency,
+            "int" => ValueType::Int,
+            "string" => ValueType::String,
+            "array" => ValueType::Array,
+            "object" => ValueType::Object,
+            "numeric" => ValueType::Numeric,
+            "compound" => ValueType::Compound,
             _ => ValueType::Any,
         }
     }
