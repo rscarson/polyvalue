@@ -76,6 +76,16 @@ impl ObjectInner {
     pub fn values(&self) -> impl Iterator<Item = &Value> {
         self.0.values()
     }
+
+    /// Determine if the object contains a key
+    pub fn contains_key(&self, key: &Value) -> bool {
+        self.0.contains_key(key)
+    }
+
+    /// Get a mutable reference to the inner `BTreeMap`'s values
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> {
+        self.0.values_mut()
+    }
 }
 
 /// Subtype of `Value` that represents an object

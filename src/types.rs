@@ -43,7 +43,7 @@ mod object;
 pub use object::{Object, ObjectInner};
 
 mod string;
-pub use string::Str;
+pub use string::{Str, StrInner};
 
 mod currency;
 pub use currency::Currency;

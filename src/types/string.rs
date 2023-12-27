@@ -140,6 +140,14 @@ impl StrInner {
             StrInner::ByMut(v) => v.borrow().is_empty(),
         }
     }
+
+    pub fn len(&self) -> usize {
+        match self {
+            StrInner::Direct(v) => v.len(),
+            StrInner::ByRef(v) => v.len(),
+            StrInner::ByMut(v) => v.borrow().len(),
+        }
+    }
 }
 
 /// Subtype of `Value` that represents a string
