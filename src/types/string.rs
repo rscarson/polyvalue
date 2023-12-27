@@ -221,9 +221,9 @@ impl Str {
     ///
     /// Although this looks like the IndexingOperationExt trait, it is not
     /// because it returns a string instead of a value
-    pub fn substr(&mut self, index: Range<&Value>) -> Result<&str, crate::Error> {
+    pub fn substr(&self, index: Range<&Value>) -> Result<&str, crate::Error> {
         let range = self.map_range_to_bytes(index)?;
-        self.inner_mut()
+        self.inner()
             .get(range.start..=range.end)
             .ok_or(Error::Index {
                 key: format!("{}..{}", range.start, range.end),
