@@ -152,8 +152,8 @@ impl StrInner {
 
 /// Subtype of `Value` that represents a string
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
-pub struct Str(StrInner);
-impl_value!(Str, StrInner, |v: &Self| v.inner().clone());
+pub struct Str(String);
+impl_value!(Str, String, |v: &Self| v.inner().clone());
 
 impl From<&str> for Str {
     fn from(value: &str) -> Self {
@@ -163,18 +163,6 @@ impl From<&str> for Str {
 
 impl From<&str> for Value {
     fn from(value: &str) -> Self {
-        <Str>::new(value.into()).into()
-    }
-}
-
-impl From<String> for Str {
-    fn from(value: String) -> Self {
-        <Str>::new(value.into())
-    }
-}
-
-impl From<String> for Value {
-    fn from(value: String) -> Self {
         <Str>::new(value.into()).into()
     }
 }
