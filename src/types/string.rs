@@ -171,7 +171,7 @@ impl Str {
     /// Maps a range of values to a range of bytes in a string coresponding to the same characters
     /// This is necessary because the string is UTF-8 encoded
     /// Can fail if the range is out of bounds, or if the range is not a valid integer range
-    fn map_range_to_bytes(&mut self, range: Range<&Value>) -> Result<Range<usize>, Error> {
+    fn map_range_to_bytes(&self, range: Range<&Value>) -> Result<Range<usize>, Error> {
         let mut range = *Int::try_from(range.start.clone())?.inner() as usize
             ..*Int::try_from(range.end.clone())?.inner() as usize;
 
@@ -181,7 +181,7 @@ impl Str {
         let mut byte_index = 0;
         for _ in 0..range.start {
             byte_index += self
-                .inner_mut()
+                .inner()
                 .get(byte_index..)
                 .ok_or(Error::Index {
                     key: range.start.to_string(),
@@ -199,7 +199,7 @@ impl Str {
         let mut byte_index = 0;
         for _ in 0..range.end + 1 {
             byte_index += self
-                .inner_mut()
+                .inner()
                 .get(byte_index..)
                 .ok_or(Error::Index {
                     key: range.end.to_string(),
