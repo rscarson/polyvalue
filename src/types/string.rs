@@ -7,22 +7,167 @@
 //!
 use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
-use std::ops::Range;
+use std::{cell::RefCell, ops::Range, rc::Rc};
+
+/// Inner type of `Str`
+/// This is a wrapper around `String` which also supports references
+/// and mutable references
+///
+/// This is necessary because we need to be able to return substrings
+/// in indexing operations, and we can't do that with a normal string
+///
+/// NOTE: A lot of &mut self is used here, because we need to be able to
+/// solidify references to solid strings for certain operations, notably:
+/// - get
+/// - get_mut
+/// - chars
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+pub enum StrInner {
+    Direct(String),
+    ByRef(Rc<String>),
+    ByMut(Rc<RefCell<String>>),
+}
+
+impl std::hash::Hash for StrInner {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            StrInner::Direct(v) => v.hash(state),
+            StrInner::ByRef(v) => v.hash(state),
+            StrInner::ByMut(v) => v.borrow().hash(state),
+        }
+    }
+}
+
+impl From<&str> for StrInner {
+    fn from(value: &str) -> Self {
+        Self::Direct(value.into())
+    }
+}
+
+impl From<String> for StrInner {
+    fn from(value: String) -> Self {
+        Self::Direct(value)
+    }
+}
+
+impl Default for StrInner {
+    fn default() -> Self {
+        Self::Direct(String::default())
+    }
+}
+
+impl Serialize for StrInner {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            StrInner::Direct(v) => serializer.serialize_str(v),
+            StrInner::ByRef(v) => serializer.serialize_str(v.as_str()),
+            StrInner::ByMut(v) => serializer.serialize_str(v.borrow().as_str()),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for StrInner {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(StrInner::Direct(s))
+    }
+}
+
+impl std::fmt::Display for StrInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StrInner::Direct(v) => write!(f, "{}", v),
+            StrInner::ByRef(v) => write!(f, "{}", v),
+            StrInner::ByMut(v) => write!(f, "{}", v.borrow()),
+        }
+    }
+}
+
+impl StrInner {
+    pub fn new(s: &str) -> Self {
+        Self::Direct(s.into())
+    }
+
+    pub fn new_ref(s: &str) -> Self {
+        Self::ByRef(Rc::new(s.into()))
+    }
+
+    pub fn new_mut(s: &mut str) -> Self {
+        Self::ByMut(Rc::new(RefCell::new(s.into())))
+    }
+
+    pub fn solidify(&mut self) {
+        *self = StrInner::Direct(self.to_string());
+    }
+
+    pub fn get<I: std::slice::SliceIndex<str>>(&mut self, i: I) -> Option<&I::Output> {
+        match self {
+            StrInner::Direct(v) => v.get(i),
+            _ => {
+                self.solidify();
+                self.get(i)
+            }
+        }
+    }
+
+    pub fn get_mut<I: std::slice::SliceIndex<str>>(&mut self, i: I) -> Option<&mut I::Output> {
+        match self {
+            StrInner::Direct(v) => v.get_mut(i),
+            _ => {
+                self.solidify();
+                self.get_mut(i)
+            }
+        }
+    }
+
+    pub fn chars(&mut self) -> std::str::Chars {
+        match self {
+            StrInner::Direct(v) => v.chars(),
+            _ => {
+                self.solidify();
+                self.chars()
+            }
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            StrInner::Direct(v) => v.is_empty(),
+            StrInner::ByRef(v) => v.is_empty(),
+            StrInner::ByMut(v) => v.borrow().is_empty(),
+        }
+    }
+}
 
 /// Subtype of `Value` that represents a string
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
-pub struct Str(String);
-impl_value!(Str, String, |v: &Self| v.inner().clone());
+pub struct Str(StrInner);
+impl_value!(Str, StrInner, |v: &Self| v.inner().clone());
 
 impl From<&str> for Str {
     fn from(value: &str) -> Self {
-        <Str>::new(value.to_string())
+        <Str>::new(value.into())
     }
 }
 
 impl From<&str> for Value {
     fn from(value: &str) -> Self {
-        <Str>::new(value.to_string()).into()
+        <Str>::new(value.into()).into()
+    }
+}
+
+impl From<String> for Str {
+    fn from(value: String) -> Self {
+        <Str>::new(value.into())
+    }
+}
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        <Str>::new(value.into()).into()
     }
 }
 
@@ -30,7 +175,7 @@ impl Str {
     /// Maps a range of values to a range of bytes in a string coresponding to the same characters
     /// This is necessary because the string is UTF-8 encoded
     /// Can fail if the range is out of bounds, or if the range is not a valid integer range
-    fn map_range_to_bytes(&self, range: Range<&Value>) -> Result<Range<usize>, Error> {
+    fn map_range_to_bytes(&mut self, range: Range<&Value>) -> Result<Range<usize>, Error> {
         let mut range = *Int::try_from(range.start.clone())?.inner() as usize
             ..*Int::try_from(range.end.clone())?.inner() as usize;
 
@@ -40,7 +185,7 @@ impl Str {
         let mut byte_index = 0;
         for _ in 0..range.start {
             byte_index += self
-                .inner()
+                .inner_mut()
                 .get(byte_index..)
                 .ok_or(Error::Index {
                     key: range.start.to_string(),
@@ -58,7 +203,7 @@ impl Str {
         let mut byte_index = 0;
         for _ in 0..range.end + 1 {
             byte_index += self
-                .inner()
+                .inner_mut()
                 .get(byte_index..)
                 .ok_or(Error::Index {
                     key: range.end.to_string(),
@@ -74,14 +219,15 @@ impl Str {
 
         Ok(range)
     }
+
     /// String indexing
     /// Returns a substring
     ///
     /// Although this looks like the IndexingOperationExt trait, it is not
     /// because it returns a string instead of a value
-    pub fn get_index(&self, index: Range<&Value>) -> Result<&str, crate::Error> {
+    pub fn substr(&mut self, index: Range<&Value>) -> Result<&str, crate::Error> {
         let range = self.map_range_to_bytes(index)?;
-        self.inner()
+        self.inner_mut()
             .get(range.start..=range.end)
             .ok_or(Error::Index {
                 key: format!("{}..{}", range.start, range.end),
@@ -93,7 +239,7 @@ impl Str {
     ///
     /// Although this looks like the IndexingOperationExt trait, it is not
     /// because it returns a string instead of a value
-    pub fn get_index_mut(&mut self, index: Range<&Value>) -> Result<&mut str, crate::Error> {
+    pub fn mut_substr(&mut self, index: Range<&Value>) -> Result<&mut str, crate::Error> {
         let range = self.map_range_to_bytes(index)?;
         self.inner_mut()
             .get_mut(range.start..=range.end)
@@ -106,26 +252,55 @@ impl Str {
     ///
     /// Although this looks like the IndexingOperationExt trait, it is not
     /// because it returns a string instead of a value
-    pub fn set_index(&mut self, index: Range<&Value>, value: Value) -> Result<(), crate::Error> {
+    pub fn set_substr(&mut self, index: Range<&Value>, value: Value) -> Result<(), crate::Error> {
         let range = *Int::try_from(index.start.clone())?.inner() as usize
             ..*Int::try_from(index.end.clone())?.inner() as usize;
 
         let value = Str::try_from(value)?.inner().clone();
 
         let prefix = if range.start == 0 {
-            ""
+            "".to_string()
         } else {
-            self.get_index(&0.into()..&(range.start - 1).into())?
+            self.substr(&0.into()..&(range.start - 1).into())?
+                .to_string()
         };
 
-        let suffix = if range.end == self.inner().chars().count() - 1 {
+        let char_count = self.inner_mut().chars().count();
+        let suffix = if range.end == char_count - 1 {
             ""
         } else {
-            self.get_index(&(range.end + 1).into()..&(self.inner().chars().count() - 1).into())?
+            self.substr(&(range.end + 1).into()..&(char_count - 1).into())?
         };
 
-        *self.inner_mut() = format!("{}{}{}", prefix, value, suffix);
+        *self.inner_mut() = format!("{}{}{}", prefix, value, suffix).into();
         Ok(())
+    }
+
+    /// Convert an index value to a range, useful for bridging the gap between
+    /// the IndexingOperationExt trait and the substr functions
+    pub fn index_value_to_range(&self, index: &Value) -> Result<Range<usize>, Error> {
+        // Convert index to a range - we will need an array of integers
+        let index = index.as_a::<Array>()?;
+        let indices = index
+            .inner()
+            .iter()
+            .map(|v| Ok::<IntInner, Error>(*v.as_a::<Int>()?.inner()))
+            .collect::<Result<Vec<_>, _>>()?;
+        if indices.len() < 1 || indices.len() > 2 {
+            Err(Error::Index {
+                key: index.to_string(),
+            })?;
+        } else if indices.len() == 2 && indices[0] > indices[1] {
+            Err(Error::Index {
+                key: index.to_string(),
+            })?;
+        }
+
+        Ok(if indices.len() == 1 {
+            indices[0] as usize..indices[0] as usize
+        } else {
+            indices[0] as usize..indices[1] as usize
+        })
     }
 }
 
@@ -210,27 +385,27 @@ mod test {
     #[test]
     fn test_indexing() {
         // normal string
-        let s = Str::from("Hello, world!");
-        assert_eq!(s.get_index(&0.into()..&1.into()).unwrap(), "He");
+        let mut s = Str::from("Hello, world!");
+        assert_eq!(s.substr(&0.into()..&1.into()).unwrap(), "He");
 
         // Bad and scary unicode string, with multibyte chars at the start
-        let s = Str::from("👋🌎");
-        assert_eq!(s.get_index(&0.into()..&0.into()).unwrap(), "👋");
+        let mut s = Str::from("👋🌎");
+        assert_eq!(s.substr(&0.into()..&0.into()).unwrap(), "👋");
 
         let mut s = Str::from("S👋🌎");
-        s.set_index(&1.into()..&1.into(), "B".into()).unwrap();
+        s.set_substr(&1.into()..&1.into(), "B".into()).unwrap();
         assert_eq!(s, "SB🌎".into());
 
         let mut s = Str::from("S👋🌎");
-        s.set_index(&0.into()..&1.into(), "B".into()).unwrap();
+        s.set_substr(&0.into()..&1.into(), "B".into()).unwrap();
         assert_eq!(s, "B🌎".into());
 
         let mut s = Str::from("S👋🌎");
-        s.set_index(&0.into()..&0.into(), "B".into()).unwrap();
+        s.set_substr(&0.into()..&0.into(), "B".into()).unwrap();
         assert_eq!(s, "B👋🌎".into());
 
         let mut s = Str::from("S👋🌎");
-        s.set_index(&2.into()..&2.into(), "B".into()).unwrap();
+        s.set_substr(&2.into()..&2.into(), "B".into()).unwrap();
         assert_eq!(s, "S👋B".into());
     }
 
