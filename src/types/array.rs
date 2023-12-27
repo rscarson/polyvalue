@@ -78,13 +78,17 @@ map_value!(
     handle_into = |v: Array| Value::Array(v),
     handle_from = |v: Value| match v {
         Value::Array(v) => Ok(v),
-        Value::Int(_)
-        | Value::Bool(_)
-        | Value::Float(_)
-        | Value::Fixed(_)
-        | Value::Currency(_)
-        | Value::String(_) => {
+        Value::Int(_) | Value::Bool(_) | Value::Float(_) | Value::Fixed(_) | Value::Currency(_) => {
             Ok(vec![v].into())
+        }
+
+        Value::String(s) => {
+            let inner = s
+                .inner()
+                .chars()
+                .map(|c| Value::from(c.to_string()))
+                .collect::<Vec<_>>();
+            Ok(inner.into())
         }
 
         Value::Object(v) => {
