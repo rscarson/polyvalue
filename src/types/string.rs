@@ -278,7 +278,7 @@ impl Str {
 
     /// Convert an index value to a range, useful for bridging the gap between
     /// the IndexingOperationExt trait and the substr functions
-    pub fn index_value_to_range(&self, index: &Value) -> Result<Range<usize>, Error> {
+    pub fn index_value_to_range(index: &Value) -> Result<Range<usize>, Error> {
         // Convert index to a range - we will need an array of integers
         let index = index.as_a::<Array>()?;
         let indices = index
