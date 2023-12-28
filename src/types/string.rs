@@ -188,7 +188,7 @@ impl MatchingOperationExt for Str {
         let result = match operation {
             MatchingOperation::Contains => {
                 let pattern = pattern.inner().as_str();
-                let pattern = regex::Regex::new(pattern)?;
+                let pattern = convert_regex_string(pattern)?;
                 pattern.find(container.inner().as_str()).is_some()
             }
             MatchingOperation::StartsWith => {
@@ -197,7 +197,7 @@ impl MatchingOperationExt for Str {
             MatchingOperation::EndsWith => container.inner().ends_with(pattern.inner().as_str()),
             MatchingOperation::Matches => {
                 let pattern = pattern.inner().as_str();
-                let pattern = regex::Regex::new(pattern)?;
+                let pattern = convert_regex_string(pattern)?;
                 pattern.is_match(container.inner().as_str())
             }
 
@@ -260,6 +260,36 @@ impl BooleanOperationExt for Str {
     {
         Str::boolean_op(self, &self.clone(), BooleanOperation::Not)
     }
+}
+
+// This function will convert a string of either forms `/pattern/flags` or `pattern` to a regex object
+fn convert_regex_string(input: &str) -> Result<regex::Regex, Error> {
+    let mut pattern = input.to_string();
+    let mut flags = None;
+
+    // Check if the string contains a regex pattern
+    if input.starts_with("/") {
+        let end = input.rfind("/").unwrap();
+        pattern = input[1..end].to_string();
+        flags = Some(input[end + 1..].to_string());
+    }
+
+    let mut regex = regex::RegexBuilder::new(&pattern);
+    if let Some(flags) = flags {
+        for flag in flags.chars() {
+            match flag {
+                'i' => regex.case_insensitive(true),
+                'm' => regex.multi_line(true),
+                's' => regex.dot_matches_new_line(true),
+                'U' => regex.swap_greed(true),
+                'u' => regex.unicode(true),
+                'x' => regex.ignore_whitespace(true),
+                _ => &mut regex,
+            };
+        }
+    }
+
+    Ok(regex.build()?)
 }
 
 //
