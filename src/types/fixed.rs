@@ -409,7 +409,8 @@ mod tests {
 
         // from single element object
         assert_eq!(
-            Fixed::try_from(Value::from(vec![(Value::from("a"), Value::from(1))])).unwrap(),
+            Fixed::try_from(Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap())
+                .unwrap(),
             Fixed::from_str("1").unwrap()
         );
 
@@ -417,10 +418,13 @@ mod tests {
         assert!(Fixed::try_from(Value::from(vec![Value::from(1), Value::from(2)])).is_err());
 
         // from multiple element object should fail
-        assert!(Fixed::try_from(Value::from(vec![
-            (Value::from("a"), Value::from(1)),
-            (Value::from("b"), Value::from(2))
-        ]))
+        assert!(Fixed::try_from(
+            Value::try_from(vec![
+                (Value::from("a"), Value::from(1)),
+                (Value::from("b"), Value::from(2))
+            ])
+            .unwrap()
+        )
         .is_err());
     }
 

@@ -175,6 +175,40 @@ map_type!(Currency, Str);
 map_type!(Array, Str);
 map_type!(Object, Str);
 
+impl MatchingOperationExt for Str {
+    fn matching_op(
+        container: &Self,
+        pattern: &Value,
+        operation: MatchingOperation,
+    ) -> Result<Value, crate::Error>
+    where
+        Self: Sized,
+    {
+        let pattern = Str::try_from(pattern.clone())?;
+        let result = match operation {
+            MatchingOperation::Contains => {
+                let pattern = pattern.inner().as_str();
+                let pattern = regex::Regex::new(pattern)?;
+                pattern.find(container.inner().as_str()).is_some()
+            }
+            MatchingOperation::StartsWith => {
+                container.inner().starts_with(pattern.inner().as_str())
+            }
+            MatchingOperation::EndsWith => container.inner().ends_with(pattern.inner().as_str()),
+            MatchingOperation::Matches => {
+                let pattern = pattern.inner().as_str();
+                let pattern = regex::Regex::new(pattern)?;
+                pattern.is_match(container.inner().as_str())
+            }
+
+            // Handled by Value
+            _ => false,
+        };
+
+        Ok(result.into())
+    }
+}
+
 impl ArithmeticOperationExt for Str {
     fn arithmetic_op(
         left: &Self,
@@ -235,6 +269,41 @@ impl BooleanOperationExt for Str {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_matching() {
+        let result = Str::matching_op(
+            &Str::from("Hello, world!"),
+            &Str::from("[a-z]").into(),
+            MatchingOperation::Contains,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Str::matching_op(
+            &Str::from("Hello, world!"),
+            &Str::from("world").into(),
+            MatchingOperation::StartsWith,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result = Str::matching_op(
+            &Str::from("Hello, world!"),
+            &Str::from("world!").into(),
+            MatchingOperation::EndsWith,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Str::matching_op(
+            &Str::from("Hello, world!"),
+            &Str::from("Hello, w..ld!").into(),
+            MatchingOperation::Matches,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+    }
 
     #[test]
     fn test_indexing() {

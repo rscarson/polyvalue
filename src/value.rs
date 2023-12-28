@@ -298,7 +298,7 @@ impl Value {
                     || Currency::try_from(self.clone()).is_ok()
             }
             ValueType::Compound => {
-                Array::try_from(self.clone()).is_ok() || Object::try_from(self.clone()).is_ok()
+                self.own_type() == ValueType::Array || self.own_type() == ValueType::Object
             }
             ValueType::Any => true,
 
@@ -569,6 +569,31 @@ impl ArithmeticOperationExt for Value {
     }
 }
 
+impl MatchingOperationExt for Value {
+    fn matching_op(
+        container: &Self,
+        pattern: &Value,
+        operation: MatchingOperation,
+    ) -> Result<Value, crate::Error>
+    where
+        Self: Sized,
+    {
+        // Special case for type matching
+        if operation == MatchingOperation::Is {
+            let type_name = pattern.as_a::<Str>()?;
+            return Ok(Value::Bool(Bool::new(
+                &container.own_type().to_string() == type_name.inner(),
+            )));
+        }
+
+        if container.is_a(ValueType::Compound) {
+            Array::matching_op(&container.as_a::<Array>()?, pattern, operation)
+        } else {
+            Str::matching_op(&container.as_a::<Str>()?, pattern, operation)
+        }
+    }
+}
+
 impl BitwiseOperationExt for Value {
     fn bitwise_op(
         left: &Self,
@@ -673,6 +698,16 @@ mod test {
     use fpdec::Decimal;
 
     #[test]
+    fn test_matching() {
+        // lets only test 'is' for now
+        let value = Value::from(1.0);
+        let pattern = Value::from("float");
+        let result = Value::matching_op(&value, &pattern, MatchingOperation::Is)
+            .expect("Could not perform matching operation");
+        assert_eq!(result, Value::from(true));
+    }
+
+    #[test]
     fn test_resolve() {
         let a = Value::from(1.0);
         let b = Value::from(2);
@@ -699,7 +734,7 @@ mod test {
         assert!(b.own_type() == ValueType::Array);
 
         let a = Value::from(vec![Value::from(1)]);
-        let b = Value::from(vec![(Value::from("a"), Value::from(1))]);
+        let b = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
         let (a, b) = a.resolve(&b).expect("Could not resolve types");
         assert!(a.own_type() == ValueType::Object);
         assert!(b.own_type() == ValueType::Object);
@@ -707,8 +742,8 @@ mod test {
         let a = Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO)));
         let b = Value::from(Fixed::from(Decimal::ZERO));
         let (a, b) = a.resolve(&b).expect("Could not resolve types");
-        assert!(a.own_type() == ValueType::Fixed);
-        assert!(b.own_type() == ValueType::Fixed);
+        assert!(a.own_type() == ValueType::Currency);
+        assert!(b.own_type() == ValueType::Currency);
     }
 
     #[test]
@@ -722,7 +757,9 @@ mod test {
             ValueType::Array
         );
         assert_eq!(
-            Value::from(vec![(Value::from("a"), Value::from(1))]).own_type(),
+            Value::try_from(vec![(Value::from("a"), Value::from(1))])
+                .unwrap()
+                .own_type(),
             ValueType::Object
         );
 
@@ -781,7 +818,7 @@ mod test {
             .expect("Value could not be converted to object!");
         assert_eq!(
             object,
-            Object::from(vec![(Value::from("0"), Value::from(1.0))])
+            Object::try_from(vec![(Value::from("0"), Value::from(1.0))]).unwrap()
         );
     }
 
@@ -827,7 +864,7 @@ mod test {
             .expect("Value could not be converted to compound!");
         assert_eq!(
             value,
-            Value::from(vec![(Value::from("0"), Value::from(1.0))])
+            Value::try_from(vec![(Value::from("0"), Value::from(1.0))]).unwrap()
         );
 
         let value = Value::from(1.0);
@@ -861,7 +898,7 @@ mod test {
 
         // array/object = object
         let a = Value::from(vec![Value::from(1)]);
-        let b = Value::from(vec![(Value::from("a"), Value::from(1))]);
+        let b = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
         assert_eq!(a.type_for_comparison(&b), ValueType::Object);
 
         // int/currency = currency
@@ -882,7 +919,9 @@ mod test {
         assert_eq!(Value::from("abc").to_string(), "abc");
         assert_eq!(Value::from(vec![Value::from(1)]).to_string(), "[1]");
         assert_eq!(
-            Value::from(vec![(Value::from("a"), Value::from(1))]).to_string(),
+            Value::try_from(vec![(Value::from("a"), Value::from(1))])
+                .unwrap()
+                .to_string(),
             "{a: 1}"
         );
 
@@ -916,7 +955,7 @@ mod test {
 
         // object to array
         assert!(
-            Value::from(vec![(Value::from("a"), Value::from(1))])
+            Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap()
                 > Value::from(vec![Value::from(1), Value::from(2)])
         );
     }
@@ -939,7 +978,7 @@ mod test {
 
         // object to array
         assert_ne!(
-            Value::from(vec![(Value::from("a"), Value::from(1))]),
+            Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap(),
             Value::from(vec![Value::from(1), Value::from(2)])
         );
     }
@@ -1044,7 +1083,7 @@ mod test {
         assert_eq!(v, &Value::from(2));
 
         // Get index on object
-        let object = Value::from(vec![(Value::from("a"), Value::from(1))]);
+        let object = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
         let v = object.get_index(&Value::from("a")).unwrap();
         assert_eq!(v, &Value::from(1));
 
@@ -1061,10 +1100,11 @@ mod test {
         assert_eq!(v, vec![&Value::from(1), &Value::from(2)]);
 
         // Get indices on object
-        let object = Value::from(vec![
+        let object = Value::try_from(vec![
             (Value::from("a"), Value::from(1)),
             (Value::from("b"), Value::from(2)),
-        ]);
+        ])
+        .unwrap();
         let v = object
             .get_indices(&Value::from(vec![Value::from("a"), Value::from("b")]))
             .unwrap();
@@ -1081,7 +1121,7 @@ mod test {
         assert_eq!(v, &mut Value::from(2));
 
         // Get index_mut on object
-        let mut object = Value::from(vec![(Value::from("a"), Value::from(1))]);
+        let mut object = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
         let v = object.get_index_mut(&Value::from("a")).unwrap();
         assert_eq!(v, &mut Value::from(1));
 
@@ -1098,10 +1138,11 @@ mod test {
         assert_eq!(v, vec![&mut Value::from(1), &mut Value::from(2)]);
 
         // Get indices_mut on object
-        let mut object = Value::from(vec![
+        let mut object = Value::try_from(vec![
             (Value::from("a"), Value::from(1)),
             (Value::from("b"), Value::from(2)),
-        ]);
+        ])
+        .unwrap();
         let v = object
             .get_indices_mut(&Value::from(vec![Value::from("a"), Value::from("b")]))
             .unwrap();
@@ -1121,11 +1162,11 @@ mod test {
         );
 
         // Set index on object
-        let mut object = Value::from(vec![(Value::from("a"), Value::from(1))]);
+        let mut object = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
         object.set_index(&Value::from("a"), Value::from(2)).unwrap();
         assert_eq!(
             object,
-            Value::from(vec![(Value::from("a"), Value::from(2))])
+            Value::try_from(vec![(Value::from("a"), Value::from(2))]).unwrap()
         );
 
         // Set index on float

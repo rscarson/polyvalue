@@ -355,14 +355,15 @@ mod test {
         Int::try_from(Value::from(a)).expect_err("Should fail");
 
         // Try from object with one float
-        let mut o = Object::from(vec![("a".into(), Value::from(1.0))]);
+        let mut o = Object::try_from(vec![("a".into(), Value::from(1.0))]).unwrap();
         assert_eq!(Int::try_from(Value::from(o)).unwrap(), Int::from(1));
 
         // Try from object with multiple floats ( should fail )
-        o = Object::from(vec![
+        o = Object::try_from(vec![
             ("a".into(), Value::from(1.0)),
             ("b".into(), Value::from(2.0)),
-        ]);
+        ])
+        .unwrap();
         Int::try_from(Value::from(o)).expect_err("Should fail");
     }
 

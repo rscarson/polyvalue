@@ -74,4 +74,8 @@ pub enum Error {
     /// An error caused by parsing a Decimal
     #[error("invalid decimal value")]
     DecimalError(#[from] fpdec::DecimalError),
+
+    /// An error caused by parsing a regex
+    #[error("invalid regex")]
+    RegexError(#[from] regex::Error),
 }

@@ -265,17 +265,18 @@ mod test {
         assert!(Currency::try_from(value).is_err());
 
         // object with 1 element
-        let value = Value::from(vec![("a".into(), Value::from(10))]);
+        let value = Value::try_from(vec![("a".into(), Value::from(10))]).unwrap();
         assert_eq!(
             Currency::try_from(value).unwrap(),
             Currency::from_fixed(Fixed::from(Dec!(10.0)))
         );
 
         // object with 2 elements should fail
-        let value = Value::from(vec![
+        let value = Value::try_from(vec![
             ("a".into(), Value::from(10)),
             ("b".into(), Value::from(10)),
-        ]);
+        ])
+        .unwrap();
         assert!(Currency::try_from(value).is_err());
     }
 

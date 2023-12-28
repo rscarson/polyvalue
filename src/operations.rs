@@ -275,7 +275,7 @@ pub trait IndexingOperationExt {
     /// let result = a.get_index(&index).unwrap();
     /// assert_eq!(result, &Value::from(2));
     ///
-    /// let b = Object::from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]);
+    /// let b = Object::try_from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]);
     /// let index = Value::from("b");
     /// let result = b.get_index(&index).unwrap();
     /// assert_eq!(result, &Value::from(2));
@@ -297,7 +297,7 @@ pub trait IndexingOperationExt {
     /// use polyvalue::types::{Object};
     /// use polyvalue::operations::{IndexingOperationExt};
     ///
-    /// let mut b = Object::from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]);
+    /// let mut b = Object::try_from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]);
     /// let index = Value::from("b");
     /// let result = b.get_index_mut(&index).unwrap();
     /// *result = Value::from(3);
@@ -326,4 +326,62 @@ pub trait IndexingOperationExt {
     /// assert_eq!(a.get_index(&index).unwrap(), &Value::from(4));
     /// ```
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error>;
+}
+
+/// Matching operations
+/// These operations are used to compare two values and return a boolean result
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MatchingOperation {
+    /// Matches array or string contents
+    Contains,
+
+    /// Matches a string, array or regular expression
+    Matches,
+
+    /// Type-specific matching operations
+    Is,
+
+    /// This is a special case of `Matches` that matches the start of the target
+    StartsWith,
+
+    /// This is a special case of `Matches` that matches the end of the target
+    EndsWith,
+}
+
+impl std::fmt::Display for MatchingOperation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MatchingOperation::Contains => write!(f, "contains"),
+            MatchingOperation::Matches => write!(f, "matches"),
+            MatchingOperation::Is => write!(f, "is"),
+            MatchingOperation::StartsWith => write!(f, "startswith"),
+            MatchingOperation::EndsWith => write!(f, "endswith"),
+        }
+    }
+}
+
+/// Trait for matching operations
+pub trait MatchingOperationExt {
+    /// Perform a matching operation on two values
+    /// If the operation is not supported on the given type,
+    /// an `Error::UnsupportedOperation` will be returned
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::operations::{MatchingOperation, MatchingOperationExt};
+    ///
+    /// let a = Value::from("Hello, world!");
+    /// let b = Value::from("world");
+    ///
+    /// let result = Value::matching_op(&a, &b, MatchingOperation::Contains).unwrap();
+    /// assert_eq!(result, Value::from(true));
+    /// ```
+    fn matching_op(
+        container: &Self,
+        pattern: &Value,
+        operation: MatchingOperation,
+    ) -> Result<Value, crate::Error>
+    where
+        Self: Sized;
 }

@@ -102,19 +102,21 @@ impl_value!(Object, ObjectInner, |v: &Self| {
     )
 });
 
-impl From<Vec<(Value, Value)>> for Value {
-    fn from(value: Vec<(Value, Value)>) -> Self {
-        Object::from(value).into()
+impl TryFrom<Vec<(Value, Value)>> for Value {
+    type Error = Error;
+    fn try_from(value: Vec<(Value, Value)>) -> Result<Self, Self::Error> {
+        Ok(Object::try_from(value)?.into())
     }
 }
 
-impl From<Vec<(Value, Value)>> for Object {
-    fn from(value: Vec<(Value, Value)>) -> Self {
+impl TryFrom<Vec<(Value, Value)>> for Object {
+    type Error = Error;
+    fn try_from(value: Vec<(Value, Value)>) -> Result<Self, Self::Error> {
         let mut map = ObjectInner::new();
         for (k, v) in value {
-            map.insert(k, v).ok();
+            map.insert(k, v)?;
         }
-        Object(map)
+        Ok(Object(map))
     }
 }
 
@@ -341,11 +343,12 @@ mod test {
 
     #[test]
     fn test_indexing() {
-        let mut obj = Object::from(vec![
+        let mut obj = Object::try_from(vec![
             (Value::Int(0.into()), Value::Int(1.into())),
             (Value::Int(1.into()), Value::Int(2.into())),
             (Value::Int(2.into()), Value::Int(3.into())),
-        ]);
+        ])
+        .unwrap();
 
         assert_eq!(obj.get(&Value::Int(0.into())), Some(&Value::Int(1.into())));
         assert_eq!(obj.get(&Value::Int(1.into())), Some(&Value::Int(2.into())));
@@ -378,138 +381,157 @@ mod test {
     #[test]
     fn test_arithmetic() {
         let result = Object::arithmetic_op(
-            &Object::from(vec![
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
-            ]),
-            &Object::from(vec![
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
-            ]),
+            ])
+            .unwrap(),
             ArithmeticOperation::Add,
         )
         .unwrap();
         assert_eq!(
             result,
-            Object::from(vec![
+            Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
             ])
+            .unwrap()
         );
     }
 
     #[test]
     fn test_boolean_logic() {
         let result = Object::boolean_op(
-            &Object::from(vec![
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
-            ]),
-            &Object::from(vec![
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
-            ]),
+            ])
+            .unwrap(),
             BooleanOperation::And,
         )
         .unwrap();
         assert_eq!(result, Value::from(true));
 
         let result = Object::boolean_op(
-            &Object::from(vec![
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
-            ]),
-            &Object::from(vec![
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
-            ]),
+            ])
+            .unwrap(),
             BooleanOperation::Or,
         )
         .unwrap();
         assert_eq!(result, Value::from(true));
 
         let result = Object::boolean_op(
-            &Object::from(vec![
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
-            ]),
-            &Object::from(vec![
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
-            ]),
+            ])
+            .unwrap(),
             BooleanOperation::LT,
         )
         .unwrap();
         assert_eq!(result, Value::from(true));
 
         let result = Object::boolean_op(
-            &Object::from(vec![
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
                 (Value::Int(2.into()), Value::Int(2.into())),
-            ]),
-            &Object::from(vec![
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
-            ]),
+            ])
+            .unwrap(),
             BooleanOperation::GT,
         )
         .unwrap();
         assert_eq!(result, Value::from(false));
 
         let result = Object::boolean_op(
-            &Object::from(vec![
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
-            ]),
-            &Object::from(vec![
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
-            ]),
+            ])
+            .unwrap(),
             BooleanOperation::LTE,
         )
         .unwrap();
         assert_eq!(result, Value::from(true));
 
         let result = Object::boolean_op(
-            &Object::from(vec![
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
-            ]),
-            &Object::from(vec![
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
-            ]),
+            ])
+            .unwrap(),
             BooleanOperation::GTE,
         )
         .unwrap();
         assert_eq!(result, Value::from(false));
 
         let result = Object::boolean_op(
-            &Object::from(vec![
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
-            ]),
-            &Object::from(vec![
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
-            ]),
+            ])
+            .unwrap(),
             BooleanOperation::EQ,
         )
         .unwrap();
         assert_eq!(result, Value::from(false));
 
         let result = Object::boolean_op(
-            &Object::from(vec![
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
-            ]),
-            &Object::from(vec![
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(3.into())),
                 (Value::Int(1.into()), Value::Int(4.into())),
-            ]),
+            ])
+            .unwrap(),
             BooleanOperation::NEQ,
         )
         .unwrap();
@@ -519,10 +541,11 @@ mod test {
     #[test]
     fn test_to_string() {
         assert_eq!(
-            Object::from(vec![
+            Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
             ])
+            .unwrap()
             .to_string(),
             "{0: 1, 1: 2}"
         );
@@ -531,54 +554,57 @@ mod test {
     #[test]
     fn test_from() {
         assert_eq!(
-            Object::try_from(Value::from(vec![
-                (Value::Int(0.into()), Value::Int(1.into())),
-                (Value::Int(1.into()), Value::Int(2.into())),
-            ]))
+            Object::try_from(
+                Value::try_from(vec![
+                    (Value::Int(0.into()), Value::Int(1.into())),
+                    (Value::Int(1.into()), Value::Int(2.into())),
+                ])
+                .unwrap()
+            )
             .unwrap(),
-            Object::from(vec![
+            Object::try_from(vec![
                 (Value::Int(0.into()), Value::Int(1.into())),
                 (Value::Int(1.into()), Value::Int(2.into())),
             ])
+            .unwrap()
         );
 
         assert_eq!(
-            Object::try_from(Value::from(vec![(
-                Value::Int(0.into()),
-                Value::Int(1.into())
-            )]))
+            Object::try_from(
+                Value::try_from(vec![(Value::Int(0.into()), Value::Int(1.into()))]).unwrap()
+            )
             .unwrap(),
-            Object::from(vec![(Value::Int(0.into()), Value::Int(1.into()))])
+            Object::try_from(vec![(Value::Int(0.into()), Value::Int(1.into()))]).unwrap()
         );
 
         assert_eq!(
             Object::try_from(Value::from(1)).unwrap(),
-            Object::from(vec![(Value::Int(0.into()), Value::Int(1.into()))])
+            Object::try_from(vec![(Value::Int(0.into()), Value::Int(1.into()))]).unwrap()
         );
 
         assert_eq!(
             Object::try_from(Value::from(1.0)).unwrap(),
-            Object::from(vec![(Value::Int(0.into()), Value::Float(1.0.into()))])
+            Object::try_from(vec![(Value::Int(0.into()), Value::Float(1.0.into()))]).unwrap()
         );
 
         assert_eq!(
             Object::try_from(Value::from(Dec!(1.0))).unwrap(),
-            Object::from(vec![(Value::Int(0.into()), Value::from(Dec!(1.0)))])
+            Object::try_from(vec![(Value::Int(0.into()), Value::from(Dec!(1.0)))]).unwrap()
         );
 
         assert_eq!(
             Object::try_from(Value::from(Currency::from_fixed(Fixed::from(Dec!(1.0))))).unwrap(),
-            Object::from(vec![(Value::Int(0.into()), Value::Float(1.0.into()))])
+            Object::try_from(vec![(Value::Int(0.into()), Value::Float(1.0.into()))]).unwrap()
         );
 
         assert_eq!(
             Object::try_from(Value::from("true")).unwrap(),
-            Object::from(vec![(Value::Int(0.into()), Value::from("true"))])
+            Object::try_from(vec![(Value::Int(0.into()), Value::from("true"))]).unwrap()
         );
 
         assert_eq!(
             Object::try_from(Value::from(true)).unwrap(),
-            Object::from(vec![(Value::Int(0.into()), Value::Bool(true.into()))])
+            Object::try_from(vec![(Value::Int(0.into()), Value::Bool(true.into()))]).unwrap()
         );
     }
 }

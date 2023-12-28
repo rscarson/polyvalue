@@ -318,7 +318,8 @@ mod test {
 
         // Object with 1 element
         assert_eq!(
-            Float::try_from(Value::from(vec![(Value::from(1), Value::from(1.0))])).unwrap(),
+            Float::try_from(Value::try_from(vec![(Value::from(1), Value::from(1.0))]).unwrap())
+                .unwrap(),
             Float::from(1.0)
         );
 
@@ -327,10 +328,13 @@ mod test {
             .expect_err("Should fail");
 
         // Object with more than 1 element should fail
-        Float::try_from(Value::from(vec![
-            (Value::from(1), Value::from(1.0)),
-            (Value::from(2), Value::from(2.0)),
-        ]))
+        Float::try_from(
+            Value::try_from(vec![
+                (Value::from(1), Value::from(1.0)),
+                (Value::from(2), Value::from(2.0)),
+            ])
+            .unwrap(),
+        )
         .expect_err("Should fail");
     }
 

@@ -105,6 +105,38 @@ map_type!(Currency, Array);
 map_type!(Str, Array);
 map_type!(Object, Array);
 
+impl MatchingOperationExt for Array {
+    fn matching_op(
+        container: &Self,
+        pattern: &Value,
+        operation: MatchingOperation,
+    ) -> Result<Value, crate::Error>
+    where
+        Self: Sized,
+    {
+        let result = match operation {
+            MatchingOperation::Contains => container.inner().contains(pattern),
+            MatchingOperation::StartsWith => {
+                let pattern = pattern.as_a::<Array>()?;
+                container.inner().starts_with(pattern.inner())
+            }
+            MatchingOperation::EndsWith => {
+                let pattern = pattern.as_a::<Array>()?;
+                container.inner().ends_with(pattern.inner())
+            }
+            MatchingOperation::Matches => {
+                let pattern = pattern.as_a::<Array>()?;
+                container.inner().iter().eq(pattern.inner().iter())
+            }
+
+            // Handled by Value
+            _ => false,
+        };
+
+        Ok(result.into())
+    }
+}
+
 impl ArithmeticOperationExt for Array {
     fn arithmetic_op(
         left: &Self,
@@ -223,6 +255,82 @@ mod test {
     use fpdec::{Dec, Decimal};
 
     use super::*;
+
+    #[test]
+    fn test_matching() {
+        let array = Array::from(vec![1.into(), 2.into(), 3.into()]);
+        assert_eq!(
+            Array::matching_op(&array, &1.into(), MatchingOperation::Contains).unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::matching_op(&array, &4.into(), MatchingOperation::Contains).unwrap(),
+            false.into()
+        );
+        assert_eq!(
+            Array::matching_op(
+                &array,
+                &Array::from(vec![1.into()]).into(),
+                MatchingOperation::Contains
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::matching_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into(), 3.into()]).into(),
+                MatchingOperation::Matches
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::matching_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into(), 3.into(), 4.into()]).into(),
+                MatchingOperation::Matches
+            )
+            .unwrap(),
+            false.into()
+        );
+        assert_eq!(
+            Array::matching_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into(), 3.into()]).into(),
+                MatchingOperation::StartsWith
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::matching_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into()]).into(),
+                MatchingOperation::StartsWith
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::matching_op(
+                &array,
+                &Array::from(vec![1.into()]).into(),
+                MatchingOperation::StartsWith
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::matching_op(
+                &array,
+                &Array::from(vec![2.into(), 3.into()]).into(),
+                MatchingOperation::StartsWith
+            )
+            .unwrap(),
+            false.into()
+        );
+    }
 
     #[test]
     fn test_indexing() {
@@ -364,12 +472,12 @@ mod test {
         assert_eq!(array, vec![currency.into()].into());
 
         let array = Array::try_from(Value::from("hello")).unwrap();
-        assert_eq!(array, vec!["hello".into()].into());
+        assert_eq!(array.len(), 5);
 
         let array = Array::try_from(Value::from(true)).unwrap();
         assert_eq!(array, vec![true.into()].into());
 
-        let object = Object::from(vec![("a".into(), 1.into())]);
+        let object = Object::try_from(vec![("a".into(), 1.into())]).unwrap();
         let array = Array::try_from(Value::from(object.clone())).unwrap();
         assert_eq!(array, vec![1.into()].into());
     }
