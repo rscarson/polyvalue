@@ -329,6 +329,12 @@ impl IndexingOperationExt for Object {
         self.inner_mut().insert(index.clone(), value)?;
         Ok(())
     }
+
+    fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error> {
+        self.inner_mut().remove(index).ok_or(Error::Index {
+            key: index.to_string(),
+        })
+    }
 }
 
 //

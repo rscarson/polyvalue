@@ -31,8 +31,17 @@ impl Str {
     /// This is necessary because the string is UTF-8 encoded
     /// Can fail if the range is out of bounds, or if the range is not a valid integer range
     fn map_range_to_bytes(&self, range: RangeInclusive<&Value>) -> Result<Range<usize>, Error> {
-        let mut range = *Int::try_from((*range.start()).clone())?.inner() as usize
-            ..*Int::try_from((*range.end()).clone())?.inner() as usize;
+        let mut range = *Int::try_from((*range.start()).clone())?.inner()
+            ..*Int::try_from((*range.end()).clone())?.inner();
+
+        let chars = self.inner().chars().count() as i64;
+        if range.start < 0 {
+            range.start = chars + range.start;
+        }
+        if range.end < 0 {
+            range.end = chars + range.end;
+        }
+        let mut range = range.start as usize..range.end as usize;
 
         // Get the byte-index of the nth character of self.inner()
         // This is necessary because the string is UTF-8 encoded
@@ -344,6 +353,9 @@ mod test {
         assert_eq!(value_range, &0.into()..=&2.into());
         let s = Str::from("012");
         assert_eq!(s.substr(value_range).unwrap(), "012");
+
+        let s = Str::from("012");
+        assert_eq!(s.substr(&(-2).into()..=&(-1).into()).unwrap(), "12");
 
         // normal string
         let s = Str::from("Hello, world!");

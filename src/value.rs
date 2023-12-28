@@ -685,6 +685,18 @@ impl IndexingOperationExt for Value {
             })?,
         }
     }
+
+    fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error> {
+        match self {
+            Value::Array(v) => v.delete_index(index),
+            Value::Object(v) => v.delete_index(index),
+
+            _ => Err(Error::ValueType {
+                actual_type: self.own_type(),
+                expected_type: ValueType::Compound,
+            })?,
+        }
+    }
 }
 
 //

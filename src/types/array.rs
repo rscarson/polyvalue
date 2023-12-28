@@ -192,7 +192,12 @@ impl BooleanOperationExt for Array {
 
 impl IndexingOperationExt for Array {
     fn get_index(&self, index: &Value) -> Result<&Value, crate::Error> {
-        let index = *Int::try_from(index.clone())?.inner() as usize;
+        let mut index = *Int::try_from(index.clone())?.inner();
+        if index < 0 {
+            index = self.inner().len() as IntInner + index;
+        }
+        let index = index as usize;
+
         self.get(index).ok_or(Error::Index {
             key: index.to_string(),
         })
@@ -209,7 +214,12 @@ impl IndexingOperationExt for Array {
     }
 
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
-        let index = *Int::try_from(index.clone())?.inner() as usize;
+        let mut index = *Int::try_from(index.clone())?.inner();
+        if index < 0 {
+            index = self.inner().len() as IntInner + index;
+        }
+        let index = index as usize;
+
         self.get_mut(index).ok_or(Error::Index {
             key: index.to_string(),
         })
@@ -231,13 +241,34 @@ impl IndexingOperationExt for Array {
     }
 
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
-        let index = *Int::try_from(index.clone())?.inner() as usize;
+        let mut index = *Int::try_from(index.clone())?.inner();
+        if index < 0 {
+            index = self.inner().len() as IntInner + index;
+        }
+        let index = index as usize;
+
         if index < self.inner().len() {
             self.inner_mut()[index] = value;
             Ok(())
         } else if index == self.inner().len() {
             self.inner_mut().push(value);
             Ok(())
+        } else {
+            Err(Error::Index {
+                key: index.to_string(),
+            })?
+        }
+    }
+
+    fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error> {
+        let mut index = *Int::try_from(index.clone())?.inner();
+        if index < 0 {
+            index = self.inner().len() as IntInner + index;
+        }
+        let index = index as usize;
+
+        if index < self.inner().len() {
+            Ok(self.inner_mut().remove(index))
         } else {
             Err(Error::Index {
                 key: index.to_string(),
@@ -336,6 +367,7 @@ mod test {
     fn test_indexing() {
         let mut array = Array::from(vec![1.into(), 2.into(), 3.into()]);
         assert_eq!(array.get_index(&0.into()).unwrap(), &1.into());
+        assert_eq!(array.get_index(&(-1).into()).unwrap(), &3.into());
         assert_eq!(
             array
                 .get_indices(&Array::from(vec![0.into(), 1.into()]).into())

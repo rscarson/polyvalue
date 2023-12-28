@@ -326,6 +326,20 @@ pub trait IndexingOperationExt {
     /// assert_eq!(a.get_index(&index).unwrap(), &Value::from(4));
     /// ```
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error>;
+
+    /// Delete a value at an index
+    /// Returns an `Error::Index` if the index is not found
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::operations::{IndexingOperationExt};
+    ///
+    /// let mut a = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
+    /// let index = Value::from(1);
+    /// a.delete_index(&index).unwrap();
+    /// ```
+    fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error>;
 }
 
 /// Matching operations
