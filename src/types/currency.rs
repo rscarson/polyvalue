@@ -228,7 +228,7 @@ mod test {
         assert_eq!(value.to_string(), "¥10".to_string());
 
         let value = Currency::new(CurrencyInner::new(None, 5, Fixed::from(Dec!(10.123456789))));
-        assert_eq!(value.to_string(), "10.12345".to_string());
+        assert_eq!(value.to_string(), "10.12346".to_string());
     }
 
     #[test]

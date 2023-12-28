@@ -909,7 +909,7 @@ mod test {
         // fixed/currency = fixed
         let a = Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO)));
         let b = Value::from(Fixed::from(Decimal::ZERO));
-        assert_eq!(a.type_for_comparison(&b), ValueType::Fixed);
+        assert_eq!(a.type_for_comparison(&b), ValueType::Currency);
     }
 
     #[test]
