@@ -148,6 +148,41 @@ pub enum Value {
     Object(Object),
 }
 
+impl TryFrom<serde_json::Value> for Value {
+    type Error = Error;
+    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        match value {
+            serde_json::Value::Null => Ok(Value::String(Str::from(""))),
+            serde_json::Value::Bool(v) => Ok(Value::Bool(Bool::from(v))),
+            serde_json::Value::String(v) => Ok(Value::String(Str::from(v))),
+            serde_json::Value::Array(v) => Ok(v
+                .iter()
+                .map(|v| Value::try_from(v.clone()))
+                .collect::<Result<Vec<_>, _>>()?
+                .into()),
+            serde_json::Value::Object(v) => {
+                let mut object = ObjectInner::new();
+                for (key, value) in v {
+                    object.insert(Value::from(key), Value::try_from(value)?)?;
+                }
+                Ok(Value::Object(object.into()))
+            }
+            serde_json::Value::Number(v) => {
+                if v.is_i64() {
+                    Ok(Value::Int(Int::from(v.as_i64().unwrap())))
+                } else if v.is_f64() {
+                    Ok(Value::Float(Float::from(v.as_f64().unwrap())))
+                } else {
+                    Err(Error::UnrecognizedType(format!(
+                        "Could not convert json number to value: {:?}",
+                        v
+                    )))
+                }
+            }
+        }
+    }
+}
+
 impl Value {
     /// Resolves the type of two values based on a priority system.
     /// If successful, both returned values are guaranteed to be of
