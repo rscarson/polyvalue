@@ -13,6 +13,13 @@ macro_rules! map_value {
             }
         }
 
+        impl TryFrom<&$crate::Value> for $target {
+            type Error = crate::Error;
+            fn try_from(value: &$crate::Value) -> Result<Self, Self::Error> {
+                $from(value.clone())
+            }
+        }
+
         impl From<$target> for $crate::Value {
             fn from(value: $target) -> Self {
                 $into(value)
