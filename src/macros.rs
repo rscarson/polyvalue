@@ -25,6 +25,12 @@ macro_rules! map_value {
                 $into(value)
             }
         }
+
+        impl From<&$target> for $crate::Value {
+            fn from(value: $target) -> Self {
+                $into(value.clone())
+            }
+        }
     };
 }
 
