@@ -378,13 +378,35 @@ impl Value {
     pub fn as_type(&self, type_name: ValueType) -> Result<Value, Error> {
         let value = match type_name {
             ValueType::Bool => Bool::try_from(self.clone())?.into(),
-            ValueType::Fixed | ValueType::Numeric => Fixed::try_from(self.clone())?.into(),
+            ValueType::Fixed => Fixed::try_from(self.clone())?.into(),
             ValueType::Float => Float::try_from(self.clone())?.into(),
             ValueType::Currency => Currency::try_from(self.clone())?.into(),
             ValueType::Int => Int::try_from(self.clone())?.into(),
             ValueType::String => Str::try_from(self.clone())?.into(),
             ValueType::Array => Array::try_from(self.clone())?.into(),
-            ValueType::Object | ValueType::Compound => Object::try_from(self.clone())?.into(),
+            ValueType::Object => Object::try_from(self.clone())?.into(),
+
+            ValueType::Compound => {
+                if self.own_type() == ValueType::Array {
+                    Array::try_from(self.clone())?.into()
+                } else {
+                    Object::try_from(self.clone())?.into()
+                }
+            }
+
+            ValueType::Numeric => {
+                if self.own_type() == ValueType::Int {
+                    Int::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::Fixed {
+                    Fixed::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::Float {
+                    Float::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::Currency {
+                    Currency::try_from(self.clone())?.into()
+                } else {
+                    Fixed::try_from(self.clone())?.into()
+                }
+            }
 
             ValueType::Any => self.clone(),
         };
@@ -1270,5 +1292,26 @@ mod test {
             Value::bitwise_op(&l, &r, BitwiseOperation::Not).unwrap(),
             Value::from(0b0101)
         );
+    }
+
+    #[test]
+    fn test_serialize() {
+        let value = serde_json::to_value(Value::from(1.0)).unwrap();
+        assert_eq!(value, serde_json::json!(1.0));
+
+        let value = serde_json::to_value(Value::from(1)).unwrap();
+        assert_eq!(value, serde_json::json!(1));
+
+        let value = serde_json::to_value(Value::from("abc")).unwrap();
+        assert_eq!(value, serde_json::json!("abc"));
+
+        let value = serde_json::to_value(Value::from(vec![Value::from(1)])).unwrap();
+        assert_eq!(value, serde_json::json!([1]));
+
+        let value = serde_json::to_value(
+            Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(value, serde_json::json!([["a", 1]]));
     }
 }
