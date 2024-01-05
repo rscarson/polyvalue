@@ -117,17 +117,17 @@ impl TryFrom<&str> for ValueType {
     type Error = Error;
     fn try_from(s: &str) -> Result<Self, Error> {
         match s.to_lowercase().as_str() {
-            "Bool" => Ok(ValueType::Bool),
-            "Fixed" => Ok(ValueType::Fixed),
-            "Float" => Ok(ValueType::Float),
-            "Currency" => Ok(ValueType::Currency),
-            "Int" => Ok(ValueType::Int),
-            "String" => Ok(ValueType::String),
-            "Array" => Ok(ValueType::Array),
-            "Object" => Ok(ValueType::Object),
-            "Numeric" => Ok(ValueType::Numeric),
-            "Compound" => Ok(ValueType::Compound),
-            "Any" => Ok(ValueType::Any),
+            "bool" => Ok(ValueType::Bool),
+            "fixed" => Ok(ValueType::Fixed),
+            "float" => Ok(ValueType::Float),
+            "currency" => Ok(ValueType::Currency),
+            "int" => Ok(ValueType::Int),
+            "string" => Ok(ValueType::String),
+            "array" => Ok(ValueType::Array),
+            "object" => Ok(ValueType::Object),
+            "numeric" => Ok(ValueType::Numeric),
+            "compound" => Ok(ValueType::Compound),
+            "any" => Ok(ValueType::Any),
             _ => Err(Error::UnrecognizedType(s.to_string())),
         }
     }

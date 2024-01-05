@@ -52,7 +52,7 @@ pub enum Error {
     InvalidTypeForKey(ValueType),
 
     /// An error caused by attempting to use an unsupported type
-    #[error("Unrecognized type {0}. Expected one of [array, bool, currency, fixed, float, int, object, string]")]
+    #[error("Unrecognized type {0}. Expected one of [array, bool, currency, fixed, float, int, object, string, numeric, compound, any]")]
     UnrecognizedType(String),
 
     /// An error caused by a calculation that resulted in an overflow
