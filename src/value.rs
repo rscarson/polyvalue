@@ -46,7 +46,7 @@ pub trait ValueTrait<T>:
 /// - Float
 /// - Int
 /// - Bool
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
 pub enum ValueType {
     /// A boolean value
     Bool,
@@ -82,20 +82,33 @@ pub enum ValueType {
     Any,
 }
 
+impl Serialize for ValueType {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.to_string().as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for ValueType {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        ValueType::try_from(s.as_str()).map_err(serde::de::Error::custom)
+    }
+}
+
 impl std::fmt::Display for ValueType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValueType::Bool => write!(f, "bool"),
-            ValueType::Fixed => write!(f, "fixed"),
-            ValueType::Float => write!(f, "float"),
-            ValueType::Currency => write!(f, "currency"),
-            ValueType::Int => write!(f, "int"),
-            ValueType::String => write!(f, "string"),
-            ValueType::Array => write!(f, "array"),
-            ValueType::Object => write!(f, "object"),
-            ValueType::Numeric => write!(f, "numeric"),
-            ValueType::Compound => write!(f, "object or array"),
-            ValueType::Any => write!(f, "any"),
+            ValueType::Bool => write!(f, "Bool"),
+            ValueType::Fixed => write!(f, "Fixed"),
+            ValueType::Float => write!(f, "Float"),
+            ValueType::Currency => write!(f, "Currency"),
+            ValueType::Int => write!(f, "Int"),
+            ValueType::String => write!(f, "String"),
+            ValueType::Array => write!(f, "Array"),
+            ValueType::Object => write!(f, "Object"),
+            ValueType::Numeric => write!(f, "Numeric"),
+            ValueType::Compound => write!(f, "Compound"),
+            ValueType::Any => write!(f, "Any"),
         }
     }
 }
