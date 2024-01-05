@@ -37,7 +37,8 @@ mod macros;
 
 mod inner_currency;
 mod is_currency;
-pub use inner_currency::*;
+
+mod inner_object;
 
 mod error;
 pub use error::Error;

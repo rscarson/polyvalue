@@ -5,9 +5,11 @@
 //! Like all subtypes, it is hashable, serializable, and fully comparable
 //! It is represented as a string in the form of `<symbol><value>`
 //!
-use crate::{operations::*, types::*, CurrencyInner, Error, Value, ValueTrait};
+use crate::{operations::*, types::*, Error, Value, ValueTrait};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+
+pub use crate::inner_currency::CurrencyInner;
 
 /// Subtype of `Value` that represents a currency
 /// This is a wrapper around `Fixed` that adds a currency symbol

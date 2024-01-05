@@ -46,4 +46,4 @@ mod string;
 pub use string::Str;
 
 mod currency;
-pub use currency::Currency;
+pub use currency::{Currency, CurrencyInner};

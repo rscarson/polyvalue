@@ -122,6 +122,7 @@ impl TryFrom<&str> for ValueType {
 /// Main value type
 /// This is an enum that can hold any of the supported value types
 #[derive(Clone, Hash, Serialize, Deserialize, Debug, Eq)]
+#[serde(untagged)]
 pub enum Value {
     /// A boolean value
     Bool(Bool),
@@ -741,7 +742,6 @@ impl IndexingOperationExt for Value {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::CurrencyInner;
     use fpdec::Decimal;
 
     #[test]
