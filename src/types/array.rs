@@ -78,7 +78,14 @@ map_value!(
     handle_into = |v: Array| Value::Array(v),
     handle_from = |v: Value| match v {
         Value::Array(v) => Ok(v),
-        Value::Range(_) => v.as_a::<Array>(),
+        Value::Range(v) => {
+            let inner = v
+                .inner()
+                .clone()
+                .map(|i| Value::from(i))
+                .collect::<ArrayInner>();
+            Ok(inner.into())
+        }
         Value::Int(_) | Value::Bool(_) | Value::Float(_) | Value::Fixed(_) | Value::Currency(_) => {
             Ok(vec![v].into())
         }
