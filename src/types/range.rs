@@ -33,7 +33,7 @@ impl FromStr for Range {
         let end = parts.next().ok_or(Error::InvalidRange)?;
         let start = start.parse::<Int>()?;
         let end = end.parse::<Int>()?;
-        Ok(Range::new(start..=end))
+        Ok(Range::new(*start.inner()..=*end.inner()))
     }
 }
 
