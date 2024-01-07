@@ -46,7 +46,7 @@ mod string;
 pub use string::Str;
 
 mod range;
-pub use range::Range;
+pub use range::{Range, RangeInner};
 
 mod currency;
 pub use currency::{Currency, CurrencyInner};
