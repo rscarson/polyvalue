@@ -9,6 +9,7 @@ use crate::{types::*, Error, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 use std::{ops::RangeInclusive, str::FromStr};
 
+/// Inner type of `Range`
 pub type RangeInner = RangeInclusive<IntInner>;
 
 /// Subtype of `Value` that represents a range
@@ -67,10 +68,13 @@ map_value!(
     from = Range,
     handle_into = |v: Range| Value::Range(v),
     handle_from = |v: Value| {
-        Err(Error::ValueConversion {
-            src_type: v.own_type(),
-            dst_type: ValueType::Range,
-        })
+        match v {
+            Value::Range(v) => Ok(v),
+            _ => Err(Error::ValueConversion {
+                src_type: v.own_type(),
+                dst_type: ValueType::Range,
+            }),
+        }
     }
 );
 
