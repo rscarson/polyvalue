@@ -83,6 +83,7 @@ map_value!(
     from = Int,
     handle_into = |v: Int| Value::Int(v),
     handle_from = |v: Value| match v {
+        Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Int(v) => Ok(v),
         Value::Fixed(v) => {
             let p = *v.inner();
@@ -173,6 +174,7 @@ map_type!(Float, Int);
 map_type!(Currency, Int);
 map_type!(Str, Int);
 map_type!(Object, Int);
+map_type!(Range, Int);
 
 impl ArithmeticOperationExt for Int {
     fn arithmetic_op(

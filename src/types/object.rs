@@ -82,6 +82,7 @@ map_value!(
     from = Object,
     handle_into = |v: Object| Value::Object(v),
     handle_from = |v: Value| match v {
+        Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Object(v) => Ok(v),
         Value::Int(v) => {
             let mut map = ObjectInner::new();
@@ -130,6 +131,7 @@ map_type!(Fixed, Object);
 map_type!(Currency, Object);
 map_type!(Str, Object);
 map_type!(Array, Object);
+map_type!(Range, Object);
 
 //
 // Trait implementations
@@ -221,12 +223,21 @@ impl IndexingOperationExt for Object {
     }
 
     fn get_indices(&self, index: &Value) -> Result<Vec<&Value>, Error> {
-        let indices = index.as_a::<Array>()?;
-        indices
-            .inner()
-            .iter()
-            .map(|i| self.get_index(i))
-            .collect::<Result<Vec<_>, Error>>()
+        if index.is_a(ValueType::Range) {
+            let indices = index.as_a::<Range>()?;
+            indices
+                .inner()
+                .clone()
+                .map(|i| self.get_index(&Value::from(i)))
+                .collect()
+        } else {
+            let indices = index.as_a::<Array>()?;
+            indices
+                .inner()
+                .iter()
+                .map(|i| self.get_index(i))
+                .collect::<Result<Vec<_>, Error>>()
+        }
     }
 
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {

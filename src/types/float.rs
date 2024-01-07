@@ -33,6 +33,7 @@ map_value!(
     from = Float,
     handle_into = |v: Float| Value::Float(v),
     handle_from = |v: Value| match v {
+        Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Float(v) => Ok(v),
         Value::Fixed(v) => {
             let p = *v.inner();
@@ -90,6 +91,7 @@ map_type!(Fixed, Float);
 map_type!(Currency, Float);
 map_type!(Str, Float);
 map_type!(Object, Float);
+map_type!(Range, Float);
 
 //
 // Trait implementations

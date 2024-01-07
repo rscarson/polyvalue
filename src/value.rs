@@ -66,6 +66,9 @@ pub enum ValueType {
     /// A string value
     String,
 
+    /// A range value
+    Range,
+
     /// An array value
     Array,
 
@@ -75,7 +78,7 @@ pub enum ValueType {
     /// A numeric value (fixed, float, currency, or int)
     Numeric,
 
-    /// A compound value (array or object)
+    /// A compound value (array, range or object)
     Compound,
 
     /// Any value
@@ -104,6 +107,7 @@ impl std::fmt::Display for ValueType {
             ValueType::Currency => write!(f, "Currency"),
             ValueType::Int => write!(f, "Int"),
             ValueType::String => write!(f, "String"),
+            ValueType::Range => write!(f, "Range"),
             ValueType::Array => write!(f, "Array"),
             ValueType::Object => write!(f, "Object"),
             ValueType::Numeric => write!(f, "Numeric"),
@@ -123,6 +127,7 @@ impl TryFrom<&str> for ValueType {
             "currency" => Ok(ValueType::Currency),
             "int" => Ok(ValueType::Int),
             "string" => Ok(ValueType::String),
+            "range" => Ok(ValueType::Range),
             "array" => Ok(ValueType::Array),
             "object" => Ok(ValueType::Object),
             "numeric" => Ok(ValueType::Numeric),
@@ -155,6 +160,10 @@ pub enum Value {
 
     /// A string value
     String(Str),
+
+    /// A range value
+    /// This type will always resolve to array in all comparisons and operations
+    Range(Range),
 
     /// An array value
     Array(Array),
@@ -290,6 +299,7 @@ impl Value {
             Value::Currency(_) => ValueType::Currency,
             Value::Int(_) => ValueType::Int,
             Value::String(_) => ValueType::String,
+            Value::Range(_) => ValueType::Range,
             Value::Array(_) => ValueType::Array,
             Value::Object(_) => ValueType::Object,
         }
@@ -348,7 +358,9 @@ impl Value {
                     || Currency::try_from(self.clone()).is_ok()
             }
             ValueType::Compound => {
-                self.own_type() == ValueType::Array || self.own_type() == ValueType::Object
+                self.own_type() == ValueType::Array
+                    || self.own_type() == ValueType::Object
+                    || self.own_type() == ValueType::Range
             }
             ValueType::Any => true,
 
@@ -385,6 +397,14 @@ impl Value {
             ValueType::String => Str::try_from(self.clone())?.into(),
             ValueType::Array => Array::try_from(self.clone())?.into(),
             ValueType::Object => Object::try_from(self.clone())?.into(),
+
+            // Cannot convert to range
+            ValueType::Range => {
+                return Err(Error::ValueConversion {
+                    src_type: self.own_type(),
+                    dst_type: ValueType::Range,
+                })
+            }
 
             ValueType::Compound => {
                 if self.own_type() == ValueType::Array {
@@ -433,7 +453,10 @@ impl Value {
     /// - Int
     /// - Bool
     pub fn type_for_comparison(&self, other: &Self) -> ValueType {
-        if self.own_type() == other.own_type() {
+        if self.either_type(other, ValueType::Range) {
+            // Range is always converted to array
+            return ValueType::Array;
+        } else if self.own_type() == other.own_type() {
             return self.own_type();
         } else if self.either_type(other, ValueType::Object) {
             return ValueType::Object;
@@ -469,6 +492,7 @@ impl std::fmt::Display for Value {
             Value::Currency(v) => write!(f, "{}", v),
             Value::Int(v) => write!(f, "{}", v),
             Value::String(v) => write!(f, "{}", v),
+            Value::Range(v) => write!(f, "{}", v),
             Value::Array(v) => write!(f, "{}", v),
             Value::Object(v) => write!(f, "{}", v),
         }

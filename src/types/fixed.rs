@@ -23,6 +23,7 @@ map_value!(
     from = Fixed,
     handle_into = |v: Fixed| Value::Fixed(v),
     handle_from = |v: Value| match v {
+        Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Fixed(v) => Ok(v),
         Value::Int(v) => {
             let p = *v.inner();
@@ -96,6 +97,7 @@ map_type!(Int, Fixed);
 map_type!(Float, Fixed);
 map_type!(Currency, Fixed);
 map_type!(Str, Fixed);
+map_type!(Range, Fixed);
 
 //
 // Trait implementations

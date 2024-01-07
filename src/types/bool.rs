@@ -23,6 +23,7 @@ map_value!(
     from = Bool,
     handle_into = |v: Bool| Value::Bool(v),
     handle_from = |v: Value| match v {
+        Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Bool(v) => Ok(v),
         Value::Int(v) => {
             Ok(Bool::from(*v.inner() != 0))
@@ -69,6 +70,7 @@ map_type!(Float, Bool);
 map_type!(Fixed, Bool);
 map_type!(Currency, Bool);
 map_type!(Str, Bool);
+map_type!(Range, Bool);
 
 impl ArithmeticOperationExt for Bool {
     fn arithmetic_op(

@@ -45,5 +45,8 @@ pub use object::{Object, ObjectInner};
 mod string;
 pub use string::Str;
 
+mod range;
+pub use range::Range;
+
 mod currency;
 pub use currency::{Currency, CurrencyInner};

@@ -52,6 +52,7 @@ map_type!(Float, Currency);
 map_type!(Fixed, Currency);
 map_type!(Bool, Currency);
 map_type!(Str, Currency);
+map_type!(Range, Currency);
 
 impl Currency {
     /// Get the symbol of this `Currency`

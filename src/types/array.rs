@@ -78,6 +78,7 @@ map_value!(
     handle_into = |v: Array| Value::Array(v),
     handle_from = |v: Value| match v {
         Value::Array(v) => Ok(v),
+        Value::Range(_) => v.as_a::<Array>(),
         Value::Int(_) | Value::Bool(_) | Value::Float(_) | Value::Fixed(_) | Value::Currency(_) => {
             Ok(vec![v].into())
         }
@@ -104,6 +105,7 @@ map_type!(Fixed, Array);
 map_type!(Currency, Array);
 map_type!(Str, Array);
 map_type!(Object, Array);
+map_type!(Range, Array);
 
 impl MatchingOperationExt for Array {
     fn matching_op(
@@ -204,13 +206,22 @@ impl IndexingOperationExt for Array {
     }
 
     fn get_indices(&self, index: &Value) -> Result<Vec<&Value>, crate::Error> {
-        let indices = index.as_a::<Array>()?;
-        let values = indices
-            .inner()
-            .iter()
-            .map(|i| self.get_index(i))
-            .collect::<Result<Vec<_>, Error>>()?;
-        Ok(values)
+        if index.is_a(ValueType::Range) {
+            let indices = index.as_a::<Range>()?;
+            indices
+                .inner()
+                .clone()
+                .map(|i| self.get_index(&Value::from(i)))
+                .collect()
+        } else {
+            let indices = index.as_a::<Array>()?;
+            let values = indices
+                .inner()
+                .iter()
+                .map(|i| self.get_index(i))
+                .collect::<Result<Vec<_>, Error>>()?;
+            Ok(values)
+        }
     }
 
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
