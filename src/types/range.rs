@@ -31,8 +31,14 @@ impl FromStr for Range {
         let mut parts = s.split("..");
         let start = parts.next().ok_or(Error::InvalidRange)?;
         let end = parts.next().ok_or(Error::InvalidRange)?;
+
         let start = start.parse::<Int>()?;
         let end = end.parse::<Int>()?;
+
+        if start > end {
+            return Err(Error::InvalidRange);
+        }
+
         Ok(Range::new(*start.inner()..=*end.inner()))
     }
 }
