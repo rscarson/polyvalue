@@ -101,18 +101,18 @@ impl<'de> Deserialize<'de> for ValueType {
 impl std::fmt::Display for ValueType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValueType::Bool => write!(f, "Bool"),
-            ValueType::Fixed => write!(f, "Fixed"),
-            ValueType::Float => write!(f, "Float"),
-            ValueType::Currency => write!(f, "Currency"),
-            ValueType::Int => write!(f, "Int"),
-            ValueType::String => write!(f, "String"),
-            ValueType::Range => write!(f, "Range"),
-            ValueType::Array => write!(f, "Array"),
-            ValueType::Object => write!(f, "Object"),
-            ValueType::Numeric => write!(f, "Numeric"),
-            ValueType::Compound => write!(f, "Compound"),
-            ValueType::Any => write!(f, "Any"),
+            ValueType::Bool => write!(f, "bool"),
+            ValueType::Fixed => write!(f, "fixed"),
+            ValueType::Float => write!(f, "float"),
+            ValueType::Currency => write!(f, "currency"),
+            ValueType::Int => write!(f, "int"),
+            ValueType::String => write!(f, "string"),
+            ValueType::Range => write!(f, "range"),
+            ValueType::Array => write!(f, "array"),
+            ValueType::Object => write!(f, "object"),
+            ValueType::Numeric => write!(f, "numeric"),
+            ValueType::Compound => write!(f, "compound"),
+            ValueType::Any => write!(f, "any"),
         }
     }
 }
