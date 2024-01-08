@@ -59,6 +59,10 @@ pub enum Error {
     #[error("Invalid range literal")]
     InvalidRange,
 
+    /// An error caused by parsing a Decimal
+    #[error("Given value cannot be converted to Decimal")]
+    DecimalError(#[from] fpdec::DecimalError),
+
     /// An error caused by parsing a regex
     #[error("Invalid regex literal")]
     RegexError(#[from] regex::Error),
