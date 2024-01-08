@@ -607,9 +607,7 @@ impl BooleanOperationExt for Value {
             (Value::Object(l), Value::Object(r)) => {
                 Object::boolean_op(&l, &r, operation).map(Into::into)
             }
-            _ => Err(Error::Internal(
-                "Invalid type combination during boolean operation".to_string(),
-            )),
+            _ => unreachable!("Invalid type combination during boolean operation"),
         }
     }
 
@@ -651,9 +649,7 @@ impl ArithmeticOperationExt for Value {
             (Value::Object(l), Value::Object(r)) => {
                 Object::arithmetic_op(&l, &r, operation).map(Into::into)
             }
-            _ => Err(Error::Internal(
-                "Invalid type combination during arithmetic operation".to_string(),
-            )),
+            _ => unreachable!("Invalid type combination during boolean operation"),
         }
     }
 
