@@ -198,15 +198,22 @@ impl MatchingOperationExt for Str {
             MatchingOperation::Contains => {
                 let pattern = pattern.inner().as_str();
                 let pattern = convert_regex_string(pattern)?;
-                pattern.find(container.inner().as_str()).is_some()
+                pattern.is_match(container.inner().as_str())
             }
             MatchingOperation::StartsWith => {
                 container.inner().starts_with(pattern.inner().as_str())
             }
             MatchingOperation::EndsWith => container.inner().ends_with(pattern.inner().as_str()),
             MatchingOperation::Matches => {
-                let pattern = pattern.inner().as_str();
-                let pattern = convert_regex_string(pattern)?;
+                let mut pattern = pattern.inner().to_string();
+                if !pattern.starts_with("^") {
+                    pattern = "^".to_string() + pattern.as_str();
+                }
+                if !pattern.ends_with("$") {
+                    pattern = pattern + "$";
+                }
+
+                let pattern = convert_regex_string(&pattern)?;
                 pattern.is_match(container.inner().as_str())
             }
 
@@ -228,7 +235,16 @@ impl ArithmeticOperationExt for Str {
         let right = right.inner().to_string();
         let result = match operation {
             ArithmeticOperation::Add => left + right.as_str(),
+
             ArithmeticOperation::Subtract => left.replace(&right, ""),
+
+            // reverse string
+            ArithmeticOperation::Negate => {
+                let mut result = left.clone();
+                result = result.chars().rev().collect();
+                result
+            }
+
             _ => Err(Error::UnsupportedOperation {
                 operation: operation,
                 actual_type: ValueType::String,

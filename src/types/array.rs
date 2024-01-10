@@ -159,6 +159,19 @@ impl ArithmeticOperationExt for Array {
                 Ok(result)
             }
 
+            ArithmeticOperation::Subtract => {
+                let mut result = left.clone();
+                result.inner_mut().retain(|v| !right.inner().contains(v));
+                Ok(result)
+            }
+
+            // reverse
+            ArithmeticOperation::Negate => {
+                let mut result = left.clone();
+                result.inner_mut().reverse();
+                Ok(result)
+            }
+
             _ => Err(Error::UnsupportedOperation {
                 operation: operation,
                 actual_type: ValueType::Array,

@@ -174,6 +174,15 @@ impl ArithmeticOperationExt for Object {
                 Ok(result)
             }
 
+            ArithmeticOperation::Subtract => {
+                let mut result = left.clone();
+                for (_, v) in right.inner().iter() {
+                    // remove all instances of the value
+                    result.inner_mut().retain(|_, v2| v != v2);
+                }
+                Ok(result)
+            }
+
             _ => Err(Error::UnsupportedOperation {
                 operation: operation,
                 actual_type: ValueType::Object,

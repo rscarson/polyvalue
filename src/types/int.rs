@@ -68,8 +68,6 @@ impl Int {
             }
         };
 
-        println!("Converting {} to int with radix {}", s, radix);
-
         let value = IntInner::from_str_radix(&s, radix).map_err(|_| Error::ValueConversion {
             src_type: ValueType::String,
             dst_type: ValueType::Int,

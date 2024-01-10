@@ -83,6 +83,11 @@ impl ObjectInner {
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> {
         self.0.values_mut()
     }
+
+    /// Retain only the key-value pairs that satisfy the predicate
+    pub fn retain(&mut self, f: impl FnMut(&Value, &mut Value) -> bool) {
+        self.0.retain(f)
+    }
 }
 
 impl TryFrom<Vec<(Value, Value)>> for ObjectInner {
