@@ -197,7 +197,7 @@ impl MatchingOperationExt for Str {
         let result = match operation {
             MatchingOperation::Contains => {
                 let pattern = pattern.inner().as_str();
-                let pattern = convert_regex_string(pattern)?;
+                let pattern = convert_regex_string(pattern, |s: String| s)?;
                 pattern.is_match(container.inner().as_str())
             }
             MatchingOperation::StartsWith => {
@@ -205,15 +205,16 @@ impl MatchingOperationExt for Str {
             }
             MatchingOperation::EndsWith => container.inner().ends_with(pattern.inner().as_str()),
             MatchingOperation::Matches => {
-                let mut pattern = pattern.inner().to_string();
-                if !pattern.starts_with("^") {
-                    pattern = "^".to_string() + pattern.as_str();
-                }
-                if !pattern.ends_with("$") {
-                    pattern = pattern + "$";
-                }
-
-                let pattern = convert_regex_string(&pattern)?;
+                let pattern = pattern.inner().as_str();
+                let pattern = convert_regex_string(pattern, |mut s: String| {
+                    if !s.starts_with("^") {
+                        s = "^".to_string() + s.as_str();
+                    }
+                    if !s.ends_with("$") {
+                        s = s + "$";
+                    }
+                    s
+                })?;
                 pattern.is_match(container.inner().as_str())
             }
 
@@ -288,7 +289,10 @@ impl BooleanOperationExt for Str {
 }
 
 // This function will convert a string of either forms `/pattern/flags` or `pattern` to a regex object
-fn convert_regex_string(input: &str) -> Result<regex::Regex, Error> {
+fn convert_regex_string<F>(input: &str, formatting_callback: F) -> Result<regex::Regex, Error>
+where
+    F: Fn(String) -> String,
+{
     let mut pattern = input.to_string();
     let mut flags = None;
 
@@ -298,6 +302,8 @@ fn convert_regex_string(input: &str) -> Result<regex::Regex, Error> {
         pattern = input[1..end].to_string();
         flags = Some(input[end + 1..].to_string());
     }
+
+    pattern = formatting_callback(pattern);
 
     let mut regex = regex::RegexBuilder::new(&pattern);
     if let Some(flags) = flags {
