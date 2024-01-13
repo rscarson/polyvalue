@@ -126,3 +126,34 @@ impl Serialize for ObjectInner {
         flat_map.serialize(serializer)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use fpdec::Decimal;
+
+    use super::*;
+
+    #[test]
+    fn test_hashing() {
+        let mut obj = ObjectInner::new();
+        obj.insert(Value::from(false), Value::from(0)).unwrap();
+        obj.insert(Value::from(0), Value::from(1)).unwrap();
+        obj.insert(Value::from(0.0), Value::from(2)).unwrap();
+        obj.insert(Value::from(Decimal::ZERO), Value::from(3))
+            .unwrap();
+        obj.insert(Value::from("".to_string()), Value::from(4))
+            .unwrap();
+
+        assert_ne!(Value::from(false), Value::from(0));
+        assert_ne!(Value::from(0), Value::from(0.0));
+        assert_ne!(Value::from(0.0), Value::from(Decimal::ZERO));
+        assert_ne!(Value::from(Decimal::ZERO), Value::from("".to_string()));
+
+        assert_eq!(obj.get(&Value::from(false)), Some(&Value::from(0)));
+        assert_eq!(obj.get(&Value::from(0)), Some(&Value::from(1)));
+        assert_eq!(obj.get(&Value::from(0.0)), Some(&Value::from(2)));
+        assert_eq!(obj.get(&Value::from(Decimal::ZERO)), Some(&Value::from(3)));
+        assert_eq!(obj.get(&Value::from("".to_string())), Some(&Value::from(4)));
+        assert_eq!(5, obj.len());
+    }
+}

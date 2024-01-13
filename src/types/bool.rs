@@ -21,7 +21,7 @@ impl_value!(Bool, bool, |v: &Self| if *v.inner() {
 
 map_value!(
     from = Bool,
-    handle_into = |v: Bool| Value::Bool(v),
+    handle_into = Value::Bool,
     handle_from = |v: Value| match v {
         Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Bool(v) => Ok(v),
@@ -35,7 +35,7 @@ map_value!(
             Ok(Bool::from(*v.inner() != Decimal::ZERO))
         }
         Value::Currency(v) => {
-            Ok(Bool::from(*v.inner().value().inner() == Decimal::ZERO).into())
+            Ok(Bool::from(*v.inner().value().inner() == Decimal::ZERO))
         }
         Value::String(v) => {
             Ok(Bool::from(!v.inner().is_empty()))
@@ -81,7 +81,7 @@ impl ArithmeticOperationExt for Bool {
         let left = Int::try_from(Value::from(left.clone()))?;
         let right = Int::try_from(Value::from(right.clone()))?;
         let result = Int::arithmetic_op(&left, &right, operation)?;
-        Ok(Value::from(result).try_into()?)
+        Value::from(result).try_into()
     }
 
     fn arithmetic_neg(&self) -> Result<Self, crate::Error>
@@ -97,8 +97,8 @@ impl BooleanOperationExt for Bool {
         let result = match operation {
             BooleanOperation::And => *left.inner() && *right.inner(),
             BooleanOperation::Or => *left.inner() || *right.inner(),
-            BooleanOperation::LT => *left.inner() < *right.inner(),
-            BooleanOperation::GT => *left.inner() > *right.inner(),
+            BooleanOperation::LT => !(*left.inner()) & *right.inner(),
+            BooleanOperation::GT => *left.inner() & !(*right.inner()),
             BooleanOperation::LTE => *left.inner() <= *right.inner(),
             BooleanOperation::GTE => *left.inner() >= *right.inner(),
             BooleanOperation::EQ => *left.inner() == *right.inner(),

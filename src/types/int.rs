@@ -79,7 +79,7 @@ impl Int {
 
 map_value!(
     from = Int,
-    handle_into = |v: Int| Value::Int(v),
+    handle_into = Value::Int,
     handle_from = |v: Value| match v {
         Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Int(v) => Ok(v),
@@ -161,7 +161,7 @@ impl FromStr for Int {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(s.replace(",", "").parse::<IntInner>()?.into())
+        Ok(s.replace(',', "").parse::<IntInner>()?.into())
     }
 }
 
@@ -180,8 +180,8 @@ impl ArithmeticOperationExt for Int {
         right: &Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
-        let left = left.inner().clone();
-        let right = right.inner().clone();
+        let left = *left.inner();
+        let right = *right.inner();
 
         let result = match operation {
             ArithmeticOperation::Add => left.checked_add(right),

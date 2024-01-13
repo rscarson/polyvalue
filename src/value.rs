@@ -140,23 +140,23 @@ impl TryFrom<&str> for ValueType {
 
 /// Main value type
 /// This is an enum that can hold any of the supported value types
-#[derive(Clone, Hash, Serialize, Deserialize, Debug, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 #[serde(untagged)]
 pub enum Value {
     /// A boolean value
     Bool(Bool),
 
-    /// A fixed-point value
-    Fixed(Fixed),
+    /// An integer value
+    Int(Int),
 
     /// A floating-point value
     Float(Float),
 
+    /// A fixed-point value
+    Fixed(Fixed),
+
     /// A currency value
     Currency(Currency),
-
-    /// An integer value
-    Int(Int),
 
     /// A string value
     String(Str),
@@ -455,31 +455,37 @@ impl Value {
     pub fn type_for_comparison(&self, other: &Self) -> ValueType {
         if self.either_type(other, ValueType::Range) {
             // Range is always converted to array
-            return ValueType::Array;
+            ValueType::Array
         } else if self.own_type() == other.own_type() {
-            return self.own_type();
+            self.own_type()
         } else if self.either_type(other, ValueType::Object) {
-            return ValueType::Object;
+            ValueType::Object
         } else if self.either_type(other, ValueType::Array) {
-            return ValueType::Array;
+            ValueType::Array
         } else if self.either_type(other, ValueType::String) {
-            return ValueType::String;
+            ValueType::String
         } else if self.either_type(other, ValueType::Currency) {
-            return ValueType::Currency;
+            ValueType::Currency
         } else if self.either_type(other, ValueType::Fixed) {
-            return ValueType::Fixed;
+            ValueType::Fixed
         } else if self.either_type(other, ValueType::Float) {
-            return ValueType::Float;
+            ValueType::Float
         } else if self.either_type(other, ValueType::Int) {
-            return ValueType::Int;
+            ValueType::Int
         } else if self.either_type(other, ValueType::Bool) {
-            return ValueType::Bool;
+            ValueType::Bool
         } else {
             panic!(
                 "Type {:?} was not recognized; this should never happen",
                 self
             );
         }
+    }
+
+    /// Compares two values using, ignoring type
+    pub fn weak_cmp(&self, other: &Self) -> Result<std::cmp::Ordering, Error> {
+        let (l, r) = self.resolve(other)?;
+        Ok(l.cmp(&r))
     }
 }
 
@@ -495,90 +501,6 @@ impl std::fmt::Display for Value {
             Value::Range(v) => write!(f, "{}", v),
             Value::Array(v) => write!(f, "{}", v),
             Value::Object(v) => write!(f, "{}", v),
-        }
-    }
-}
-
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        if let Ok((a, b)) = self.resolve(other) {
-            match (a, b) {
-                (Value::Bool(a), Value::Bool(b)) => a == b,
-                (Value::Fixed(a), Value::Fixed(b)) => a == b,
-                (Value::Float(a), Value::Float(b)) => a == b,
-                (Value::Currency(a), Value::Currency(b)) => a == b,
-                (Value::Int(a), Value::Int(b)) => a == b,
-                (Value::String(a), Value::String(b)) => a == b,
-                (Value::Array(a), Value::Array(b)) => a == b,
-                (Value::Object(a), Value::Object(b)) => a == b,
-                _ => false,
-            }
-        } else {
-            false
-        }
-    }
-}
-
-impl PartialOrd for Value {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if let Ok((a, b)) = self.resolve(other) {
-            match a.own_type() {
-                ValueType::Bool => Bool::try_from(a)
-                    .unwrap()
-                    .partial_cmp(&Bool::try_from(b).unwrap()),
-                ValueType::Fixed => Fixed::try_from(a)
-                    .unwrap()
-                    .partial_cmp(&Fixed::try_from(b).unwrap()),
-                ValueType::Float => Float::try_from(a)
-                    .unwrap()
-                    .partial_cmp(&Float::try_from(b).unwrap()),
-                ValueType::Currency => Currency::try_from(a)
-                    .unwrap()
-                    .partial_cmp(&Currency::try_from(b).unwrap()),
-                ValueType::Int => Int::try_from(a)
-                    .unwrap()
-                    .partial_cmp(&Int::try_from(b).unwrap()),
-                ValueType::String => Str::try_from(a)
-                    .unwrap()
-                    .partial_cmp(&Str::try_from(b).unwrap()),
-                ValueType::Array => Array::try_from(a)
-                    .unwrap()
-                    .partial_cmp(&Array::try_from(b).unwrap()),
-                ValueType::Object => Object::try_from(a)
-                    .unwrap()
-                    .partial_cmp(&Object::try_from(b).unwrap()),
-
-                _ => None,
-            }
-        } else {
-            None
-        }
-    }
-}
-
-impl Ord for Value {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if let Some(ord) = self.partial_cmp(other) {
-            ord
-        } else {
-            // Only need to worry about those conversions that
-            // can fail - meaning compound types
-            // The other one would be string, but that's handled
-            // by the fact that such comparisons are always done
-            // as string <-> string
-            match (self.own_type(), other.own_type()) {
-                // This will be a comparison between an array and a singleton
-                // where len > 1 - therefore the array is always greater
-                (ValueType::Array, _) => std::cmp::Ordering::Greater,
-                (_, ValueType::Array) => std::cmp::Ordering::Less,
-
-                // This will be a comparison between an object and a singleton
-                // where len > 1 - therefore the object is always greater
-                (ValueType::Object, _) => std::cmp::Ordering::Greater,
-                (_, ValueType::Object) => std::cmp::Ordering::Less,
-
-                _ => unreachable!(),
-            }
         }
     }
 }
@@ -921,7 +843,7 @@ mod test {
             .expect("Value could not be converted to object!");
         assert_eq!(
             object,
-            Object::try_from(vec![(Value::from("0"), Value::from(1.0))]).unwrap()
+            Object::try_from(vec![(Value::from(0), Value::from(1.0))]).unwrap()
         );
     }
 
@@ -967,7 +889,7 @@ mod test {
             .expect("Value could not be converted to compound!");
         assert_eq!(
             value,
-            Value::try_from(vec![(Value::from("0"), Value::from(1.0))]).unwrap()
+            Value::try_from(vec![(Value::from(0), Value::from(1.0))]).unwrap()
         );
 
         let value = Value::from(1.0);
@@ -1045,13 +967,8 @@ mod test {
         assert!(Value::from("abc") == Value::from("abc"));
 
         // 2 different, but comparable - float to int
-        assert!(Value::from(1.0) < Value::from(2));
         assert!(Value::from(2.0) > Value::from(1));
-        assert!(Value::from(1.0) == Value::from(1));
-
-        // int to string should work as string to string
-        assert!(Value::from(1) < Value::from("def"));
-        assert!(Value::from(1) == Value::from("1"));
+        assert!(Value::from(1.0) == Value::from(1.0));
 
         // 2 different, not comparable - big array to int
         assert!(Value::from(vec![Value::from(1), Value::from(2)]) > Value::from(1));
@@ -1070,8 +987,11 @@ mod test {
         assert_ne!(Value::from("cba"), Value::from("abc"));
 
         // 2 different, but comparable - float to int
-        assert_eq!(Value::from(1.0), Value::from(1));
-        assert_ne!(Value::from(1.0), Value::from(2));
+        assert_ne!(Value::from(1.0), Value::from(1));
+        assert_eq!(
+            Value::from(1.0).weak_cmp(&Value::from(1)).unwrap(),
+            std::cmp::Ordering::Equal
+        );
 
         // 2 different, not comparable - big array to int
         assert_ne!(
@@ -1093,36 +1013,36 @@ mod test {
 
         assert_eq!(
             Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap(),
-            Value::from(15)
+            Value::from(15.0)
         );
 
         assert_eq!(
             Value::arithmetic_op(&a, &b, ArithmeticOperation::Subtract).unwrap(),
-            Value::from(5)
+            Value::from(5.0)
         );
 
         assert_eq!(
             Value::arithmetic_op(&a, &b, ArithmeticOperation::Multiply).unwrap(),
-            Value::from(50)
+            Value::from(50.0)
         );
 
         assert_eq!(
             Value::arithmetic_op(&a, &b, ArithmeticOperation::Divide).unwrap(),
-            Value::from(2)
+            Value::from(2.0)
         );
 
         assert_eq!(
             Value::arithmetic_op(&a, &b, ArithmeticOperation::Modulo).unwrap(),
-            Value::from(0)
+            Value::from(0.0)
         );
 
         assert_eq!(
             Value::arithmetic_op(&a, &b, ArithmeticOperation::Exponentiate).unwrap(),
-            Value::from(100000)
+            Value::from(100000.0)
         );
 
         assert_eq!(
-            Value::arithmetic_op(&a, &b, ArithmeticOperation::Negate).unwrap(),
+            Value::arithmetic_op(&a, &a, ArithmeticOperation::Negate).unwrap(),
             Value::from(-10)
         );
     }

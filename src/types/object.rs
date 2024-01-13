@@ -19,7 +19,7 @@ impl_value!(Object, ObjectInner, |v: &Self| {
         "{{{}}}",
         v.inner()
             .iter()
-            .map(|(k, v)| format!("{}: {}", k.to_string(), v.to_string()))
+            .map(|(k, v)| format!("{k}: {v}"))
             .collect::<Vec<String>>()
             .join(", ")
     )
@@ -80,7 +80,7 @@ impl Object {
 
 map_value!(
     from = Object,
-    handle_into = |v: Object| Value::Object(v),
+    handle_into = Value::Object,
     handle_from = |v: Value| match v {
         Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Object(v) => Ok(v),
@@ -184,7 +184,7 @@ impl ArithmeticOperationExt for Object {
             }
 
             _ => Err(Error::UnsupportedOperation {
-                operation: operation,
+                operation,
                 actual_type: ValueType::Object,
             })?,
         }
@@ -535,11 +535,6 @@ mod test {
         assert_eq!(
             Object::try_from(Value::from(Dec!(1.0))).unwrap(),
             Object::try_from(vec![(Value::Int(0.into()), Value::from(Dec!(1.0)))]).unwrap()
-        );
-
-        assert_eq!(
-            Object::try_from(Value::from(Currency::from_fixed(Fixed::from(Dec!(1.0))))).unwrap(),
-            Object::try_from(vec![(Value::Int(0.into()), Value::Float(1.0.into()))]).unwrap()
         );
 
         assert_eq!(

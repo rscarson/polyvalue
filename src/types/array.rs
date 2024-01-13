@@ -75,15 +75,11 @@ impl Array {
 
 map_value!(
     from = Array,
-    handle_into = |v: Array| Value::Array(v),
+    handle_into = Value::Array,
     handle_from = |v: Value| match v {
         Value::Array(v) => Ok(v),
         Value::Range(v) => {
-            let inner = v
-                .inner()
-                .clone()
-                .map(|i| Value::from(i))
-                .collect::<ArrayInner>();
+            let inner = v.inner().clone().map(Value::from).collect::<ArrayInner>();
             Ok(inner.into())
         }
         Value::Int(_) | Value::Bool(_) | Value::Float(_) | Value::Fixed(_) | Value::Currency(_) => {
@@ -124,7 +120,13 @@ impl MatchingOperationExt for Array {
         Self: Sized,
     {
         let result = match operation {
-            MatchingOperation::Contains => container.inner().contains(pattern),
+            MatchingOperation::Contains => {
+                let pattern = pattern.as_a::<Array>()?;
+                container
+                    .inner()
+                    .iter()
+                    .any(|v| pattern.inner().contains(v))
+            }
             MatchingOperation::StartsWith => {
                 let pattern = pattern.as_a::<Array>()?;
                 container.inner().starts_with(pattern.inner())
@@ -173,7 +175,7 @@ impl ArithmeticOperationExt for Array {
             }
 
             _ => Err(Error::UnsupportedOperation {
-                operation: operation,
+                operation,
                 actual_type: ValueType::Array,
             })?,
         }
@@ -216,7 +218,7 @@ impl IndexingOperationExt for Array {
     fn get_index(&self, index: &Value) -> Result<&Value, crate::Error> {
         let mut index = *Int::try_from(index.clone())?.inner();
         if index < 0 {
-            index = self.inner().len() as IntInner + index;
+            index += self.inner().len() as IntInner
         }
         let index = index as usize;
 
@@ -247,7 +249,7 @@ impl IndexingOperationExt for Array {
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
         let mut index = *Int::try_from(index.clone())?.inner();
         if index < 0 {
-            index = self.inner().len() as IntInner + index;
+            index += self.inner().len() as IntInner
         }
         let index = index as usize;
 
@@ -274,27 +276,27 @@ impl IndexingOperationExt for Array {
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
         let mut index = *Int::try_from(index.clone())?.inner();
         if index < 0 {
-            index = self.inner().len() as IntInner + index;
+            index += self.inner().len() as IntInner
         }
         let index = index as usize;
 
-        if index < self.inner().len() {
-            self.inner_mut()[index] = value;
-            Ok(())
-        } else if index == self.inner().len() {
-            self.inner_mut().push(value);
-            Ok(())
-        } else {
-            Err(Error::Index {
-                key: index.to_string(),
-            })?
+        match index.cmp(&self.inner().len()) {
+            std::cmp::Ordering::Less => self.inner_mut()[index] = value,
+            std::cmp::Ordering::Equal => self.inner_mut().push(value),
+
+            std::cmp::Ordering::Greater => {
+                return Err(Error::Index {
+                    key: index.to_string(),
+                })?
+            }
         }
+        Ok(())
     }
 
     fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error> {
         let mut index = *Int::try_from(index.clone())?.inner();
         if index < 0 {
-            index = self.inner().len() as IntInner + index;
+            index += self.inner().len() as IntInner
         }
         let index = index as usize;
 

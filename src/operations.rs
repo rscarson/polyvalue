@@ -275,7 +275,7 @@ pub trait IndexingOperationExt {
     /// let result = a.get_index(&index).unwrap();
     /// assert_eq!(result, &Value::from(2));
     ///
-    /// let b = Object::try_from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]);
+    /// let b = Object::try_from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]).unwrap();
     /// let index = Value::from("b");
     /// let result = b.get_index(&index).unwrap();
     /// assert_eq!(result, &Value::from(2));
@@ -297,7 +297,7 @@ pub trait IndexingOperationExt {
     /// use polyvalue::types::{Object};
     /// use polyvalue::operations::{IndexingOperationExt};
     ///
-    /// let mut b = Object::try_from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]);
+    /// let mut b = Object::try_from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]).unwrap();
     /// let index = Value::from("b");
     /// let result = b.get_index_mut(&index).unwrap();
     /// *result = Value::from(3);

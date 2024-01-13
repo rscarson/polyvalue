@@ -15,13 +15,13 @@ use serde::{Deserialize, Serialize};
 pub type FixedInner = Decimal;
 
 /// Subtype of `Value` that represents a fixed-point decimal
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug)]
 pub struct Fixed(FixedInner);
 impl_value!(Fixed, FixedInner, |v: &Self| v.inner().to_string());
 
 map_value!(
     from = Fixed,
-    handle_into = |v: Fixed| Value::Fixed(v),
+    handle_into = Value::Fixed,
     handle_from = |v: Value| match v {
         Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Fixed(v) => Ok(v),
@@ -42,7 +42,7 @@ map_value!(
             // Todo: find a better way to do this
             let intended_precision = v
                 .to_string()
-                .split(".")
+                .split('.')
                 .last()
                 .map(|s| s.len())
                 .unwrap_or(0);
@@ -107,15 +107,7 @@ impl FromStr for Fixed {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(s.replace(",", "").parse::<FixedInner>()?.into())
-    }
-}
-
-impl std::hash::Hash for Fixed {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Float::try_from(Value::from(self.clone()))
-            .unwrap()
-            .hash(state)
+        Ok(s.replace(',', "").parse::<FixedInner>()?.into())
     }
 }
 
@@ -125,8 +117,8 @@ impl ArithmeticOperationExt for Fixed {
         right: &Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
-        let left_ = left.inner().clone();
-        let right_ = right.inner().clone();
+        let left_ = *left.inner();
+        let right_ = *right.inner();
 
         let result = match operation {
             ArithmeticOperation::Add => left_.checked_add(right_),
@@ -140,7 +132,7 @@ impl ArithmeticOperationExt for Fixed {
                 let right = Float::try_from(Value::from(right.clone()))?;
 
                 let result = Float::arithmetic_op(&left, &right, operation)?;
-                Some(Fixed::try_from(Value::from(result))?.inner().clone())
+                Some(*Fixed::try_from(Value::from(result))?.inner())
             }
             ArithmeticOperation::Negate => Some(-left_),
         }

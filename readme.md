@@ -1,10 +1,11 @@
 # Polyvalue
 Single concrete type for representing values of different types
 
+Build for [lavendeux-parser](https://github.com/rscarson/lavendeux-parser)
 
 ## Usage
 ```rust
-use polyvalue::{Value, Int, Float, Fixed, Currency, Str, Array, Object};
+use polyvalue::{Value, Int, Float, Fixed, Currency, Str, Array, Object, Range};
 
 fn main() {
     let v = Value::from(1);

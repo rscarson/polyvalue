@@ -18,7 +18,7 @@ impl RoundToPrecision for Fixed {
 
 /// Inner type of `Currency`
 /// This is a wrapper around `Fixed` that adds a currency symbol and a precision
-#[derive(Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
+#[derive(Eq, PartialOrd, PartialEq, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct CurrencyInner {
     symbol: Option<String>,
     precision: i8,
@@ -28,7 +28,6 @@ impl CurrencyInner {
     /// Create a new `Currency` from a `Fixed`
     /// Caps precision at 5, to prevent float silliness
     pub fn from_fixed(value: Fixed) -> Self {
-        let value = Fixed::from(value); // .round(Self::MAX_PRECISION)
         Self::new(None, value.inner().n_frac_digits() as i8, value)
     }
 
@@ -159,12 +158,6 @@ impl std::fmt::Display for CurrencyInner {
         let precision = self.precision;
 
         write!(f, "{}{:.*}", symbol, precision as usize, value)
-    }
-}
-
-impl PartialEq for CurrencyInner {
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
     }
 }
 

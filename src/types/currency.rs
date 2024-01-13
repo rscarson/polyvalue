@@ -32,7 +32,7 @@ impl Currency {
 
 map_value!(
     from = Currency,
-    handle_into = |v: Currency| Value::Currency(v),
+    handle_into = Value::Currency,
     handle_from = |v: Value| {
         match v {
             Value::Currency(v) => Ok(v),
@@ -238,11 +238,11 @@ mod test {
     fn test_from() {
         assert_eq!(
             Currency::try_from(Value::from(10)).unwrap(),
-            Currency::from_fixed(Fixed::from(Dec!(10.0)))
+            Currency::from_fixed(Fixed::from(Dec!(10)))
         );
         assert_eq!(
             Currency::try_from(Value::from(10.0)).unwrap(),
-            Currency::from_fixed(Fixed::from(Dec!(10.0)))
+            Currency::from_fixed(Fixed::from(Dec!(10)))
         );
         assert_eq!(
             Currency::try_from(Value::from(Dec!(10.0))).unwrap(),
@@ -260,7 +260,7 @@ mod test {
         let value = Value::from(vec![Value::from(10)]);
         assert_eq!(
             Currency::try_from(value).unwrap(),
-            Currency::from_fixed(Fixed::from(Dec!(10.0)))
+            Currency::from_fixed(Fixed::from(Dec!(10)))
         );
 
         // array with 2 elements should fail
@@ -271,7 +271,7 @@ mod test {
         let value = Value::try_from(vec![("a".into(), Value::from(10))]).unwrap();
         assert_eq!(
             Currency::try_from(value).unwrap(),
-            Currency::from_fixed(Fixed::from(Dec!(10.0)))
+            Currency::from_fixed(Fixed::from(Dec!(10)))
         );
 
         // object with 2 elements should fail

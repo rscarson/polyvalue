@@ -8,6 +8,7 @@ macro_rules! map_value {
     (from = $target:ty, handle_into = $into:expr, handle_from = $from:expr) => {
         impl TryFrom<$crate::Value> for $target {
             type Error = crate::Error;
+            #[allow(clippy::redundant_closure_call)]
             fn try_from(value: $crate::Value) -> Result<Self, Self::Error> {
                 $from(value)
             }
@@ -15,18 +16,21 @@ macro_rules! map_value {
 
         impl TryFrom<&$crate::Value> for $target {
             type Error = crate::Error;
+            #[allow(clippy::redundant_closure_call)]
             fn try_from(value: &$crate::Value) -> Result<Self, Self::Error> {
                 $from(value.clone())
             }
         }
 
         impl From<$target> for $crate::Value {
+            #[allow(clippy::redundant_closure_call)]
             fn from(value: $target) -> Self {
                 $into(value)
             }
         }
 
         impl From<&$target> for $crate::Value {
+            #[allow(clippy::redundant_closure_call)]
             fn from(value: &$target) -> Self {
                 $into(value.clone())
             }
@@ -62,6 +66,7 @@ macro_rules! map_type {
 /// - `from`: A closure that takes in a `Primitive` and returns a `Source`
 macro_rules! map_primitive {
     (from = $source:ty, primitive = $primitive:ty) => {
+        #[allow(clippy::from_over_into)]
         impl Into<$primitive> for $source {
             fn into(self) -> $primitive {
                 self.inner().clone()
@@ -80,6 +85,7 @@ macro_rules! map_primitive {
             }
         }
 
+        #[allow(clippy::from_over_into)]
         impl TryInto<$primitive> for $crate::Value {
             type Error = crate::Error;
             fn try_into(self) -> Result<$primitive, Self::Error> {
@@ -112,6 +118,7 @@ macro_rules! impl_value {
         map_primitive!(from = $own_type, primitive = $inner_type);
 
         impl std::fmt::Display for $own_type {
+            #[allow(clippy::redundant_closure_call)]
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", $to_string(self))
             }

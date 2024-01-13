@@ -53,7 +53,7 @@ impl IsCurrency for str {
         let mut suffix = self.chars().rev().take(3).collect::<Vec<_>>();
         suffix.reverse();
         let mut suffix = suffix.iter().collect::<String>();
-        while suffix.len() > 0 {
+        while !suffix.is_empty() {
             if CURRENCY_STRINGS.contains(suffix.as_str()) {
                 let start = self.len() - suffix.len();
                 return Some((start, &self[start..]));

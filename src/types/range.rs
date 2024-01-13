@@ -66,7 +66,7 @@ impl Default for Range {
 
 map_value!(
     from = Range,
-    handle_into = |v: Range| Value::Range(v),
+    handle_into = Value::Range,
     handle_from = |v: Value| {
         match v {
             Value::Range(v) => Ok(v),

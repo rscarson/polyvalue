@@ -13,7 +13,7 @@ use std::str::FromStr;
 pub type FloatInner = f64;
 
 /// Subtype of `Value` that represents a float
-#[derive(PartialOrd, Clone, Serialize, Deserialize, Default, Debug)]
+#[derive(Clone, Serialize, Deserialize, Default, Debug)]
 pub struct Float(FloatInner);
 impl_value!(Float, FloatInner, |v: &Self| {
     let mut v = *v.inner();
@@ -31,7 +31,7 @@ impl_value!(Float, FloatInner, |v: &Self| {
 
 map_value!(
     from = Float,
-    handle_into = |v: Float| Value::Float(v),
+    handle_into = Value::Float,
     handle_from = |v: Value| match v {
         Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Float(v) => Ok(v),
@@ -101,7 +101,7 @@ impl FromStr for Float {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(s.replace(",", "").parse::<FloatInner>()?.into())
+        Ok(s.replace(',', "").parse::<FloatInner>()?.into())
     }
 }
 
@@ -113,17 +113,15 @@ impl PartialEq for Float {
 
 impl Eq for Float {}
 
+impl PartialOrd for Float {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl Ord for Float {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.inner().is_nan() && other.inner().is_nan() {
-            std::cmp::Ordering::Equal
-        } else if self.inner().is_nan() {
-            std::cmp::Ordering::Less
-        } else if other.inner().is_nan() {
-            std::cmp::Ordering::Greater
-        } else {
-            self.inner().partial_cmp(other.inner()).unwrap()
-        }
+        self.inner().total_cmp(other.inner())
     }
 }
 
@@ -139,8 +137,8 @@ impl ArithmeticOperationExt for Float {
         right: &Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
-        let left = left.inner().clone();
-        let right = right.inner().clone();
+        let left = *left.inner();
+        let right = *right.inner();
 
         let result = match operation {
             ArithmeticOperation::Add => left + right,

@@ -36,12 +36,14 @@ impl Str {
 
         let chars = self.inner().chars().count() as i64;
         if range.start < 0 {
-            range.start = chars + range.start;
+            range.start += chars;
         }
         if range.end < 0 {
-            range.end = chars + range.end;
+            range.end += chars;
         }
         let mut range = range.start as usize..range.end as usize;
+
+        println!("range: {:?}", range);
 
         // Get the byte-index of the nth character of self.inner()
         // This is necessary because the string is UTF-8 encoded
@@ -140,7 +142,7 @@ impl Str {
             self.substr(&(range.end + 1).into()..=&(char_count - 1).into())?
         };
 
-        *self.inner_mut() = format!("{}{}{}", prefix, value, suffix).into();
+        *self.inner_mut() = format!("{}{}{}", prefix, value, suffix);
         Ok(())
     }
 
@@ -169,7 +171,7 @@ impl Str {
 
 map_value!(
     from = Str,
-    handle_into = |v: Str| Value::String(v),
+    handle_into = Value::String,
     handle_from = |v: Value| match v {
         Value::String(v) => Ok(v),
         _ => Ok(Str::from(v.to_string())),
@@ -207,11 +209,11 @@ impl MatchingOperationExt for Str {
             MatchingOperation::Matches => {
                 let pattern = pattern.inner().as_str();
                 let pattern = convert_regex_string(pattern, |mut s: String| {
-                    if !s.starts_with("^") {
+                    if !s.starts_with('^') {
                         s = "^".to_string() + s.as_str();
                     }
-                    if !s.ends_with("$") {
-                        s = s + "$";
+                    if !s.ends_with('$') {
+                        s += "$"
                     }
                     s
                 })?;
@@ -247,7 +249,7 @@ impl ArithmeticOperationExt for Str {
             }
 
             _ => Err(Error::UnsupportedOperation {
-                operation: operation,
+                operation,
                 actual_type: ValueType::String,
             })?,
         };
@@ -297,8 +299,8 @@ where
     let mut flags = None;
 
     // Check if the string contains a regex pattern
-    if input.starts_with("/") {
-        let end = input.rfind("/").unwrap();
+    if input.starts_with('/') {
+        let end = input.rfind('/').unwrap();
         pattern = input[1..end].to_string();
         flags = Some(input[end + 1..].to_string());
     }

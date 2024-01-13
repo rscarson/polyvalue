@@ -5,22 +5,33 @@ use thiserror::Error;
 /// This type is used for all errors that can be returned by Polyvalue
 #[derive(Error, Debug)]
 pub enum Error {
+    /// An error caused by attempting to use a value of the wrong type in a calculation
     #[error("Cannot not perform arithmetic {operation} on {actual_type}")]
     UnsupportedOperation {
+        /// Operation that caused the error
         operation: ArithmeticOperation,
+
+        /// Type that caused the error
         actual_type: ValueType,
     },
 
+    /// An error caused by attempting to convert a value to a different type
     #[error("{src_type} cannot be converted to {dst_type}")]
     ValueConversion {
+        /// Source type that caused the error
         src_type: ValueType,
+
+        /// Destination type that caused the error
         dst_type: ValueType,
     },
 
     /// An error caused by attempting to use a value of the wrong type in a calculation
     #[error("Expected {expected_type}, found {actual_type}")]
     ValueType {
+        /// Type that caused the error
         actual_type: ValueType,
+
+        /// Expected type that caused the error
         expected_type: ValueType,
     },
 
