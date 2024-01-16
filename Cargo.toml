@@ -1,7 +1,12 @@
 [package]
 name = "polyvalue"
-version = "0.1.0"
+version = "0.2.0"
+description = "A weak-typed analog for rust"
+authors = ["@rscarson"]
+license = "MIT"
+repository = "https://github.com/rscarson/polyvalue"
 edition = "2021"
+
 
 [dependencies]
 serde = "1.0.193"
