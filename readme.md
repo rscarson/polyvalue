@@ -1,7 +1,35 @@
 # Polyvalue
 Single concrete type for representing values of different types
 
-Build for [lavendeux-parser](https://github.com/rscarson/lavendeux-parser)
+Built for [lavendeux-parser](https://github.com/rscarson/lavendeux-parser)
+
+## Types
+
+Values Can be bool, int, float, fixed, currency, string, array, object, or range.
+
+All types implement Hash, Ord, Eq, Serialize, Deserialize, Clone, Debug and Default
+
+Values of different types will be coerced to the same type when performing operations on them.
+
+This is done using the following order-of-precedence:
+- If either type is an object, the other type is coerced to an object. This is done by first converting the a type `T` to an array `[T]`, and then converting the array to an object of the form `{0: T}`.
+- If either type is an array, the other type is coerced to an array.
+- If either type is a string, the other type is coerced to a string.
+
+At this point, remaining types are numeric and will be coerced to the type containing the most information. The order-of-precedence is:
+- Currency
+- Fixed
+- Float
+- Int
+- Bool
+
+Please note that this priority system is also used when ordering a list of values.
+
+## Operations
+
+Operations can be performed directly on Value, or on inner types. Operations on Value will coerce the inner types to the same type, and then perform the operation.
+
+There are 5 types of operations: arithmetic, bitwise, boolean, comparison, and indexing.
 
 ## Usage
 ```rust
