@@ -7,17 +7,13 @@ license = "MIT"
 repository = "https://github.com/rscarson/polyvalue"
 edition = "2021"
 
-
 [dependencies]
 serde = "1.0.193"
 serde_json = "1.0.108"
 thiserror = "1.0.50"
 lazy_static = "1.4.0"
 regex = "1.10.2"
-
-[dependencies.fpdec]
-version = "0.10.0"
-features = ["serde-as-str"]
+fpdec = {version = "0.10.0", features = ["serde-as-str"]}
 
 [dev-dependencies]
 version-sync = "0.9.4"
