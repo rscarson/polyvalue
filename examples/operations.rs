@@ -1,10 +1,10 @@
 //! # Operations
 //! Operations can be performed directly on Value, or on inner types. Operations on Value will
 //! coerce the inner types to the same type, and then perform the operation.
-//! 
+//!
 //! There are 5 types of operations: arithmetic, bitwise, boolean, comparison, and indexing.
 //! The first 3 are demonstrated below.
-//! 
+//!
 use polyvalue::{operations::*, Value};
 
 fn main() {
