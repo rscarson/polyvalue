@@ -223,6 +223,16 @@ mod test {
             Bool::try_from(Value::try_from(vec![(1.into(), 2.into())]).unwrap()).unwrap(),
             Bool::from(true)
         );
+
+        assert_eq!(
+            Bool::try_from(Value::from(0..=10)).unwrap(),
+            Bool::from(true)
+        );
+
+        assert_eq!(
+            Bool::try_from(Value::from(Currency::from_str("0.0").unwrap())).unwrap(),
+            Bool::from(true)
+        );
     }
 
     #[test]

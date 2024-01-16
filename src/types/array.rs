@@ -394,6 +394,15 @@ mod test {
             .unwrap(),
             false.into()
         );
+        assert_eq!(
+            Array::matching_op(
+                &array,
+                &Array::from(vec![2.into(), 3.into()]).into(),
+                MatchingOperation::EndsWith
+            )
+            .unwrap(),
+            true.into()
+        );
     }
 
     #[test]
@@ -422,11 +431,31 @@ mod test {
         // test set_index
         array.set_index(&0.into(), 5.into()).unwrap();
         assert_eq!(array.get_index(&0.into()).unwrap(), &5.into());
+
+        // test negative index
+        assert_eq!(array.get_index(&(-1).into()).unwrap(), &3.into());
+        array.set_index(&(-1).into(), 6.into()).unwrap();
+        assert_eq!(array.get_index(&(-1).into()).unwrap(), &6.into());
+
+        // test index==len
+        array.set_index(&3.into(), 7.into()).unwrap();
+        assert_eq!(array.get_index(&(-1).into()).unwrap(), &7.into());
+        array.delete_index(&(-1).into()).unwrap();
+
+        // get by range
+        assert_eq!(
+            array.get_indices(&Value::from(0..=1)).unwrap(),
+            vec![&5.into(), &2.into()]
+        );
+
+        // get_index_mut when index<0
+        assert_eq!(array.get_index_mut(&(-1).into()).unwrap(), &mut 6.into());
     }
 
     #[test]
     fn test_arithmetic() {
         let array = Array::from(vec![1.into(), 2.into(), 3.into()]);
+
         assert_eq!(
             Array::arithmetic_op(
                 &array,
@@ -442,6 +471,21 @@ mod test {
                 2.into(),
                 3.into()
             ])
+        );
+
+        assert_eq!(
+            Array::arithmetic_op(
+                &array,
+                &Array::from(vec![1.into(), 2.into()]),
+                ArithmeticOperation::Subtract
+            )
+            .unwrap(),
+            Array::from(vec![3.into()])
+        );
+
+        assert_eq!(
+            Array::arithmetic_neg(&array).unwrap(),
+            Array::from(vec![3.into(), 2.into(), 1.into()])
         );
     }
 
@@ -510,6 +554,14 @@ mod test {
             .unwrap(),
             false.into()
         );
+        assert_eq!(
+            Array::boolean_op(&array, &Array::from(vec![]), BooleanOperation::Not).unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Array::boolean_op(&array, &Array::from(vec![1.into()]), BooleanOperation::Not).unwrap(),
+            false.into()
+        );
     }
 
     #[test]
@@ -545,5 +597,13 @@ mod test {
         let object = Object::try_from(vec![("a".into(), 1.into())]).unwrap();
         let array = Array::try_from(Value::from(object.clone())).unwrap();
         assert_eq!(array, vec![1.into()].into());
+
+        let range = Range::new(1..=2);
+        let array = Array::try_from(Value::from(range.clone())).unwrap();
+        assert_eq!(array, vec![1.into(), 2.into()].into());
+
+        let range = Range::new(0..=0);
+        let array = Array::try_from(Value::from(range.clone())).unwrap();
+        assert_eq!(array, vec![0.into()].into());
     }
 }

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 pub use crate::inner_object::ObjectInner;
 
 /// Subtype of `Value` that represents an object
-#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default, Debug, Hash, PartialOrd, Ord)]
 pub struct Object(ObjectInner);
 impl_value!(Object, ObjectInner, |v: &Self| {
     format!(
@@ -137,30 +137,6 @@ map_type!(Range, Object);
 // Trait implementations
 //
 
-impl Ord for Object {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
-    }
-}
-
-impl PartialOrd for Object {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let mut v1: Vec<(&Value, &Value)> = self.inner().iter().collect();
-        let mut v2: Vec<(&Value, &Value)> = other.inner().iter().collect();
-        v1.sort_by_key(|(k, _)| (*k).clone());
-        v2.sort_by_key(|(k, _)| (*k).clone());
-        Some(v1.cmp(&v2))
-    }
-}
-
-impl std::hash::Hash for Object {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let mut v: Vec<(&Value, &Value)> = self.inner().iter().collect();
-        v.sort_by_key(|(k, _)| (*k).clone());
-        v.hash(state);
-    }
-}
-
 impl ArithmeticOperationExt for Object {
     fn arithmetic_op(
         left: &Self,
@@ -176,9 +152,9 @@ impl ArithmeticOperationExt for Object {
 
             ArithmeticOperation::Subtract => {
                 let mut result = left.clone();
-                for (_, v) in right.inner().iter() {
+                for (k, _) in right.inner().iter() {
                     // remove all instances of the value
-                    result.inner_mut().retain(|_, v2| v != v2);
+                    result.inner_mut().remove(k);
                 }
                 Ok(result)
             }
@@ -321,6 +297,22 @@ mod test {
         obj.set_index(&Value::Int(3.into()), Value::Int(4.into()))
             .unwrap();
         assert_eq!(obj.get(&Value::Int(3.into())), Some(&Value::Int(4.into())));
+
+        assert_eq!(
+            obj.get_indices(&Value::Range(Range::from(0..=2))).unwrap(),
+            vec![
+                &Value::Int(1.into()),
+                &Value::Int(2.into()),
+                &Value::Int(3.into())
+            ]
+        );
+
+        // delete index
+        assert_eq!(
+            obj.delete_index(&Value::Int(3.into())).unwrap(),
+            Value::Int(4.into())
+        );
+        assert_eq!(obj.get(&Value::Int(3.into())), None);
     }
 
     #[test]
@@ -348,6 +340,21 @@ mod test {
                 (Value::Int(1.into()), Value::Int(4.into())),
             ])
             .unwrap()
+        );
+
+        let result = Object::arithmetic_op(
+            &Object::try_from(vec![
+                (Value::Int(0.into()), Value::Int(1.into())),
+                (Value::Int(1.into()), Value::Int(2.into())),
+            ])
+            .unwrap(),
+            &Object::try_from(vec![(Value::Int(0.into()), Value::Int(3.into()))]).unwrap(),
+            ArithmeticOperation::Subtract,
+        )
+        .unwrap();
+        assert_eq!(
+            result,
+            Object::try_from(vec![(Value::Int(1.into()), Value::Int(2.into())),]).unwrap()
         );
     }
 
@@ -478,6 +485,14 @@ mod test {
             ])
             .unwrap(),
             BooleanOperation::NEQ,
+        )
+        .unwrap();
+        assert_eq!(result, Value::from(true));
+
+        let result = Object::boolean_op(
+            &Object::try_from(vec![]).unwrap(),
+            &Object::try_from(vec![]).unwrap(),
+            BooleanOperation::Not,
         )
         .unwrap();
         assert_eq!(result, Value::from(true));

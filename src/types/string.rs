@@ -366,6 +366,14 @@ mod test {
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
+
+        let result = Str::matching_op(
+            &Str::from("Hello, world!"),
+            &Str::from("/h.*/i").into(),
+            MatchingOperation::Matches,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
     }
 
     #[test]
@@ -423,6 +431,13 @@ mod test {
         )
         .unwrap();
         assert_eq!(result, Str::from("Hello, worl"));
+
+        let result = Str::arithmetic_neg(&Str::from("Hello, world!")).unwrap();
+        assert_eq!(result, Str::from("!dlrow ,olleH"));
+
+        // now with emojis
+        let result = Str::arithmetic_neg(&Str::from("👋🌎")).unwrap();
+        assert_eq!(result, Str::from("🌎👋"));
     }
 
     #[test]

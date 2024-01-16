@@ -740,6 +740,18 @@ mod test {
         assert!(a.own_type() == ValueType::Float);
         assert!(b.own_type() == ValueType::Float);
 
+        let a = Value::from(Decimal::ZERO);
+        let b = Value::from(2);
+        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        assert!(a.own_type() == ValueType::Fixed);
+        assert!(b.own_type() == ValueType::Fixed);
+
+        let a = Value::from(false);
+        let b = Value::from(true);
+        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        assert!(a.own_type() == ValueType::Bool);
+        assert!(b.own_type() == ValueType::Bool);
+
         let a = Value::from(1);
         let b = Value::from(2);
         let (a, b) = a.resolve(&b).expect("Could not resolve types");
@@ -797,10 +809,12 @@ mod test {
             Value::from(Fixed::from(Decimal::ZERO)).own_type(),
             ValueType::Fixed
         );
+
+        assert_eq!(Value::from(Range::from(1..=2)).own_type(), ValueType::Range);
     }
 
     #[test]
-    fn either_type() {
+    fn test_either_type() {
         let a = Value::from(1.0);
         let b = Value::from(2);
         assert!(a.either_type(&b, ValueType::Float));
@@ -862,6 +876,10 @@ mod test {
         assert!(value.is_a(ValueType::Array));
         assert!(value.is_a(ValueType::Compound));
         assert!(!value.is_a(ValueType::Object));
+
+        let value = Value::from(1);
+        assert!(value.is_a(ValueType::Numeric));
+        assert!(value.is_a(ValueType::Any));
     }
 
     #[test]
@@ -897,6 +915,24 @@ mod test {
             .as_type(ValueType::Any)
             .expect("Value could not be converted to any!");
         assert_eq!(value, Value::from(1.0));
+
+        let value = Value::from(1);
+        assert_eq!(value.as_type(ValueType::Numeric).unwrap(), Value::from(1));
+
+        let value = Value::from(1.0);
+        assert_eq!(value.as_type(ValueType::Numeric).unwrap(), Value::from(1.0));
+
+        let value = Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO)));
+        assert_eq!(
+            value.as_type(ValueType::Numeric).unwrap(),
+            Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO)))
+        );
+
+        let value = Value::from(Decimal::ZERO);
+        assert_eq!(
+            value.as_type(ValueType::Numeric).unwrap(),
+            Value::from(Fixed::from(Decimal::ZERO))
+        );
     }
 
     #[test]

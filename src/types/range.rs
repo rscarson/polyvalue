@@ -86,3 +86,21 @@ map_type!(Currency, Range);
 map_type!(Array, Range);
 map_type!(Object, Range);
 map_type!(Str, Range);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_str() {
+        assert_eq!(Range::new(0..=10).to_string(), "0..10");
+        assert_eq!(Range::new(0..=0).to_string(), "0..0");
+
+        assert_eq!(Range::from_str("0..10").unwrap(), Range::new(0..=10));
+        assert_eq!(Range::from_str("0..").is_err(), true);
+        assert_eq!(Range::from_str("..10").is_err(), true);
+        assert_eq!(Range::from_str("..").is_err(), true);
+        assert_eq!(Range::from_str("-1..-2").is_err(), true);
+        assert_eq!(Range::from_str("-2..-1").is_err(), false);
+    }
+}

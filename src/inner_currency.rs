@@ -248,4 +248,38 @@ mod test {
         assert_eq!(l.to_string(), "$2.20");
         assert_eq!(r.to_string(), "$100.00");
     }
+
+    #[test]
+    fn test_as_currencies() {
+        let fixed = Fixed::from(Dec!(1.0));
+        assert_eq!(
+            CurrencyInner::as_dollars(fixed.clone()).to_string(),
+            "$1.00"
+        );
+        assert_eq!(CurrencyInner::as_euros(fixed.clone()).to_string(), "€1.00");
+        assert_eq!(CurrencyInner::as_pounds(fixed.clone()).to_string(), "£1.00");
+        assert_eq!(CurrencyInner::as_yen(fixed.clone()).to_string(), "¥1.00");
+        assert_eq!(CurrencyInner::as_rupees(fixed.clone()).to_string(), "₹1.00");
+        assert_eq!(CurrencyInner::as_rubles(fixed.clone()).to_string(), "₽1.00");
+        assert_eq!(CurrencyInner::as_yuan(fixed.clone()).to_string(), "元1.00");
+        assert_eq!(CurrencyInner::as_won(fixed.clone()).to_string(), "₩1.00");
+        assert_eq!(CurrencyInner::as_krona(fixed.clone()).to_string(), "kr1.00");
+    }
+
+    #[test]
+    fn test_manipulate() {
+        let mut currency = CurrencyInner::as_dollars(Fixed::from(Dec!(1.0)));
+        currency.set_precision(4);
+
+        assert_eq!(currency.to_string(), "$1.0000");
+
+        currency.set_symbol(Some("€".to_string()));
+        assert_eq!(currency.to_string(), "€1.0000");
+
+        currency.set_value(Fixed::from(Dec!(2.0)));
+        assert_eq!(currency.to_string(), "€2.0000");
+
+        currency.set_precision(2);
+        assert_eq!(currency.to_string(), "€2.00");
+    }
 }

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// Inner type used for object storage
-#[derive(PartialEq, Eq, Clone, Default, Debug, PartialOrd)]
+#[derive(PartialEq, Eq, Clone, Default, Debug, PartialOrd, Ord)]
 pub struct ObjectInner(BTreeMap<Value, Value>);
 impl ObjectInner {
     /// Create a new `ObjectInner`
@@ -127,11 +127,26 @@ impl Serialize for ObjectInner {
     }
 }
 
+impl std::hash::Hash for ObjectInner {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let mut v: Vec<(&Value, &Value)> = self.0.iter().collect();
+        v.sort_by_key(|(k, _)| (*k).clone());
+        v.hash(state);
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use fpdec::Decimal;
+    use std::hash::Hash;
 
     use super::*;
+    use fpdec::Decimal;
+
+    fn get_hash(obj: &ObjectInner) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        obj.hash(&mut hasher);
+        std::hash::Hasher::finish(&hasher)
+    }
 
     #[test]
     fn test_hashing() {
@@ -155,5 +170,66 @@ mod test {
         assert_eq!(obj.get(&Value::from(Decimal::ZERO)), Some(&Value::from(3)));
         assert_eq!(obj.get(&Value::from("".to_string())), Some(&Value::from(4)));
         assert_eq!(5, obj.len());
+
+        assert_eq!(get_hash(&obj), get_hash(&obj));
+        assert_eq!(get_hash(&obj), get_hash(&obj));
+        assert_eq!(get_hash(&obj), get_hash(&obj));
+        assert_eq!(get_hash(&obj), get_hash(&obj));
+        assert_eq!(get_hash(&obj), get_hash(&obj));
+        let mut obj2 = obj.clone();
+        assert_eq!(get_hash(&obj), get_hash(&obj2));
+        obj2.remove(&Value::from(false));
+        assert_ne!(get_hash(&obj), get_hash(&obj2));
+    }
+
+    #[test]
+    fn test_bad_key() {
+        let mut obj = ObjectInner::new();
+        assert!(obj
+            .insert(Value::from(vec![Value::from(1)]), Value::from(0))
+            .is_err());
+        assert!(obj
+            .insert(
+                Value::try_from(vec![(Value::from(1), Value::from(2))]).unwrap(),
+                Value::from(0)
+            )
+            .is_err());
+        assert!(obj.insert(Value::from(0..=1), Value::from(0)).is_err());
+
+        assert!(obj
+            .insert(Value::from(0), Value::from(vec![Value::from(1)]))
+            .is_ok());
+
+        assert_eq!(1, obj.keys().count());
+        assert!(obj.contains_key(&Value::from(0)));
+        assert_eq!(
+            obj.values_mut().collect::<Vec<_>>(),
+            vec![&mut Value::from(vec![Value::from(1)])]
+        );
+
+        assert_eq!(
+            obj.remove(&Value::from(0)).unwrap(),
+            Value::from(vec![Value::from(1)])
+        );
+    }
+
+    #[test]
+    fn test_serialize() {
+        let mut obj = ObjectInner::new();
+        obj.insert(Value::from(false), Value::from(0)).unwrap();
+        obj.insert(Value::from(0), Value::from(1)).unwrap();
+        obj.insert(Value::from(0.0), Value::from(2)).unwrap();
+        obj.insert(Value::from(Decimal::ZERO), Value::from(3))
+            .unwrap();
+        obj.insert(Value::from("".to_string()), Value::from(4))
+            .unwrap();
+
+        // Now we ensure it stored as a vector of tuples
+        let serialized = serde_json::to_string(&obj).unwrap();
+        assert!(serialized.starts_with("[["));
+
+        // Make sure we can deserialize it back
+        let obj2 = serde_json::from_str::<ObjectInner>(&serialized).unwrap();
+        assert_eq!(obj, obj2);
     }
 }
