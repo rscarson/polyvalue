@@ -140,7 +140,7 @@ impl TryFrom<&str> for ValueType {
 
 /// Main value type
 /// This is an enum that can hold any of the supported value types
-#[derive(Clone, Serialize, Deserialize, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Serialize, Deserialize, Debug, Eq, Hash, PartialEq)]
 #[serde(untagged)]
 pub enum Value {
     /// A boolean value
@@ -483,9 +483,9 @@ impl Value {
     }
 
     /// Compares two values using, ignoring type
-    pub fn weak_cmp(&self, other: &Self) -> Result<std::cmp::Ordering, Error> {
+    pub fn weak_equality(&self, other: &Self) -> Result<bool, Error> {
         let (l, r) = self.resolve(other)?;
-        Ok(l.cmp(&r))
+        Ok(l == r)
     }
 }
 
@@ -501,6 +501,58 @@ impl std::fmt::Display for Value {
             Value::Range(v) => write!(f, "{}", v),
             Value::Array(v) => write!(f, "{}", v),
             Value::Object(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if let Ok((l, r)) = self.resolve(other) {
+            match l.own_type() {
+                ValueType::Bool => {
+                    Bool::partial_cmp(&l.as_a::<Bool>().unwrap(), &r.as_a::<Bool>().unwrap())
+                }
+                ValueType::Fixed => {
+                    Fixed::partial_cmp(&l.as_a::<Fixed>().unwrap(), &r.as_a::<Fixed>().unwrap())
+                }
+                ValueType::Float => {
+                    Float::partial_cmp(&l.as_a::<Float>().unwrap(), &r.as_a::<Float>().unwrap())
+                }
+                ValueType::Currency => Currency::partial_cmp(
+                    &l.as_a::<Currency>().unwrap(),
+                    &r.as_a::<Currency>().unwrap(),
+                ),
+                ValueType::Int => {
+                    Int::partial_cmp(&l.as_a::<Int>().unwrap(), &r.as_a::<Int>().unwrap())
+                }
+                ValueType::String => {
+                    Str::partial_cmp(&l.as_a::<Str>().unwrap(), &r.as_a::<Str>().unwrap())
+                }
+                ValueType::Range => {
+                    Range::partial_cmp(&l.as_a::<Range>().unwrap(), &r.as_a::<Range>().unwrap())
+                }
+                ValueType::Array => {
+                    Array::partial_cmp(&l.as_a::<Array>().unwrap(), &r.as_a::<Array>().unwrap())
+                }
+                ValueType::Object => {
+                    Object::partial_cmp(&l.as_a::<Object>().unwrap(), &r.as_a::<Object>().unwrap())
+                }
+                _ => unreachable!(),
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if let Some(ordering) = self.partial_cmp(other) {
+            ordering
+        } else {
+            // We should in theory never get here
+            // Anything here is a bug in resolution order logic
+            panic!("Could not compare values")
         }
     }
 }
@@ -625,7 +677,14 @@ impl BitwiseOperationExt for Value {
             BitwiseOperation::RightShift => left >> right,
 
             // This is to remove the side-effects of the way the ints are stored
-            BitwiseOperation::Not => left ^ (std::u64::MAX >> left.leading_zeros()) as IntInner,
+            // We could also do `left ^ (std::u64::MAX >> 63.min(left.leading_zeros())) as IntInner`
+            BitwiseOperation::Not => {
+                if left == 0 {
+                    1
+                } else {
+                    left ^ (std::u64::MAX >> left.leading_zeros()) as IntInner
+                }
+            }
         };
 
         Ok(result.into())
@@ -1025,8 +1084,8 @@ mod test {
         // 2 different, but comparable - float to int
         assert_ne!(Value::from(1.0), Value::from(1));
         assert_eq!(
-            Value::from(1.0).weak_cmp(&Value::from(1)).unwrap(),
-            std::cmp::Ordering::Equal
+            Value::from(1.0).weak_equality(&Value::from(1)).unwrap(),
+            true
         );
 
         // 2 different, not comparable - big array to int
@@ -1267,6 +1326,16 @@ mod test {
         assert_eq!(
             Value::bitwise_op(&l, &r, BitwiseOperation::Not).unwrap(),
             Value::from(0b0101)
+        );
+
+        assert_eq!(
+            Value::bitwise_op(&Value::from(0), &r, BitwiseOperation::Not).unwrap(),
+            Value::from(1)
+        );
+
+        assert_eq!(
+            Value::bitwise_op(&Value::from(1), &r, BitwiseOperation::Not).unwrap(),
+            Value::from(0)
         );
     }
 

@@ -15,10 +15,11 @@ pub use crate::inner_object::ObjectInner;
 #[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default, Debug, Hash, PartialOrd, Ord)]
 pub struct Object(ObjectInner);
 impl_value!(Object, ObjectInner, |v: &Self| {
+    let mut v = v.inner().iter().collect::<Vec<_>>();
+    v.sort_by_key(|(k, _)| *k);
     format!(
         "{{{}}}",
-        v.inner()
-            .iter()
+        v.iter()
             .map(|(k, v)| format!("{k}: {v}"))
             .collect::<Vec<String>>()
             .join(", ")
@@ -150,15 +151,6 @@ impl ArithmeticOperationExt for Object {
                 Ok(result)
             }
 
-            ArithmeticOperation::Subtract => {
-                let mut result = left.clone();
-                for (k, _) in right.inner().iter() {
-                    // remove all instances of the value
-                    result.inner_mut().remove(k);
-                }
-                Ok(result)
-            }
-
             _ => Err(Error::UnsupportedOperation {
                 operation,
                 actual_type: ValueType::Object,
@@ -276,36 +268,23 @@ mod test {
         assert_eq!(obj.get(&Value::Int(2.into())), Some(&Value::Int(3.into())));
         assert_eq!(obj.get(&Value::Int(3.into())), None);
 
-        assert_eq!(
-            obj.get_indices(&Value::Array(Array::from(vec![
+        let indices = obj
+            .get_indices(&Value::Array(Array::from(vec![
                 Value::Int(0.into()),
-                Value::Int(2.into())
+                Value::Int(2.into()),
             ])))
-            .unwrap(),
-            vec![&Value::Int(1.into()), &Value::Int(3.into())]
-        );
-
-        assert_eq!(
-            obj.get_indices_mut(&Value::Array(Array::from(vec![
-                Value::Int(0.into()),
-                Value::Int(2.into())
-            ])))
-            .unwrap(),
-            vec![&mut Value::Int(1.into()), &mut Value::Int(3.into())]
-        );
+            .unwrap();
+        assert!(indices.contains(&&Value::Int(1.into())));
+        assert!(indices.contains(&&Value::Int(3.into())));
 
         obj.set_index(&Value::Int(3.into()), Value::Int(4.into()))
             .unwrap();
         assert_eq!(obj.get(&Value::Int(3.into())), Some(&Value::Int(4.into())));
 
-        assert_eq!(
-            obj.get_indices(&Value::Range(Range::from(0..=2))).unwrap(),
-            vec![
-                &Value::Int(1.into()),
-                &Value::Int(2.into()),
-                &Value::Int(3.into())
-            ]
-        );
+        let indices = obj.get_indices(&Value::Range(Range::from(0..=2))).unwrap();
+        assert!(indices.contains(&&Value::Int(1.into())));
+        assert!(indices.contains(&&Value::Int(2.into())));
+        assert!(indices.contains(&&Value::Int(3.into())));
 
         // delete index
         assert_eq!(
@@ -340,21 +319,6 @@ mod test {
                 (Value::Int(1.into()), Value::Int(4.into())),
             ])
             .unwrap()
-        );
-
-        let result = Object::arithmetic_op(
-            &Object::try_from(vec![
-                (Value::Int(0.into()), Value::Int(1.into())),
-                (Value::Int(1.into()), Value::Int(2.into())),
-            ])
-            .unwrap(),
-            &Object::try_from(vec![(Value::Int(0.into()), Value::Int(3.into()))]).unwrap(),
-            ArithmeticOperation::Subtract,
-        )
-        .unwrap();
-        assert_eq!(
-            result,
-            Object::try_from(vec![(Value::Int(1.into()), Value::Int(2.into())),]).unwrap()
         );
     }
 

@@ -1,19 +1,19 @@
 //! Object inner type
 //!
-//! This type is a wrapper around `BTreeMap<Value, Value>`.
+//! This type is a wrapper around `HashMap<Value, Value>`.
 //! It provides a way to store key-value pairs.
 //!
 use crate::{Error, Value, ValueType};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 /// Inner type used for object storage
-#[derive(PartialEq, Eq, Clone, Default, Debug, PartialOrd, Ord)]
-pub struct ObjectInner(BTreeMap<Value, Value>);
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
+pub struct ObjectInner(HashMap<Value, Value>);
 impl ObjectInner {
     /// Create a new `ObjectInner`
     pub fn new() -> Self {
-        Self(BTreeMap::new())
+        Self(HashMap::new())
     }
 
     /// Insert a key-value pair into the object, if the key is not a compound type
@@ -29,27 +29,27 @@ impl ObjectInner {
         self.0.remove(key)
     }
 
-    /// Invokes the inner `BTreeMap`'s iterator
+    /// Invokes the inner `HashMap`'s iterator
     pub fn iter(&self) -> impl Iterator<Item = (&Value, &Value)> {
         self.0.iter()
     }
 
-    /// Invokes the inner `BTreeMap`'s mutable iterator
+    /// Invokes the inner `HashMap`'s mutable iterator
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Value, &mut Value)> {
         self.0.iter_mut()
     }
 
-    /// Extends the inner `BTreeMap` with another
+    /// Extends the inner `HashMap` with another
     pub fn extend(&mut self, other: ObjectInner) {
         self.0.extend(other.0);
     }
 
-    /// The number of key-value pairs in the inner `BTreeMap`
+    /// The number of key-value pairs in the inner `HashMap`
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    /// Returns true if the inner `BTreeMap` is empty
+    /// Returns true if the inner `HashMap` is empty
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -64,12 +64,12 @@ impl ObjectInner {
         self.0.get_mut(key)
     }
 
-    /// Get the keys from the inner `BTreeMap`
+    /// Get the keys from the inner `HashMap`
     pub fn keys(&self) -> impl Iterator<Item = &Value> {
         self.0.keys()
     }
 
-    /// Get the values from the inner `BTreeMap`
+    /// Get the values from the inner `HashMap`
     pub fn values(&self) -> impl Iterator<Item = &Value> {
         self.0.values()
     }
@@ -79,7 +79,7 @@ impl ObjectInner {
         self.0.contains_key(key)
     }
 
-    /// Get a mutable reference to the inner `BTreeMap`'s values
+    /// Get a mutable reference to the inner `HashMap`'s values
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> {
         self.0.values_mut()
     }
@@ -130,8 +130,25 @@ impl Serialize for ObjectInner {
 impl std::hash::Hash for ObjectInner {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let mut v: Vec<(&Value, &Value)> = self.0.iter().collect();
-        v.sort_by_key(|(k, _)| (*k).clone());
+        v.sort_by_key(|(k, _)| *k);
         v.hash(state);
+    }
+}
+
+impl PartialOrd for ObjectInner {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        println!("!");
+        let mut v1: Vec<(&Value, &Value)> = self.0.iter().collect();
+        let mut v2: Vec<(&Value, &Value)> = other.0.iter().collect();
+        v1.sort_by_key(|(k, _)| *k);
+        v2.sort_by_key(|(k, _)| *k);
+        v1.partial_cmp(&v2)
+    }
+}
+
+impl Ord for ObjectInner {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
     }
 }
 
@@ -172,12 +189,10 @@ mod test {
         assert_eq!(5, obj.len());
 
         assert_eq!(get_hash(&obj), get_hash(&obj));
-        assert_eq!(get_hash(&obj), get_hash(&obj));
-        assert_eq!(get_hash(&obj), get_hash(&obj));
-        assert_eq!(get_hash(&obj), get_hash(&obj));
-        assert_eq!(get_hash(&obj), get_hash(&obj));
+
         let mut obj2 = obj.clone();
         assert_eq!(get_hash(&obj), get_hash(&obj2));
+
         obj2.remove(&Value::from(false));
         assert_ne!(get_hash(&obj), get_hash(&obj2));
     }

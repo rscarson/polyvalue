@@ -23,8 +23,6 @@ At this point, remaining types are numeric and will be coerced to the type conta
 - Int
 - Bool
 
-Please note that this priority system is also used when ordering a list of values.
-
 ## Operations
 
 Operations can be performed directly on Value, or on inner types. Operations on Value will coerce the inner types to the same type, and then perform the operation.
