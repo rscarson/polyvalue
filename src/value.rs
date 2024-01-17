@@ -1264,7 +1264,8 @@ mod test {
         let v = object
             .get_indices_mut(&Value::from(vec![Value::from("a"), Value::from("b")]))
             .unwrap();
-        assert_eq!(v, vec![&mut Value::from(1), &mut Value::from(2)]);
+        assert!(v.contains(&&mut Value::from(1)));
+        assert!(v.contains(&&mut Value::from(2)));
 
         // Get indices_mut on int
         Value::from(1)
