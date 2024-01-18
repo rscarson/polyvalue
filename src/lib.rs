@@ -35,6 +35,8 @@
 #[macro_use]
 mod macros;
 
+mod ryu;
+
 mod inner_currency;
 mod is_currency;
 

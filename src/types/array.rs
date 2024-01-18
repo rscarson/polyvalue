@@ -163,7 +163,8 @@ impl ArithmeticOperationExt for Array {
 
             ArithmeticOperation::Subtract => {
                 let mut result = left.clone();
-                result.inner_mut().retain(|v| !right.inner().contains(v));
+                let rset = std::collections::HashSet::<&Value>::from_iter(right.inner().iter());
+                result.inner_mut().retain(|v| !rset.contains(v));
                 Ok(result)
             }
 
