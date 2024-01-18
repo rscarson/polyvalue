@@ -29,6 +29,9 @@ Operations can be performed directly on Value, or on inner types. Operations on 
 
 There are 5 types of operations: arithmetic, bitwise, boolean, comparison, and indexing.
 
+### Bitwise ops
+- Bitwise not will attempt to remove the effect of the containing type's width, to remove trailing 0xF's 
+- Negative RHS shifts will result in shifting in the oposite direction(eg; `1>>-1 == 1<<1`), and values >64 wrap using r%64
 ## Usage
 ```rust
 use polyvalue::{Value, Int, Float, Fixed, Currency, Str, Array, Object, Range};

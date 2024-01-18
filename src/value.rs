@@ -673,8 +673,20 @@ impl BitwiseOperationExt for Value {
             BitwiseOperation::And => left & right,
             BitwiseOperation::Or => left | right,
             BitwiseOperation::Xor => left ^ right,
-            BitwiseOperation::LeftShift => left << right,
-            BitwiseOperation::RightShift => left >> right,
+            BitwiseOperation::LeftShift => {
+                if right < 0 {
+                    left >> -(right % IntInner::BITS as IntInner)
+                } else {
+                    left << (right % IntInner::BITS as IntInner)
+                }
+            }
+            BitwiseOperation::RightShift => {
+                if right < 0 {
+                    left << -(right % IntInner::BITS as IntInner)
+                } else {
+                    left >> (right % IntInner::BITS as IntInner)
+                }
+            }
 
             // This is to remove the side-effects of the way the ints are stored
             // We could also do `left ^ (std::u64::MAX >> 63.min(left.leading_zeros())) as IntInner`
@@ -1320,8 +1332,28 @@ mod test {
         );
 
         assert_eq!(
+            Value::bitwise_op(&l, &Value::from(-2), BitwiseOperation::LeftShift).unwrap(),
+            Value::from(2)
+        );
+
+        assert_eq!(
+            Value::bitwise_op(&l, &Value::from(2000), BitwiseOperation::LeftShift).unwrap(),
+            Value::from(655360)
+        );
+
+        assert_eq!(
             Value::bitwise_op(&l, &Value::from(2), BitwiseOperation::RightShift).unwrap(),
             Value::from(0b10)
+        );
+
+        assert_eq!(
+            Value::bitwise_op(&l, &Value::from(-1), BitwiseOperation::RightShift).unwrap(),
+            Value::from(20)
+        );
+
+        assert_eq!(
+            Value::bitwise_op(&l, &Value::from(64), BitwiseOperation::RightShift).unwrap(),
+            Value::from(10)
         );
 
         assert_eq!(
