@@ -330,6 +330,50 @@ mod macros {
                     Self::boolean_op(self, &self.clone(), BooleanOperation::Not)
                 }
             }
+
+            #[allow(unused_comparisons)]
+            impl BitwiseOperationExt for $name {
+                fn bitwise_op(
+                    left: &Self,
+                    right: &Self,
+                    operation: BitwiseOperation,
+                ) -> Result<Self, Error> {
+                    let mut operation = operation;
+                    let left = *left.inner();
+                    let mut right = *right.inner();
+
+                    if right < 0 && operation == BitwiseOperation::LeftShift {
+                        operation = BitwiseOperation::LeftShift;
+                        right = -(right as i64) as $subtype;
+                    } else if right < 0 && operation == BitwiseOperation::LeftShift {
+                        operation = BitwiseOperation::RightShift;
+                        right = -(right as i64) as $subtype;
+                    }
+
+                    let result = match operation {
+                        BitwiseOperation::And => Some(left & right),
+                        BitwiseOperation::Or => Some(left | right),
+                        BitwiseOperation::Xor => Some(left ^ right),
+                        BitwiseOperation::LeftShift => {
+                            left.checked_shl((right % $subtype::BITS as $subtype) as u32)
+                        }
+                        BitwiseOperation::RightShift => {
+                            left.checked_shr((right % $subtype::BITS as $subtype) as u32)
+                        }
+                        BitwiseOperation::Not => Some(!left),
+                    }
+                    .ok_or(Error::Overflow)?;
+
+                    Ok(Self::new(result))
+                }
+
+                fn bitwise_not(&self) -> Result<Self, Error>
+                where
+                    Self: Sized,
+                {
+                    Self::bitwise_op(self, &self.clone(), BitwiseOperation::Not)
+                }
+            }
         };
     }
 }

@@ -246,6 +246,56 @@ impl BooleanOperationExt for Int {
     }
 }
 
+impl BitwiseOperationExt for Int {
+    fn bitwise_op(
+        left: &Self,
+        right: &Self,
+        operation: BitwiseOperation,
+    ) -> Result<Self, crate::Error> {
+        let left = *left.inner();
+        let right = *right.inner();
+
+        let result = match operation {
+            BitwiseOperation::And => left & right,
+            BitwiseOperation::Or => left | right,
+            BitwiseOperation::Xor => left ^ right,
+            BitwiseOperation::LeftShift => {
+                if right < 0 {
+                    left >> -(right % IntInner::BITS as IntInner)
+                } else {
+                    left << (right % IntInner::BITS as IntInner)
+                }
+            }
+            BitwiseOperation::RightShift => {
+                if right < 0 {
+                    left << -(right % IntInner::BITS as IntInner)
+                } else {
+                    left >> (right % IntInner::BITS as IntInner)
+                }
+            }
+
+            // This is to remove the side-effects of the way the ints are stored
+            // We could also do `left ^ (std::u64::MAX >> 63.min(left.leading_zeros())) as IntInner`
+            BitwiseOperation::Not => {
+                if left == 0 {
+                    1
+                } else {
+                    left ^ (std::u64::MAX >> left.leading_zeros()) as IntInner
+                }
+            }
+        };
+
+        Ok(result.into())
+    }
+
+    fn bitwise_not(&self) -> Result<Self, crate::Error>
+    where
+        Self: Sized,
+    {
+        Self::bitwise_op(self, &self.clone(), BitwiseOperation::Not)
+    }
+}
+
 //
 // Tests
 //

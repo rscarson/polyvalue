@@ -776,6 +776,35 @@ impl BooleanOperationExt for Value {
     }
 }
 
+impl BitwiseOperationExt for Value {
+    fn bitwise_op(left: &Self, right: &Self, operation: BitwiseOperation) -> Result<Self, Error> {
+        let (left, right) = left.resolve(right)?;
+        match (&left, &right) {
+            (Value::U8(l), Value::U8(r)) => U8::bitwise_op(&l, &r, operation).map(Into::into),
+            (Value::U16(l), Value::U16(r)) => U16::bitwise_op(&l, &r, operation).map(Into::into),
+            (Value::U32(l), Value::U32(r)) => U32::bitwise_op(&l, &r, operation).map(Into::into),
+            (Value::U64(l), Value::U64(r)) => U64::bitwise_op(&l, &r, operation).map(Into::into),
+            (Value::I8(l), Value::I8(r)) => I8::bitwise_op(&l, &r, operation).map(Into::into),
+            (Value::I16(l), Value::I16(r)) => I16::bitwise_op(&l, &r, operation).map(Into::into),
+            (Value::I32(l), Value::I32(r)) => I32::bitwise_op(&l, &r, operation).map(Into::into),
+            (Value::I64(l), Value::I64(r)) => I64::bitwise_op(&l, &r, operation).map(Into::into),
+
+            _ => {
+                let left = left.as_a::<Int>()?;
+                let right = right.as_a::<Int>()?;
+                Int::bitwise_op(&left, &right, operation).map(Into::into)
+            }
+        }
+    }
+
+    fn bitwise_not(&self) -> Result<Self, crate::Error>
+    where
+        Self: Sized,
+    {
+        Self::bitwise_op(self, &self.clone(), BitwiseOperation::Not)
+    }
+}
+
 impl ArithmeticOperationExt for Value {
     fn arithmetic_op(
         left: &Self,
@@ -851,56 +880,6 @@ impl MatchingOperationExt for Value {
         } else {
             Str::matching_op(&container.as_a::<Str>()?, pattern, operation)
         }
-    }
-}
-
-impl BitwiseOperationExt for Value {
-    fn bitwise_op(
-        left: &Self,
-        right: &Self,
-        operation: BitwiseOperation,
-    ) -> Result<Self, crate::Error> {
-        let left = *Int::try_from(left.clone())?.inner();
-        let right = *Int::try_from(right.clone())?.inner();
-
-        let result = match operation {
-            BitwiseOperation::And => left & right,
-            BitwiseOperation::Or => left | right,
-            BitwiseOperation::Xor => left ^ right,
-            BitwiseOperation::LeftShift => {
-                if right < 0 {
-                    left >> -(right % IntInner::BITS as IntInner)
-                } else {
-                    left << (right % IntInner::BITS as IntInner)
-                }
-            }
-            BitwiseOperation::RightShift => {
-                if right < 0 {
-                    left << -(right % IntInner::BITS as IntInner)
-                } else {
-                    left >> (right % IntInner::BITS as IntInner)
-                }
-            }
-
-            // This is to remove the side-effects of the way the ints are stored
-            // We could also do `left ^ (std::u64::MAX >> 63.min(left.leading_zeros())) as IntInner`
-            BitwiseOperation::Not => {
-                if left == 0 {
-                    1
-                } else {
-                    left ^ (std::u64::MAX >> left.leading_zeros()) as IntInner
-                }
-            }
-        };
-
-        Ok(result.into())
-    }
-
-    fn bitwise_not(&self) -> Result<Self, crate::Error>
-    where
-        Self: Sized,
-    {
-        Self::bitwise_op(self, &self.clone(), BitwiseOperation::Not)
     }
 }
 
