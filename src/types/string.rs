@@ -43,8 +43,6 @@ impl Str {
         }
         let mut range = range.start as usize..range.end as usize;
 
-        println!("range: {:?}", range);
-
         // Get the byte-index of the nth character of self.inner()
         // This is necessary because the string is UTF-8 encoded
         // and we need to get the nth character, not the nth byte

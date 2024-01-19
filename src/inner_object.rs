@@ -137,7 +137,6 @@ impl std::hash::Hash for ObjectInner {
 
 impl PartialOrd for ObjectInner {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        println!("!");
         let mut v1: Vec<(&Value, &Value)> = self.0.iter().collect();
         let mut v2: Vec<(&Value, &Value)> = other.0.iter().collect();
         v1.sort_by_key(|(k, _)| *k);
