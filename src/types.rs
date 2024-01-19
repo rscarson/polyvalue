@@ -39,6 +39,9 @@ pub use float::{Float, FloatInner};
 mod int;
 pub use int::{Int, IntInner};
 
+mod sized_int;
+pub use sized_int::*;
+
 mod object;
 pub use object::{Object, ObjectInner};
 

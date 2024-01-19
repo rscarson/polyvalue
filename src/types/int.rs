@@ -83,6 +83,16 @@ map_value!(
     handle_from = |v: Value| match v {
         Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Int(v) => Ok(v),
+
+        Value::U8(v) => Ok(Int::new(*v.inner() as IntInner)),
+        Value::U16(v) => Ok(Int::new(*v.inner() as IntInner)),
+        Value::U32(v) => Ok(Int::new(*v.inner() as IntInner)),
+        Value::U64(v) => Ok(Int::new(*v.inner() as IntInner)),
+        Value::I8(v) => Ok(Int::new(*v.inner() as IntInner)),
+        Value::I16(v) => Ok(Int::new(*v.inner() as IntInner)),
+        Value::I32(v) => Ok(Int::new(*v.inner() as IntInner)),
+        Value::I64(v) => Ok(Int::new(*v.inner() as IntInner)),
+
         Value::Fixed(v) => {
             let p = *v.inner();
             let p: IntInner = p.trunc().coefficient() as IntInner;

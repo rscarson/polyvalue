@@ -30,6 +30,48 @@ map_value!(
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
+
+        Value::U8(v) => {
+            let p = *v.inner() as IntInner;
+            let p: Decimal = p.into();
+            Ok(Fixed::from(p))
+        }
+        Value::U16(v) => {
+            let p = *v.inner() as IntInner;
+            let p: Decimal = p.into();
+            Ok(Fixed::from(p))
+        }
+        Value::U32(v) => {
+            let p = *v.inner() as IntInner;
+            let p: Decimal = p.into();
+            Ok(Fixed::from(p))
+        }
+        Value::U64(v) => {
+            let p = *v.inner() as IntInner;
+            let p: Decimal = p.into();
+            Ok(Fixed::from(p))
+        }
+        Value::I8(v) => {
+            let p = *v.inner() as IntInner;
+            let p: Decimal = p.into();
+            Ok(Fixed::from(p))
+        }
+        Value::I16(v) => {
+            let p = *v.inner() as IntInner;
+            let p: Decimal = p.into();
+            Ok(Fixed::from(p))
+        }
+        Value::I32(v) => {
+            let p = *v.inner() as IntInner;
+            let p: Decimal = p.into();
+            Ok(Fixed::from(p))
+        }
+        Value::I64(v) => {
+            let p = *v.inner() as IntInner;
+            let p: Decimal = p.into();
+            Ok(Fixed::from(p))
+        }
+
         Value::Float(v) => {
             let p = *v.inner();
             let p = Decimal::try_from(p)?;

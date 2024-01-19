@@ -85,36 +85,26 @@ map_value!(
     handle_from = |v: Value| match v {
         Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Object(v) => Ok(v),
-        Value::Int(v) => {
+
+        Value::Int(_)
+        | Value::String(_)
+        | Value::Bool(_)
+        | Value::Float(_)
+        | Value::Fixed(_)
+        | Value::Currency(_)
+        | Value::U8(_)
+        | Value::U16(_)
+        | Value::U32(_)
+        | Value::U64(_)
+        | Value::I8(_)
+        | Value::I16(_)
+        | Value::I32(_)
+        | Value::I64(_) => {
             let mut map = ObjectInner::new();
-            map.insert(Value::Int(Int::from(0)), Value::Int(v)).ok();
+            map.insert(Value::Int(Int::from(0)), v).ok();
             Ok(Object(map))
         }
-        Value::Float(v) => {
-            let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::Float(v)).ok();
-            Ok(Object(map))
-        }
-        Value::Fixed(v) => {
-            let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::Fixed(v)).ok();
-            Ok(Object(map))
-        }
-        Value::Currency(v) => {
-            let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::Currency(v)).ok();
-            Ok(Object(map))
-        }
-        Value::Bool(v) => {
-            let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::Bool(v)).ok();
-            Ok(Object(map))
-        }
-        Value::String(v) => {
-            let mut map = ObjectInner::new();
-            map.insert(Value::Int(0.into()), Value::String(v)).ok();
-            Ok(Object(map))
-        }
+
         Value::Array(v) => {
             let mut map = ObjectInner::new();
             for (i, v) in v.inner().iter().enumerate() {

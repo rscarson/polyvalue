@@ -77,4 +77,8 @@ pub enum Error {
     /// An error caused by parsing a regex
     #[error("Invalid regex literal")]
     RegexError(#[from] regex::Error),
+
+    /// An error caused by large allocations
+    #[error("Memory allocation error")]
+    TryReserveError(#[from] std::collections::TryReserveError),
 }

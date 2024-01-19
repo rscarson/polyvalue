@@ -25,6 +25,39 @@ map_value!(
     handle_from = |v: Value| match v {
         Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Bool(v) => Ok(v),
+
+        Value::U8(v) => {
+            Ok(Bool::from(*v.inner() != 0))
+        }
+
+        Value::U16(v) => {
+            Ok(Bool::from(*v.inner() != 0))
+        }
+
+        Value::U32(v) => {
+            Ok(Bool::from(*v.inner() != 0))
+        }
+
+        Value::U64(v) => {
+            Ok(Bool::from(*v.inner() != 0))
+        }
+
+        Value::I8(v) => {
+            Ok(Bool::from(*v.inner() != 0))
+        }
+
+        Value::I16(v) => {
+            Ok(Bool::from(*v.inner() != 0))
+        }
+
+        Value::I32(v) => {
+            Ok(Bool::from(*v.inner() != 0))
+        }
+
+        Value::I64(v) => {
+            Ok(Bool::from(*v.inner() != 0))
+        }
+
         Value::Int(v) => {
             Ok(Bool::from(*v.inner() != 0))
         }

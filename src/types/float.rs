@@ -45,10 +45,52 @@ map_value!(
             let p: f64 = p.into();
             Ok(Float::from(p))
         }
+
+        Value::U8(v) => {
+            let p = *v.inner() as f64;
+            Ok(Float::from(p))
+        }
+
+        Value::U16(v) => {
+            let p = *v.inner() as f64;
+            Ok(Float::from(p))
+        }
+
+        Value::U32(v) => {
+            let p = *v.inner() as f64;
+            Ok(Float::from(p))
+        }
+
+        Value::U64(v) => {
+            let p = *v.inner() as f64;
+            Ok(Float::from(p))
+        }
+
+        Value::I8(v) => {
+            let p = *v.inner() as f64;
+            Ok(Float::from(p))
+        }
+
+        Value::I16(v) => {
+            let p = *v.inner() as f64;
+            Ok(Float::from(p))
+        }
+
+        Value::I32(v) => {
+            let p = *v.inner() as f64;
+            Ok(Float::from(p))
+        }
+
+        Value::I64(v) => {
+            let p = *v.inner() as f64;
+            Ok(Float::from(p))
+        }
+
         Value::Int(v) => {
             let p = *v.inner() as f64;
             Ok(Float::from(p))
         }
+
         Value::Bool(v) => {
             let p = *v.inner() as i64 as f64;
             Ok(Float::from(p))

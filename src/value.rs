@@ -60,6 +60,30 @@ pub enum ValueType {
     /// A currency value
     Currency,
 
+    /// An unsigned 8bit integer value
+    U8,
+
+    /// An unsigned 16bit integer value
+    U16,
+
+    /// An unsigned 32bit integer value
+    U32,
+
+    /// An unsigned 64bit integer value
+    U64,
+
+    /// A signed 8bit integer value
+    I8,
+
+    /// A signed 16bit integer value
+    I16,
+
+    /// A signed 32bit integer value
+    I32,
+
+    /// A signed 64bit integer value
+    I64,
+
     /// An integer value
     Int,
 
@@ -105,6 +129,14 @@ impl std::fmt::Display for ValueType {
             ValueType::Fixed => write!(f, "fixed"),
             ValueType::Float => write!(f, "float"),
             ValueType::Currency => write!(f, "currency"),
+            ValueType::U8 => write!(f, "u8"),
+            ValueType::U16 => write!(f, "u16"),
+            ValueType::U32 => write!(f, "u32"),
+            ValueType::U64 => write!(f, "u64"),
+            ValueType::I8 => write!(f, "i8"),
+            ValueType::I16 => write!(f, "i16"),
+            ValueType::I32 => write!(f, "i32"),
+            ValueType::I64 => write!(f, "i64"),
             ValueType::Int => write!(f, "int"),
             ValueType::String => write!(f, "string"),
             ValueType::Range => write!(f, "range"),
@@ -125,6 +157,14 @@ impl TryFrom<&str> for ValueType {
             "fixed" => Ok(ValueType::Fixed),
             "float" => Ok(ValueType::Float),
             "currency" => Ok(ValueType::Currency),
+            "u8" => Ok(ValueType::U8),
+            "u16" => Ok(ValueType::U16),
+            "u32" => Ok(ValueType::U32),
+            "u64" => Ok(ValueType::U64),
+            "i8" => Ok(ValueType::I8),
+            "i16" => Ok(ValueType::I16),
+            "i32" => Ok(ValueType::I32),
+            "i64" => Ok(ValueType::I64),
             "int" => Ok(ValueType::Int),
             "string" => Ok(ValueType::String),
             "range" => Ok(ValueType::Range),
@@ -157,6 +197,30 @@ pub enum Value {
 
     /// A currency value
     Currency(Currency),
+
+    /// An unsigned 8bit integer value
+    U8(U8),
+
+    /// An unsigned 16bit integer value
+    U16(U16),
+
+    /// An unsigned 32bit integer value
+    U32(U32),
+
+    /// An unsigned 64bit integer value
+    U64(U64),
+
+    /// An unsigned 8bit integer value
+    I8(I8),
+
+    /// An signed 16bit integer value
+    I16(I16),
+
+    /// An signed 32bit integer value
+    I32(I32),
+
+    /// An signed 64bit integer value
+    I64(I64),
 
     /// A string value
     String(Str),
@@ -260,6 +324,46 @@ impl Value {
                 Int::try_from(other.clone())?.into(),
             ),
 
+            ValueType::U8 => (
+                U8::try_from(self.clone())?.into(),
+                U8::try_from(other.clone())?.into(),
+            ),
+
+            ValueType::U16 => (
+                U16::try_from(self.clone())?.into(),
+                U16::try_from(other.clone())?.into(),
+            ),
+
+            ValueType::U32 => (
+                U32::try_from(self.clone())?.into(),
+                U32::try_from(other.clone())?.into(),
+            ),
+
+            ValueType::U64 => (
+                U64::try_from(self.clone())?.into(),
+                U64::try_from(other.clone())?.into(),
+            ),
+
+            ValueType::I8 => (
+                I8::try_from(self.clone())?.into(),
+                I8::try_from(other.clone())?.into(),
+            ),
+
+            ValueType::I16 => (
+                I16::try_from(self.clone())?.into(),
+                I16::try_from(other.clone())?.into(),
+            ),
+
+            ValueType::I32 => (
+                I32::try_from(self.clone())?.into(),
+                I32::try_from(other.clone())?.into(),
+            ),
+
+            ValueType::I64 => (
+                I64::try_from(self.clone())?.into(),
+                I64::try_from(other.clone())?.into(),
+            ),
+
             ValueType::String => (
                 Str::try_from(self.clone())?.into(),
                 Str::try_from(other.clone())?.into(),
@@ -297,6 +401,14 @@ impl Value {
             Value::Fixed(_) => ValueType::Fixed,
             Value::Float(_) => ValueType::Float,
             Value::Currency(_) => ValueType::Currency,
+            Value::U8(_) => ValueType::U8,
+            Value::U16(_) => ValueType::U16,
+            Value::U32(_) => ValueType::U32,
+            Value::U64(_) => ValueType::U64,
+            Value::I8(_) => ValueType::I8,
+            Value::I16(_) => ValueType::I16,
+            Value::I32(_) => ValueType::I32,
+            Value::I64(_) => ValueType::I64,
             Value::Int(_) => ValueType::Int,
             Value::String(_) => ValueType::String,
             Value::Range(_) => ValueType::Range,
@@ -356,6 +468,14 @@ impl Value {
                     || Float::try_from(self.clone()).is_ok()
                     || Fixed::try_from(self.clone()).is_ok()
                     || Currency::try_from(self.clone()).is_ok()
+                    || U8::try_from(self.clone()).is_ok()
+                    || U16::try_from(self.clone()).is_ok()
+                    || U32::try_from(self.clone()).is_ok()
+                    || U64::try_from(self.clone()).is_ok()
+                    || I8::try_from(self.clone()).is_ok()
+                    || I16::try_from(self.clone()).is_ok()
+                    || I32::try_from(self.clone()).is_ok()
+                    || I64::try_from(self.clone()).is_ok()
             }
             ValueType::Compound => {
                 self.own_type() == ValueType::Array
@@ -393,6 +513,16 @@ impl Value {
             ValueType::Fixed => Fixed::try_from(self.clone())?.into(),
             ValueType::Float => Float::try_from(self.clone())?.into(),
             ValueType::Currency => Currency::try_from(self.clone())?.into(),
+
+            ValueType::U8 => U8::try_from(self.clone())?.into(),
+            ValueType::U16 => U16::try_from(self.clone())?.into(),
+            ValueType::U32 => U32::try_from(self.clone())?.into(),
+            ValueType::U64 => U64::try_from(self.clone())?.into(),
+            ValueType::I8 => I8::try_from(self.clone())?.into(),
+            ValueType::I16 => I16::try_from(self.clone())?.into(),
+            ValueType::I32 => I32::try_from(self.clone())?.into(),
+            ValueType::I64 => I64::try_from(self.clone())?.into(),
+
             ValueType::Int => Int::try_from(self.clone())?.into(),
             ValueType::String => Str::try_from(self.clone())?.into(),
             ValueType::Array => Array::try_from(self.clone())?.into(),
@@ -423,6 +553,22 @@ impl Value {
                     Float::try_from(self.clone())?.into()
                 } else if self.own_type() == ValueType::Currency {
                     Currency::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::U8 {
+                    U8::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::U16 {
+                    U16::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::U32 {
+                    U32::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::U64 {
+                    U64::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::I8 {
+                    I8::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::I16 {
+                    I16::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::I32 {
+                    I32::try_from(self.clone())?.into()
+                } else if self.own_type() == ValueType::I64 {
+                    I64::try_from(self.clone())?.into()
                 } else {
                     Fixed::try_from(self.clone())?.into()
                 }
@@ -474,6 +620,22 @@ impl Value {
             ValueType::Int
         } else if self.either_type(other, ValueType::Bool) {
             ValueType::Bool
+        } else if self.either_type(other, ValueType::U8) {
+            ValueType::U8
+        } else if self.either_type(other, ValueType::U16) {
+            ValueType::U16
+        } else if self.either_type(other, ValueType::U32) {
+            ValueType::U32
+        } else if self.either_type(other, ValueType::U64) {
+            ValueType::U64
+        } else if self.either_type(other, ValueType::I8) {
+            ValueType::I8
+        } else if self.either_type(other, ValueType::I16) {
+            ValueType::I16
+        } else if self.either_type(other, ValueType::I32) {
+            ValueType::I32
+        } else if self.either_type(other, ValueType::I64) {
+            ValueType::I64
         } else {
             panic!(
                 "Type {:?} was not recognized; this should never happen",
@@ -496,6 +658,17 @@ impl std::fmt::Display for Value {
             Value::Fixed(v) => write!(f, "{}", v),
             Value::Float(v) => write!(f, "{}", v),
             Value::Currency(v) => write!(f, "{}", v),
+
+            Value::U8(v) => write!(f, "{}", v),
+            Value::U16(v) => write!(f, "{}", v),
+            Value::U32(v) => write!(f, "{}", v),
+            Value::U64(v) => write!(f, "{}", v),
+
+            Value::I8(v) => write!(f, "{}", v),
+            Value::I16(v) => write!(f, "{}", v),
+            Value::I32(v) => write!(f, "{}", v),
+            Value::I64(v) => write!(f, "{}", v),
+
             Value::Int(v) => write!(f, "{}", v),
             Value::String(v) => write!(f, "{}", v),
             Value::Range(v) => write!(f, "{}", v),
@@ -572,6 +745,16 @@ impl BooleanOperationExt for Value {
                 Currency::boolean_op(&l, &r, operation).map(Into::into)
             }
             (Value::Int(l), Value::Int(r)) => Int::boolean_op(&l, &r, operation).map(Into::into),
+
+            (Value::U8(l), Value::U8(r)) => U8::boolean_op(&l, &r, operation).map(Into::into),
+            (Value::U16(l), Value::U16(r)) => U16::boolean_op(&l, &r, operation).map(Into::into),
+            (Value::U32(l), Value::U32(r)) => U32::boolean_op(&l, &r, operation).map(Into::into),
+            (Value::U64(l), Value::U64(r)) => U64::boolean_op(&l, &r, operation).map(Into::into),
+            (Value::I8(l), Value::I8(r)) => I8::boolean_op(&l, &r, operation).map(Into::into),
+            (Value::I16(l), Value::I16(r)) => I16::boolean_op(&l, &r, operation).map(Into::into),
+            (Value::I32(l), Value::I32(r)) => I32::boolean_op(&l, &r, operation).map(Into::into),
+            (Value::I64(l), Value::I64(r)) => I64::boolean_op(&l, &r, operation).map(Into::into),
+
             (Value::String(l), Value::String(r)) => {
                 Str::boolean_op(&l, &r, operation).map(Into::into)
             }
@@ -613,7 +796,18 @@ impl ArithmeticOperationExt for Value {
             (Value::Currency(l), Value::Currency(r)) => {
                 Currency::arithmetic_op(&l, &r, operation).map(Into::into)
             }
+
             (Value::Int(l), Value::Int(r)) => Int::arithmetic_op(&l, &r, operation).map(Into::into),
+
+            (Value::U8(l), Value::U8(r)) => U8::arithmetic_op(&l, &r, operation).map(Into::into),
+            (Value::U16(l), Value::U16(r)) => U16::arithmetic_op(&l, &r, operation).map(Into::into),
+            (Value::U32(l), Value::U32(r)) => U32::arithmetic_op(&l, &r, operation).map(Into::into),
+            (Value::U64(l), Value::U64(r)) => U64::arithmetic_op(&l, &r, operation).map(Into::into),
+            (Value::I8(l), Value::I8(r)) => I8::arithmetic_op(&l, &r, operation).map(Into::into),
+            (Value::I16(l), Value::I16(r)) => I16::arithmetic_op(&l, &r, operation).map(Into::into),
+            (Value::I32(l), Value::I32(r)) => I32::arithmetic_op(&l, &r, operation).map(Into::into),
+            (Value::I64(l), Value::I64(r)) => I64::arithmetic_op(&l, &r, operation).map(Into::into),
+
             (Value::String(l), Value::String(r)) => {
                 Str::arithmetic_op(&l, &r, operation).map(Into::into)
             }
@@ -909,7 +1103,7 @@ mod test {
         let int = value
             .as_a::<Int>()
             .expect("Value could not be converted to int!");
-        assert_eq!(int, Int::from(1));
+        assert_eq!(int, Int::from(1i64));
 
         let value = Value::from(1);
         let float = value

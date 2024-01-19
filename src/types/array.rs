@@ -79,10 +79,30 @@ map_value!(
     handle_from = |v: Value| match v {
         Value::Array(v) => Ok(v),
         Value::Range(v) => {
-            let inner = v.inner().clone().map(Value::from).collect::<ArrayInner>();
-            Ok(inner.into())
+            let mut container = ArrayInner::new();
+            let len = v.inner().end() - v.inner().start();
+            if let Err(e) = container.try_reserve(len as usize) {
+                return Err(Error::from(e));
+            }
+
+            for i in v.inner().clone() {
+                container.push(Value::from(i));
+            }
+            Ok(container.into())
         }
-        Value::Int(_) | Value::Bool(_) | Value::Float(_) | Value::Fixed(_) | Value::Currency(_) => {
+        Value::Int(_)
+        | Value::Bool(_)
+        | Value::Float(_)
+        | Value::Fixed(_)
+        | Value::Currency(_)
+        | Value::U8(_)
+        | Value::U16(_)
+        | Value::U32(_)
+        | Value::U64(_)
+        | Value::I8(_)
+        | Value::I16(_)
+        | Value::I32(_)
+        | Value::I64(_) => {
             Ok(vec![v].into())
         }
 
@@ -606,5 +626,11 @@ mod test {
         let range = Range::new(0..=0);
         let array = Array::try_from(Value::from(range.clone())).unwrap();
         assert_eq!(array, vec![0.into()].into());
+    }
+
+    #[test]
+    fn test_giant_range() {
+        let range = Range::new(0..=0xf7767700);
+        let _ = Array::try_from(Value::from(range.clone()));
     }
 }
