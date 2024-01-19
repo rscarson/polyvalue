@@ -262,6 +262,15 @@ impl ArithmeticOperationExt for Str {
     {
         Str::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
     }
+
+    fn is_operator_supported(&self, _: &Self, operation: ArithmeticOperation) -> bool {
+        match operation {
+            ArithmeticOperation::Add => true,
+            ArithmeticOperation::Subtract => true,
+            ArithmeticOperation::Negate => true,
+            _ => false,
+        }
+    }
 }
 
 impl BooleanOperationExt for Str {
@@ -287,6 +296,30 @@ impl BooleanOperationExt for Str {
         Self: Sized,
     {
         Str::boolean_op(self, &self.clone(), BooleanOperation::Not)
+    }
+}
+
+impl IndexingOperationExt for Str {
+    fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
+        self.substr(index..=index).and_then(|s| Ok(Value::from(s)))
+    }
+
+    fn get_indices(&self, index: &Value) -> Result<Value, crate::Error> {
+        if index.is_a(ValueType::Range) {
+            let indices = index.as_a::<crate::types::Range>()?.inner().clone();
+            let lower = Value::from(*indices.start());
+            let upper = Value::from(*indices.end());
+            self.substr(&lower..=&upper)
+                .and_then(|s| Ok(Value::from(s)))
+        } else {
+            let indices = index.as_a::<Array>()?;
+            let results = indices
+                .inner()
+                .iter()
+                .map(|i| self.get_index(i))
+                .collect::<Result<Vec<_>, Error>>()?;
+            Ok(Value::from(results))
+        }
     }
 }
 

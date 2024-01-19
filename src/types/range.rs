@@ -5,7 +5,11 @@
 //! Like all subtypes, it is hashable, serializable, and fully comparable
 //! It is represented as a string in the form of `min..max`
 //!
-use crate::{types::*, Error, Value, ValueTrait, ValueType};
+use crate::{
+    operations::{BooleanOperation, BooleanOperationExt, IndexingOperationExt},
+    types::*,
+    Error, Value, ValueTrait, ValueType,
+};
 use serde::{Deserialize, Serialize};
 use std::{ops::RangeInclusive, str::FromStr};
 
@@ -61,6 +65,82 @@ impl Ord for Range {
 impl Default for Range {
     fn default() -> Self {
         Range::new(0..=0)
+    }
+}
+
+impl BooleanOperationExt for Range {
+    fn boolean_op(
+        left: &Self,
+        right: &Self,
+        operation: BooleanOperation,
+    ) -> Result<Value, crate::Error>
+    where
+        Self: Sized,
+    {
+        let left = left.inner().clone();
+        let right = right.inner().clone();
+
+        let left_size = left.end() - left.start();
+        let right_size = right.end() - right.start();
+
+        match operation {
+            BooleanOperation::And => Ok(Bool::from(left_size != 0 && right_size != 0)),
+            BooleanOperation::Or => Ok(Bool::from(left_size != 0 || right_size != 0)),
+            BooleanOperation::EQ => Ok(Bool::from(left == right)),
+            BooleanOperation::NEQ => Ok(Bool::from(left != right)),
+            BooleanOperation::LT => Ok(Bool::from(left_size < right_size)),
+            BooleanOperation::GT => Ok(Bool::from(left_size > right_size)),
+            BooleanOperation::LTE => Ok(Bool::from(left_size <= right_size)),
+            BooleanOperation::GTE => Ok(Bool::from(left_size >= right_size)),
+            BooleanOperation::Not => Ok(Bool::from(left_size == 0)),
+        }
+        .and_then(|b| Ok(Value::from(b)))
+    }
+
+    fn boolean_not(&self) -> Result<Value, crate::Error>
+    where
+        Self: Sized,
+    {
+        Self::boolean_op(self, self, BooleanOperation::Not)
+    }
+}
+
+impl IndexingOperationExt for Range {
+    fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
+        let index = *index.as_a::<Int>()?.inner();
+        let offset = if index < 0 {
+            *self.inner().end() + index
+        } else {
+            *self.inner().start() + index
+        };
+
+        if !self.inner().contains(&offset) {
+            Err(Error::Index {
+                key: index.to_string(),
+            })
+        } else {
+            Ok(Value::from(offset))
+        }
+    }
+
+    fn get_indices(&self, index: &Value) -> Result<Value, Error> {
+        if index.is_a(ValueType::Range) {
+            let indices = index.as_a::<Range>()?;
+            let values = indices
+                .inner()
+                .clone()
+                .map(|i| self.get_index(&Value::from(i)))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Value::from(values))
+        } else {
+            let indices = index.as_a::<Array>()?;
+            let values = indices
+                .inner()
+                .iter()
+                .map(|i| self.get_index(i))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Value::from(values))
+        }
     }
 }
 

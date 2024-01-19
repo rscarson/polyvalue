@@ -189,6 +189,10 @@ impl ArithmeticOperationExt for Fixed {
     {
         Fixed::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
     }
+
+    fn is_operator_supported(&self, _: &Self, _: ArithmeticOperation) -> bool {
+        true
+    }
 }
 
 impl BooleanOperationExt for Fixed {

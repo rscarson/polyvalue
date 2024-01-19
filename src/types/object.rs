@@ -154,6 +154,13 @@ impl ArithmeticOperationExt for Object {
     {
         Object::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
     }
+
+    fn is_operator_supported(&self, _: &Self, operation: ArithmeticOperation) -> bool {
+        match operation {
+            ArithmeticOperation::Add => true,
+            _ => false,
+        }
+    }
 }
 
 impl BooleanOperationExt for Object {
@@ -183,30 +190,35 @@ impl BooleanOperationExt for Object {
 }
 
 impl IndexingOperationExt for Object {
-    fn get_index(&self, index: &Value) -> Result<&Value, crate::Error> {
-        self.get(index).ok_or(Error::Index {
+    fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
+        let result = self.get(index).ok_or(Error::Index {
             key: index.to_string(),
-        })
+        })?;
+        Ok(result.clone())
     }
 
-    fn get_indices(&self, index: &Value) -> Result<Vec<&Value>, Error> {
+    fn get_indices(&self, index: &Value) -> Result<Value, Error> {
         if index.is_a(ValueType::Range) {
             let indices = index.as_a::<Range>()?;
-            indices
+            let values = indices
                 .inner()
                 .clone()
                 .map(|i| self.get_index(&Value::from(i)))
-                .collect()
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Value::from(values))
         } else {
             let indices = index.as_a::<Array>()?;
-            indices
+            let values = indices
                 .inner()
                 .iter()
                 .map(|i| self.get_index(i))
-                .collect::<Result<Vec<_>, Error>>()
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Value::from(values))
         }
     }
+}
 
+impl IndexingMutationExt for Object {
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
         self.get_mut(index).ok_or(Error::Index {
             key: index.to_string(),
@@ -263,18 +275,28 @@ mod test {
                 Value::Int(0.into()),
                 Value::Int(2.into()),
             ])))
-            .unwrap();
-        assert!(indices.contains(&&Value::Int(1.into())));
-        assert!(indices.contains(&&Value::Int(3.into())));
+            .unwrap()
+            .as_a::<Array>()
+            .unwrap()
+            .inner()
+            .clone();
+        assert!(indices.contains(&Value::Int(1.into())));
+        assert!(indices.contains(&Value::Int(3.into())));
 
         obj.set_index(&Value::Int(3.into()), Value::Int(4.into()))
             .unwrap();
         assert_eq!(obj.get(&Value::Int(3.into())), Some(&Value::Int(4.into())));
 
-        let indices = obj.get_indices(&Value::Range(Range::from(0..=2))).unwrap();
-        assert!(indices.contains(&&Value::Int(1.into())));
-        assert!(indices.contains(&&Value::Int(2.into())));
-        assert!(indices.contains(&&Value::Int(3.into())));
+        let indices = obj
+            .get_indices(&Value::Range(Range::from(0..=2)))
+            .unwrap()
+            .as_a::<Array>()
+            .unwrap()
+            .inner()
+            .clone();
+        assert!(indices.contains(&Value::Int(1.into())));
+        assert!(indices.contains(&Value::Int(2.into())));
+        assert!(indices.contains(&Value::Int(3.into())));
 
         // delete index
         assert_eq!(

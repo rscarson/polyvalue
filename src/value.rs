@@ -481,6 +481,7 @@ impl Value {
                 self.own_type() == ValueType::Array
                     || self.own_type() == ValueType::Object
                     || self.own_type() == ValueType::Range
+                    || self.own_type() == ValueType::String
             }
             ValueType::Any => true,
 
@@ -599,11 +600,10 @@ impl Value {
     /// - Int
     /// - Bool
     pub fn type_for_comparison(&self, other: &Self) -> ValueType {
-        if self.either_type(other, ValueType::Range) {
-            // Range is always converted to array
-            ValueType::Array
-        } else if self.own_type() == other.own_type() {
+        if self.own_type() == other.own_type() {
             self.own_type()
+        } else if self.either_type(other, ValueType::Range) {
+            ValueType::Range
         } else if self.either_type(other, ValueType::Object) {
             ValueType::Object
         } else if self.either_type(other, ValueType::Array) {
@@ -812,6 +812,7 @@ impl ArithmeticOperationExt for Value {
         operation: ArithmeticOperation,
     ) -> Result<Self, Error> {
         let (left, right) = left.resolve(right)?;
+
         match (left, right) {
             (Value::Bool(l), Value::Bool(r)) => {
                 Bool::arithmetic_op(&l, &r, operation).map(Into::into)
@@ -856,6 +857,92 @@ impl ArithmeticOperationExt for Value {
     {
         Self::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
     }
+
+    fn is_operator_supported(&self, other: &Self, operation: ArithmeticOperation) -> bool {
+        match self.type_for_comparison(other) {
+            ValueType::Bool => Bool::is_operator_supported(
+                &self.as_a::<Bool>().unwrap(),
+                &other.as_a::<Bool>().unwrap(),
+                operation,
+            ),
+            ValueType::Fixed => Fixed::is_operator_supported(
+                &self.as_a::<Fixed>().unwrap(),
+                &other.as_a::<Fixed>().unwrap(),
+                operation,
+            ),
+            ValueType::Float => Float::is_operator_supported(
+                &self.as_a::<Float>().unwrap(),
+                &other.as_a::<Float>().unwrap(),
+                operation,
+            ),
+            ValueType::Currency => Currency::is_operator_supported(
+                &self.as_a::<Currency>().unwrap(),
+                &other.as_a::<Currency>().unwrap(),
+                operation,
+            ),
+            ValueType::U8 => U8::is_operator_supported(
+                &self.as_a::<U8>().unwrap(),
+                &other.as_a::<U8>().unwrap(),
+                operation,
+            ),
+            ValueType::U16 => U16::is_operator_supported(
+                &self.as_a::<U16>().unwrap(),
+                &other.as_a::<U16>().unwrap(),
+                operation,
+            ),
+            ValueType::U32 => U32::is_operator_supported(
+                &self.as_a::<U32>().unwrap(),
+                &other.as_a::<U32>().unwrap(),
+                operation,
+            ),
+            ValueType::U64 => U64::is_operator_supported(
+                &self.as_a::<U64>().unwrap(),
+                &other.as_a::<U64>().unwrap(),
+                operation,
+            ),
+            ValueType::I8 => I8::is_operator_supported(
+                &self.as_a::<I8>().unwrap(),
+                &other.as_a::<I8>().unwrap(),
+                operation,
+            ),
+            ValueType::I16 => I16::is_operator_supported(
+                &self.as_a::<I16>().unwrap(),
+                &other.as_a::<I16>().unwrap(),
+                operation,
+            ),
+            ValueType::I32 => I32::is_operator_supported(
+                &self.as_a::<I32>().unwrap(),
+                &other.as_a::<I32>().unwrap(),
+                operation,
+            ),
+            ValueType::I64 => I64::is_operator_supported(
+                &self.as_a::<I64>().unwrap(),
+                &other.as_a::<I64>().unwrap(),
+                operation,
+            ),
+            ValueType::Int => Int::is_operator_supported(
+                &self.as_a::<Int>().unwrap(),
+                &other.as_a::<Int>().unwrap(),
+                operation,
+            ),
+            ValueType::String => Str::is_operator_supported(
+                &self.as_a::<Str>().unwrap(),
+                &other.as_a::<Str>().unwrap(),
+                operation,
+            ),
+            ValueType::Array => Array::is_operator_supported(
+                &self.as_a::<Array>().unwrap(),
+                &other.as_a::<Array>().unwrap(),
+                operation,
+            ),
+            ValueType::Object => Object::is_operator_supported(
+                &self.as_a::<Object>().unwrap(),
+                &other.as_a::<Object>().unwrap(),
+                operation,
+            ),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl MatchingOperationExt for Value {
@@ -884,10 +971,12 @@ impl MatchingOperationExt for Value {
 }
 
 impl IndexingOperationExt for Value {
-    fn get_index(&self, index: &Value) -> Result<&Value, crate::Error> {
+    fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
         match self {
             Value::Array(v) => v.get_index(index),
             Value::Object(v) => v.get_index(index),
+            Value::Range(v) => v.get_index(index),
+            Value::String(v) => v.get_index(index),
 
             _ => Err(Error::ValueType {
                 actual_type: self.own_type(),
@@ -896,10 +985,12 @@ impl IndexingOperationExt for Value {
         }
     }
 
-    fn get_indices(&self, index: &Value) -> Result<Vec<&Value>, crate::Error> {
+    fn get_indices(&self, index: &Value) -> Result<Value, crate::Error> {
         match self {
             Value::Array(v) => v.get_indices(index),
             Value::Object(v) => v.get_indices(index),
+            Value::Range(v) => v.get_indices(index),
+            Value::String(v) => v.get_indices(index),
 
             _ => Err(Error::ValueType {
                 actual_type: self.own_type(),
@@ -907,7 +998,9 @@ impl IndexingOperationExt for Value {
             })?,
         }
     }
+}
 
+impl IndexingMutationExt for Value {
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
         match self {
             Value::Array(v) => v.get_index_mut(index),
@@ -1383,24 +1476,25 @@ mod test {
         // Get index on array
         let array = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
         let v = array.get_index(&Value::from(1)).unwrap();
-        assert_eq!(v, &Value::from(2));
+        assert_eq!(v, Value::from(2));
 
         // Get index on object
         let object = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
         let v = object.get_index(&Value::from("a")).unwrap();
-        assert_eq!(v, &Value::from(1));
+        assert_eq!(v, Value::from(1));
 
         // Get index on string
-        Value::from("abc")
-            .get_index(&Value::from(1))
-            .expect_err("Expected error");
+        assert_eq!(
+            Value::from("abc").get_index(&Value::from(1)).unwrap(),
+            Value::from("b")
+        );
 
         // Get indices on array
         let array = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
         let v = array
             .get_indices(&Value::from(vec![Value::from(0), Value::from(1)]))
             .unwrap();
-        assert_eq!(v, vec![&Value::from(1), &Value::from(2)]);
+        assert_eq!(v, Value::from(vec![Value::from(1), Value::from(2)]));
 
         // Get indices on object
         let object = Value::try_from(vec![
@@ -1411,7 +1505,7 @@ mod test {
         let v = object
             .get_indices(&Value::from(vec![Value::from("a"), Value::from("b")]))
             .unwrap();
-        assert_eq!(v, vec![&Value::from(1), &Value::from(2)]);
+        assert_eq!(v, Value::from(vec![Value::from(1), Value::from(2)]));
 
         // Get indices on int
         Value::from(1)

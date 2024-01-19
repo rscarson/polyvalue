@@ -123,6 +123,10 @@ impl ArithmeticOperationExt for Bool {
     {
         Bool::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
     }
+
+    fn is_operator_supported(&self, _other: &Self, _: ArithmeticOperation) -> bool {
+        true
+    }
 }
 
 impl BooleanOperationExt for Bool {

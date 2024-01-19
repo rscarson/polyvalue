@@ -255,6 +255,7 @@ mod macros {
             map_type!(Object, $name);
             map_type!(Range, $name);
 
+            #[allow(unused_comparisons)]
             impl ArithmeticOperationExt for $name {
                 fn arithmetic_op(
                     left: &Self,
@@ -277,7 +278,6 @@ mod macros {
                                 None
                             }
                         }
-                        #[allow(unused_comparisons)]
                         ArithmeticOperation::Negate => {
                             if $subtype::MIN < 0 {
                                 Some(-(left as i64) as $subtype)
@@ -298,6 +298,22 @@ mod macros {
                     Self: Sized,
                 {
                     Self::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
+                }
+
+                fn is_operator_supported(
+                    &self,
+                    _other: &Self,
+                    operation: ArithmeticOperation,
+                ) -> bool {
+                    match operation {
+                        ArithmeticOperation::Add
+                        | ArithmeticOperation::Subtract
+                        | ArithmeticOperation::Multiply
+                        | ArithmeticOperation::Divide
+                        | ArithmeticOperation::Modulo
+                        | ArithmeticOperation::Exponentiate => true,
+                        ArithmeticOperation::Negate => $subtype::MIN < 0,
+                    }
                 }
             }
 

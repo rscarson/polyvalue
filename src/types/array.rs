@@ -214,6 +214,15 @@ impl ArithmeticOperationExt for Array {
     {
         Array::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
     }
+
+    fn is_operator_supported(&self, _other: &Self, operation: ArithmeticOperation) -> bool {
+        match operation {
+            ArithmeticOperation::Add => true,
+            ArithmeticOperation::Subtract => true,
+            ArithmeticOperation::Negate => true,
+            _ => false,
+        }
+    }
 }
 
 impl BooleanOperationExt for Array {
@@ -242,37 +251,42 @@ impl BooleanOperationExt for Array {
 }
 
 impl IndexingOperationExt for Array {
-    fn get_index(&self, index: &Value) -> Result<&Value, crate::Error> {
+    fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
         let mut index = *Int::try_from(index.clone())?.inner();
         if index < 0 {
             index += self.inner().len() as IntInner
         }
         let index = index as usize;
 
-        self.get(index).ok_or(Error::Index {
+        let result = self.get(index).ok_or(Error::Index {
             key: index.to_string(),
-        })
+        })?;
+
+        Ok(result.clone())
     }
 
-    fn get_indices(&self, index: &Value) -> Result<Vec<&Value>, crate::Error> {
+    fn get_indices(&self, index: &Value) -> Result<Value, crate::Error> {
         if index.is_a(ValueType::Range) {
             let indices = index.as_a::<Range>()?;
-            indices
+            let values = indices
                 .inner()
                 .clone()
                 .map(|i| self.get_index(&Value::from(i)))
-                .collect()
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Value::from(values))
         } else {
             let indices = index.as_a::<Array>()?;
             let values = indices
                 .inner()
                 .iter()
                 .map(|i| self.get_index(i))
-                .collect::<Result<Vec<_>, Error>>()?;
-            Ok(values)
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Value::from(values))
         }
     }
+}
 
+impl IndexingMutationExt for Array {
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
         let mut index = *Int::try_from(index.clone())?.inner();
         if index < 0 {
@@ -435,19 +449,19 @@ mod test {
     #[test]
     fn test_indexing() {
         let mut array = Array::from(vec![1.into(), 2.into(), 3.into()]);
-        assert_eq!(array.get_index(&0.into()).unwrap(), &1.into());
-        assert_eq!(array.get_index(&(-1).into()).unwrap(), &3.into());
+        assert_eq!(array.get_index(&0.into()).unwrap(), 1.into());
+        assert_eq!(array.get_index(&(-1).into()).unwrap(), 3.into());
         assert_eq!(
             array
                 .get_indices(&Array::from(vec![0.into(), 1.into()]).into())
                 .unwrap(),
-            vec![&1.into(), &2.into()]
+            Value::from(vec![1.into(), 2.into()])
         );
         assert_eq!(
             array
                 .get_indices(&Array::from(vec![0.into(), 0.into()]).into())
                 .unwrap(),
-            vec![&1.into(), &1.into()]
+            Value::from(vec![1.into(), 1.into()])
         );
 
         // test get_index_mut
@@ -457,22 +471,22 @@ mod test {
 
         // test set_index
         array.set_index(&0.into(), 5.into()).unwrap();
-        assert_eq!(array.get_index(&0.into()).unwrap(), &5.into());
+        assert_eq!(array.get_index(&0.into()).unwrap(), 5.into());
 
         // test negative index
-        assert_eq!(array.get_index(&(-1).into()).unwrap(), &3.into());
+        assert_eq!(array.get_index(&(-1).into()).unwrap(), 3.into());
         array.set_index(&(-1).into(), 6.into()).unwrap();
-        assert_eq!(array.get_index(&(-1).into()).unwrap(), &6.into());
+        assert_eq!(array.get_index(&(-1).into()).unwrap(), 6.into());
 
         // test index==len
         array.set_index(&3.into(), 7.into()).unwrap();
-        assert_eq!(array.get_index(&(-1).into()).unwrap(), &7.into());
+        assert_eq!(array.get_index(&(-1).into()).unwrap(), 7.into());
         array.delete_index(&(-1).into()).unwrap();
 
         // get by range
         assert_eq!(
             array.get_indices(&Value::from(0..=1)).unwrap(),
-            vec![&5.into(), &2.into()]
+            Value::from(vec![5.into(), 2.into()])
         );
 
         // get_index_mut when index<0

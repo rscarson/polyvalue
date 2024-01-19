@@ -85,6 +85,21 @@ pub trait ArithmeticOperationExt {
     fn arithmetic_neg(&self) -> Result<Self, crate::Error>
     where
         Self: Sized;
+
+    /// Check if an operation is supported on a given type
+    /// This is useful for checking if a given operation is supported
+    /// before attempting to perform it
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value, ArithmeticOperationExt};
+    ///
+    /// let a = Value::from(1);
+    /// let b = Value::from(2);
+    ///
+    /// assert!(Value::is_operator_supported(&a, &b, ArithmeticOperation::Add));
+    /// ````
+    fn is_operator_supported(&self, other: &Self, operation: ArithmeticOperation) -> bool;
 }
 
 /// Available bitwise operations
@@ -259,35 +274,8 @@ pub trait BooleanOperationExt {
         Self: Sized;
 }
 
-/// Indexing operation trait
-pub trait IndexingOperationExt {
-    /// Get a value from an index
-    /// Returns a reference to the value, or an `Error::Index` if the index is not found
-    ///
-    /// # Examples
-    /// ```
-    /// use polyvalue::{Value};
-    /// use polyvalue::types::{Object};
-    /// use polyvalue::operations::{IndexingOperationExt};
-    ///
-    /// let a = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
-    /// let index = Value::from(1);
-    /// let result = a.get_index(&index).unwrap();
-    /// assert_eq!(result, &Value::from(2));
-    ///
-    /// let b = Object::try_from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]).unwrap();
-    /// let index = Value::from("b");
-    /// let result = b.get_index(&index).unwrap();
-    /// assert_eq!(result, &Value::from(2));
-    /// ```
-    fn get_index(&self, index: &Value) -> Result<&Value, crate::Error>;
-
-    /// Get values from one or more indices
-    /// Returns a vector of references to the values, or an `Error::Index` if any of the indices are not found
-    ///
-    /// Acts as a convenience wrapper around `get_index` where array values are treated as a set of indices
-    fn get_indices(&self, index: &Value) -> Result<Vec<&Value>, crate::Error>;
-
+/// A trait for indexing operations that can mutate the value
+pub trait IndexingMutationExt {
     /// Get a value from an index
     /// Returns a mutable reference to the value, or an `Error::Index` if the index is not found
     ///
@@ -295,14 +283,14 @@ pub trait IndexingOperationExt {
     /// ```
     /// use polyvalue::{Value};
     /// use polyvalue::types::{Object};
-    /// use polyvalue::operations::{IndexingOperationExt};
+    /// use polyvalue::operations::{IndexingOperationExt, IndexingMutationExt};
     ///
     /// let mut b = Object::try_from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]).unwrap();
     /// let index = Value::from("b");
     /// let result = b.get_index_mut(&index).unwrap();
     /// *result = Value::from(3);
     ///
-    /// assert_eq!(b.get_index(&index).unwrap(), &Value::from(3));
+    /// assert_eq!(b.get_index(&index).unwrap(), Value::from(3));
     /// ```
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error>;
 
@@ -318,12 +306,12 @@ pub trait IndexingOperationExt {
     /// # Examples
     /// ```
     /// use polyvalue::{Value};
-    /// use polyvalue::operations::{IndexingOperationExt};
+    /// use polyvalue::operations::{IndexingOperationExt, IndexingMutationExt};
     ///
     /// let mut a = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
     /// let index = Value::from(1);
     /// a.set_index(&index, Value::from(4)).unwrap();
-    /// assert_eq!(a.get_index(&index).unwrap(), &Value::from(4));
+    /// assert_eq!(a.get_index(&index).unwrap(), Value::from(4));
     /// ```
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error>;
 
@@ -333,13 +321,43 @@ pub trait IndexingOperationExt {
     /// # Examples
     /// ```
     /// use polyvalue::{Value};
-    /// use polyvalue::operations::{IndexingOperationExt};
+    /// use polyvalue::operations::{IndexingOperationExt, IndexingMutationExt};
     ///
     /// let mut a = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
     /// let index = Value::from(1);
     /// a.delete_index(&index).unwrap();
     /// ```
     fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error>;
+}
+
+/// Indexing operation trait
+pub trait IndexingOperationExt {
+    /// Get a value from an index
+    /// Returns a value, or an `Error::Index` if the index is not found
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::types::{Object};
+    /// use polyvalue::operations::{IndexingOperationExt};
+    ///
+    /// let a = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
+    /// let index = Value::from(1);
+    /// let result = a.get_index(&index).unwrap();
+    /// assert_eq!(result, Value::from(2));
+    ///
+    /// let b = Object::try_from(vec![("a".into(), 1.into()), ("b".into(), 2.into())]).unwrap();
+    /// let index = Value::from("b");
+    /// let result = b.get_index(&index).unwrap();
+    /// assert_eq!(result, Value::from(2));
+    /// ```
+    fn get_index(&self, index: &Value) -> Result<Value, crate::Error>;
+
+    /// Get values from one or more indices
+    /// Returns a vector of values, or an `Error::Index` if any of the indices are not found
+    ///
+    /// Acts as a convenience wrapper around `get_index` where array values are treated as a set of indices
+    fn get_indices(&self, index: &Value) -> Result<Value, crate::Error>;
 }
 
 /// Matching operations
