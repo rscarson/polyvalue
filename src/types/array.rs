@@ -10,6 +10,8 @@ use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
+const MAX_CONVERTIBLE_RANGE: usize = 0x10000;
+
 /// Inner type used for array storage
 pub type ArrayInner = Vec<Value>;
 
@@ -80,8 +82,12 @@ map_value!(
         Value::Array(v) => Ok(v),
         Value::Range(v) => {
             let mut container = ArrayInner::new();
-            let len = v.inner().end() - v.inner().start();
-            if let Err(e) = container.try_reserve(len as usize) {
+            let length = (v.inner().end() - v.inner().start()) as usize;
+            if length > MAX_CONVERTIBLE_RANGE {
+                return Err(Error::RangeTooLarge { length })?;
+            }
+
+            if let Err(e) = container.try_reserve(length) {
                 return Err(Error::from(e));
             }
 

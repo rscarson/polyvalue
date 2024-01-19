@@ -25,6 +25,13 @@ pub enum Error {
         dst_type: ValueType,
     },
 
+    /// An error caused by attempting to convert a value to a different type
+    #[error("Cannot expand a range of size {length}")]
+    RangeTooLarge {
+        /// Length of the range causing the issue
+        length: usize,
+    },
+
     /// An error caused by attempting to use a value of the wrong type in a calculation
     #[error("Expected {expected_type}, found {actual_type}")]
     ValueType {
