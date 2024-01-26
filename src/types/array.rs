@@ -12,6 +12,7 @@ use std::hash::Hash;
 
 /// Inner type used for array storage
 pub type ArrayInner = Vec<Value>;
+pub type ArrayIndex = <I64 as ValueTrait>::Inner;
 
 /// Subtype of `Value` that represents an array
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
@@ -103,8 +104,8 @@ map_value!(
             }
             Ok(container)
         }
-        Value::Int(_)
-        | Value::Bool(_)
+
+        Value::Bool(_)
         | Value::Float(_)
         | Value::Fixed(_)
         | Value::Currency(_)
@@ -264,9 +265,9 @@ impl BooleanOperationExt for Array {
 
 impl IndexingOperationExt for Array {
     fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
-        let mut index = *Int::try_from(index.clone())?.inner();
+        let mut index = *I64::try_from(index.clone())?.inner();
         if index < 0 {
-            index += self.inner().len() as IntInner
+            index += self.inner().len() as ArrayIndex;
         }
         let index = index as usize;
 
@@ -300,9 +301,9 @@ impl IndexingOperationExt for Array {
 
 impl IndexingMutationExt for Array {
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
-        let mut index = *Int::try_from(index.clone())?.inner();
+        let mut index = *I64::try_from(index.clone())?.inner();
         if index < 0 {
-            index += self.inner().len() as IntInner
+            index += self.inner().len() as ArrayIndex
         }
         let index = index as usize;
 
@@ -316,7 +317,7 @@ impl IndexingMutationExt for Array {
             .as_a::<Array>()?
             .inner()
             .iter()
-            .map(|v| Ok(*v.as_a::<Int>()?.inner() as usize))
+            .map(|v| Ok(*v.as_a::<I64>()?.inner() as usize))
             .collect::<Result<Vec<_>, Error>>()?;
         self.inner_mut()
             .iter_mut()
@@ -327,9 +328,9 @@ impl IndexingMutationExt for Array {
     }
 
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
-        let mut index = *Int::try_from(index.clone())?.inner();
+        let mut index = *I64::try_from(index.clone())?.inner();
         if index < 0 {
-            index += self.inner().len() as IntInner
+            index += self.inner().len() as ArrayIndex
         }
         let index = index as usize;
 
@@ -347,9 +348,9 @@ impl IndexingMutationExt for Array {
     }
 
     fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error> {
-        let mut index = *Int::try_from(index.clone())?.inner();
+        let mut index = *I64::try_from(index.clone())?.inner();
         if index < 0 {
-            index += self.inner().len() as IntInner
+            index += self.inner().len() as ArrayIndex
         }
         let index = index as usize;
 
@@ -695,11 +696,11 @@ mod test {
 
         let range = Range::new(1..=2);
         let array = Array::try_from(Value::from(range.clone())).unwrap();
-        assert_eq!(array, vec![1.into(), 2.into()].into());
+        assert_eq!(array, vec![Value::i64(1), Value::i64(2)].into());
 
         let range = Range::new(0..=0);
         let array = Array::try_from(Value::from(range.clone())).unwrap();
-        assert_eq!(array, vec![0.into()].into());
+        assert_eq!(array, vec![Value::i64(0)].into());
     }
 
     #[test]

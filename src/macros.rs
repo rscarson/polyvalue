@@ -46,6 +46,18 @@ macro_rules! map_value {
 /// - `source`: The type to convert from
 /// - `handler`: A closure that takes in a `Source` and returns a `Result<Target, Error>`
 macro_rules! map_type {
+    (Int, $source:ty) => {
+        map_type!(U8, $source);
+        map_type!(U16, $source);
+        map_type!(U32, $source);
+        map_type!(U64, $source);
+
+        map_type!(I8, $source);
+        map_type!(I16, $source);
+        map_type!(I32, $source);
+        map_type!(I64, $source);
+    };
+
     ($target:ty, $source:ty) => {
         impl TryFrom<$target> for $source {
             type Error = crate::Error;

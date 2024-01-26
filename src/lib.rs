@@ -44,8 +44,12 @@ mod inner_object;
 mod error;
 pub use error::Error;
 
+mod tagged_value;
 mod value;
 pub use value::*;
+
+mod value_type;
+pub use value_type::*;
 
 pub mod operations;
 pub mod types;

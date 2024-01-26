@@ -177,10 +177,10 @@ pub trait BitwiseOperationExt {
     /// use polyvalue::{Value};
     /// use polyvalue::operations::{BitwiseOperation, BitwiseOperationExt};
     ///
-    /// let a = Value::from(0xA0);
+    /// let a = Value::u8(0xFF);
     ///
     /// let result = a.bitwise_not().unwrap();
-    /// assert_eq!(result, Value::from(0x5F));
+    /// assert_eq!(result, Value::u8(0x00));
     fn bitwise_not(&self) -> Result<Self, crate::Error>
     where
         Self: Sized;

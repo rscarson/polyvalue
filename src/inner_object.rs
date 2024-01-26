@@ -266,12 +266,12 @@ mod test {
     #[test]
     fn test_serialize() {
         let mut obj = ObjectInner::new();
-        obj.insert(Value::from(false), Value::from(0)).unwrap();
-        obj.insert(Value::from(0), Value::from(1)).unwrap();
-        obj.insert(Value::from(0.0), Value::from(2)).unwrap();
-        obj.insert(Value::from(Decimal::ZERO), Value::from(3))
+        obj.insert(Value::from(false), Value::i64(0)).unwrap();
+        obj.insert(Value::i64(0), Value::i64(1)).unwrap();
+        obj.insert(Value::from(0.0), Value::i64(2)).unwrap();
+        obj.insert(Value::from(Decimal::ZERO), Value::i64(3))
             .unwrap();
-        obj.insert(Value::from("".to_string()), Value::from(4))
+        obj.insert(Value::from("".to_string()), Value::i64(4))
             .unwrap();
 
         // Now we ensure it stored as a vector of tuples

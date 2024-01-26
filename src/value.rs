@@ -2,8 +2,10 @@
 //! The `Value` type is an enum that can hold any of the supported value types.
 //!
 use crate::operations::*;
+use crate::tagged_value::TaggedValue;
 use crate::types::*;
 use crate::Error;
+use crate::ValueType;
 use serde::{Deserialize, Serialize};
 
 /// A trait that all values must implement
@@ -32,155 +34,6 @@ pub trait ValueTrait:
     fn inner_mut(&mut self) -> &mut Self::Inner;
 }
 
-/// The set of types that can be used as values
-/// Bool, Fixed, Float, Currency, Int, String, Array, Object represent real types
-/// whereas Numeric, Compound, and Any are virtual types representing a set of types
-///
-/// Numeric is a set of Fixed, Float, Currency, and Int
-/// Compound is a set of Array and Object
-/// Any is a set of all types
-///
-/// When operations are performed on values, the type of the result is determined
-/// using the following order of priority:
-/// - Object
-/// - Array
-/// - String
-/// - Fixed
-/// - Float
-/// - Int
-/// - Bool
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
-pub enum ValueType {
-    /// A boolean value
-    Bool,
-
-    /// A fixed-point value
-    Fixed,
-
-    /// A floating-point value
-    Float,
-
-    /// A currency value
-    Currency,
-
-    /// An unsigned 8bit integer value
-    U8,
-
-    /// An unsigned 16bit integer value
-    U16,
-
-    /// An unsigned 32bit integer value
-    U32,
-
-    /// An unsigned 64bit integer value
-    U64,
-
-    /// A signed 8bit integer value
-    I8,
-
-    /// A signed 16bit integer value
-    I16,
-
-    /// A signed 32bit integer value
-    I32,
-
-    /// A signed 64bit integer value
-    I64,
-
-    /// An integer value
-    Int,
-
-    /// A string value
-    String,
-
-    /// A range value
-    Range,
-
-    /// An array value
-    Array,
-
-    /// An object value
-    Object,
-
-    /// A numeric value (fixed, float, currency, or int)
-    Numeric,
-
-    /// A compound value (array, range or object)
-    Compound,
-
-    /// Any value
-    Any,
-}
-
-impl Serialize for ValueType {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(self.to_string().as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for ValueType {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        ValueType::try_from(s.as_str()).map_err(serde::de::Error::custom)
-    }
-}
-
-impl std::fmt::Display for ValueType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ValueType::Bool => write!(f, "bool"),
-            ValueType::Fixed => write!(f, "fixed"),
-            ValueType::Float => write!(f, "float"),
-            ValueType::Currency => write!(f, "currency"),
-            ValueType::U8 => write!(f, "u8"),
-            ValueType::U16 => write!(f, "u16"),
-            ValueType::U32 => write!(f, "u32"),
-            ValueType::U64 => write!(f, "u64"),
-            ValueType::I8 => write!(f, "i8"),
-            ValueType::I16 => write!(f, "i16"),
-            ValueType::I32 => write!(f, "i32"),
-            ValueType::I64 => write!(f, "i64"),
-            ValueType::Int => write!(f, "int"),
-            ValueType::String => write!(f, "string"),
-            ValueType::Range => write!(f, "range"),
-            ValueType::Array => write!(f, "array"),
-            ValueType::Object => write!(f, "object"),
-            ValueType::Numeric => write!(f, "numeric"),
-            ValueType::Compound => write!(f, "compound"),
-            ValueType::Any => write!(f, "any"),
-        }
-    }
-}
-
-impl TryFrom<&str> for ValueType {
-    type Error = Error;
-    fn try_from(s: &str) -> Result<Self, Error> {
-        match s {
-            "bool" => Ok(ValueType::Bool),
-            "fixed" => Ok(ValueType::Fixed),
-            "float" => Ok(ValueType::Float),
-            "currency" => Ok(ValueType::Currency),
-            "u8" => Ok(ValueType::U8),
-            "u16" => Ok(ValueType::U16),
-            "u32" => Ok(ValueType::U32),
-            "u64" => Ok(ValueType::U64),
-            "i8" => Ok(ValueType::I8),
-            "i16" => Ok(ValueType::I16),
-            "i32" => Ok(ValueType::I32),
-            "i64" => Ok(ValueType::I64),
-            "int" => Ok(ValueType::Int),
-            "string" => Ok(ValueType::String),
-            "range" => Ok(ValueType::Range),
-            "array" => Ok(ValueType::Array),
-            "object" => Ok(ValueType::Object),
-            "numeric" => Ok(ValueType::Numeric),
-            "compound" => Ok(ValueType::Compound),
-            "any" => Ok(ValueType::Any),
-            _ => Err(Error::UnrecognizedType(s.to_string())),
-        }
-    }
-}
-
 /// Main value type
 /// This is an enum that can hold any of the supported value types
 #[derive(Clone, Serialize, Deserialize, Debug, Eq, Hash, PartialEq)]
@@ -189,35 +42,34 @@ pub enum Value {
     /// A boolean value
     Bool(Bool),
 
-    /// An integer value
-    Int(Int),
-
-    /// An unsigned 8bit integer value
-    U8(U8),
-
-    /// An unsigned 16bit integer value
-    U16(U16),
-
-    /// An unsigned 32bit integer value
-    U32(U32),
-
-    /// An unsigned 64bit integer value
-    U64(U64),
-
-    /// An unsigned 8bit integer value
-    I8(I8),
-
-    /// An signed 16bit integer value
-    I16(I16),
-
-    /// An signed 32bit integer value
-    I32(I32),
-
+    // The next 2 are up here for serialization purposes
+    //
     /// An signed 64bit integer value
     I64(I64),
 
     /// A floating-point value
     Float(Float),
+
+    /// An unsigned 8bit integer value
+    U8(U8),
+
+    /// An unsigned 8bit integer value
+    I8(I8),
+
+    /// An unsigned 16bit integer value
+    U16(U16),
+
+    /// An signed 16bit integer value
+    I16(I16),
+
+    /// An unsigned 32bit integer value
+    U32(U32),
+
+    /// An signed 32bit integer value
+    I32(I32),
+
+    /// An unsigned 64bit integer value
+    U64(U64),
 
     /// A fixed-point value
     Fixed(Fixed),
@@ -260,9 +112,9 @@ impl TryFrom<serde_json::Value> for Value {
             }
             serde_json::Value::Number(v) => {
                 if v.is_i64() {
-                    Ok(Value::Int(Int::from(v.as_i64().unwrap())))
+                    Ok(Value::from(v.as_i64().unwrap()))
                 } else if v.is_f64() {
-                    Ok(Value::Float(Float::from(v.as_f64().unwrap())))
+                    Ok(Value::from(v.as_f64().unwrap()))
                 } else {
                     Err(Error::UnrecognizedType(format!(
                         "Could not convert json number to value: {:?}",
@@ -275,6 +127,138 @@ impl TryFrom<serde_json::Value> for Value {
 }
 
 impl Value {
+    /// Serializes the value to a tagged value
+    /// This is useful for serialization, as it will preserve the type of integers
+    pub fn serialize_tagged(&self) -> Result<serde_json::Value, serde_json::Error> {
+        serde_json::to_value(TaggedValue::from(self.clone()))
+    }
+
+    /// Deserializes a tagged value
+    pub fn deserialize_tagged(value: serde_json::Value) -> Result<Self, serde_json::Error> {
+        let tagged: TaggedValue = serde_json::from_value(value)?;
+        Ok(tagged.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn bool(inner: impl Into<Bool>) -> Self {
+        Value::Bool(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn u8(inner: impl Into<U8>) -> Self {
+        Value::U8(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn i8(inner: impl Into<I8>) -> Self {
+        Value::I8(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn u16(inner: impl Into<U16>) -> Self {
+        Value::U16(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn i16(inner: impl Into<I16>) -> Self {
+        Value::I16(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn u32(inner: impl Into<U32>) -> Self {
+        Value::U32(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn i32(inner: impl Into<I32>) -> Self {
+        Value::I32(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn u64(inner: impl Into<U64>) -> Self {
+        Value::U64(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn i64(inner: impl Into<I64>) -> Self {
+        Value::I64(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn float(inner: impl Into<Float>) -> Self {
+        Value::Float(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn fixed(inner: impl Into<Fixed>) -> Self {
+        Value::Fixed(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn currency(inner: impl Into<Currency>) -> Self {
+        Value::Currency(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn string(inner: impl Into<Str>) -> Self {
+        Value::String(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn range(inner: impl Into<Range>) -> Self {
+        Value::Range(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn array(inner: impl Into<Array>) -> Self {
+        Value::Array(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn object(inner: impl Into<Object>) -> Self {
+        Value::Object(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn int(inner: impl Into<I64>) -> Self {
+        Value::I64(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn compound(inner: impl Into<Object>) -> Self {
+        Value::Object(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn numeric(inner: impl Into<Fixed>) -> Self {
+        Value::Fixed(inner.into())
+    }
+
+    /// Creates a new value from the given inner value
+    /// Use with the types defined in [`crate::types`]
+    pub fn any(inner: impl Into<Value>) -> Self {
+        inner.into()
+    }
+
     /// Resolves the type of two values based on a priority system.
     /// If successful, both returned values are guaranteed to be of
     /// the same type
@@ -285,7 +269,6 @@ impl Value {
     /// ```rust
     /// use polyvalue::Value;
     /// use polyvalue::ValueType;
-    /// use polyvalue::types::Int;
     ///
     /// let a = Value::from(1.0);
     /// let b = Value::from(2);
@@ -321,11 +304,6 @@ impl Value {
 
                 (values.0.into(), values.1.into())
             }
-
-            ValueType::Int => (
-                Int::try_from(self.clone())?.into(),
-                Int::try_from(other.clone())?.into(),
-            ),
 
             ValueType::U8 => (
                 U8::try_from(self.clone())?.into(),
@@ -387,6 +365,13 @@ impl Value {
                 Range::try_from(other.clone())?.into(),
             ),
 
+            ValueType::Int => {
+                return Err(Error::ValueConversion {
+                    src_type: self.own_type(),
+                    dst_type: ValueType::Int,
+                })
+            }
+
             ValueType::Numeric => {
                 return Err(Error::ValueConversion {
                     src_type: self.own_type(),
@@ -436,7 +421,6 @@ impl Value {
             Value::I16(_) => ValueType::I16,
             Value::I32(_) => ValueType::I32,
             Value::I64(_) => ValueType::I64,
-            Value::Int(_) => ValueType::Int,
             Value::String(_) => ValueType::String,
             Value::Range(_) => ValueType::Range,
             Value::Array(_) => ValueType::Array,
@@ -468,10 +452,10 @@ impl Value {
     /// # Example
     /// ```rust
     /// use polyvalue::Value;
-    /// use polyvalue::types::Int;
+    /// use polyvalue::types::I64;
     ///
     /// let value = Value::from(1.0);
-    /// let int = value.as_a::<Int>().expect("Value could not be converted to int!");
+    /// let int = value.as_a::<I64>().expect("Value could not be converted to int!");
     /// ```
     pub fn as_a<T: std::convert::TryFrom<Value, Error = Error>>(&self) -> Result<T, Error> {
         T::try_from(self.clone())
@@ -490,7 +474,18 @@ impl Value {
     /// ```
     pub fn is_a(&self, type_name: ValueType) -> bool {
         match type_name {
-            ValueType::Numeric => Int::try_from(self.clone()).is_ok(),
+            ValueType::Int => [
+                ValueType::U8,
+                ValueType::U16,
+                ValueType::U32,
+                ValueType::U64,
+                ValueType::I8,
+                ValueType::I16,
+                ValueType::I32,
+                ValueType::I64,
+            ]
+            .contains(&self.own_type()),
+            ValueType::Numeric => I64::try_from(self.clone()).is_ok(),
             ValueType::Compound => {
                 self.own_type() == ValueType::Array
                     || self.own_type() == ValueType::Object
@@ -538,7 +533,6 @@ impl Value {
             ValueType::I32 => I32::try_from(self.clone())?.into(),
             ValueType::I64 => I64::try_from(self.clone())?.into(),
 
-            ValueType::Int => Int::try_from(self.clone())?.into(),
             ValueType::String => Str::try_from(self.clone())?.into(),
             ValueType::Array => Array::try_from(self.clone())?.into(),
             ValueType::Object => Object::try_from(self.clone())?.into(),
@@ -549,6 +543,14 @@ impl Value {
                     src_type: self.own_type(),
                     dst_type: ValueType::Range,
                 })
+            }
+
+            ValueType::Int => {
+                if self.is_a(ValueType::Int) {
+                    self.clone()
+                } else {
+                    I64::try_from(self.clone())?.into()
+                }
             }
 
             ValueType::Compound => {
@@ -604,7 +606,6 @@ impl Value {
                 (ValueType::Currency, _) | (_, ValueType::Currency) => ValueType::Currency,
                 (ValueType::Fixed, _) | (_, ValueType::Fixed) => ValueType::Fixed,
                 (ValueType::Float, _) | (_, ValueType::Float) => ValueType::Float,
-                (ValueType::Int, _) | (_, ValueType::Int) => ValueType::Int,
 
                 (ValueType::I64, _) | (_, ValueType::I64) => ValueType::I64,
                 (ValueType::U64, _) | (_, ValueType::U64) => ValueType::U64,
@@ -617,6 +618,7 @@ impl Value {
 
                 (ValueType::Bool, _) | (_, ValueType::Bool) => ValueType::Bool,
 
+                (ValueType::Int, _) | (_, ValueType::Int) => ValueType::Int,
                 (ValueType::Numeric, _) | (_, ValueType::Numeric) => ValueType::Numeric,
                 (ValueType::Compound, _) | (_, ValueType::Compound) => ValueType::Compound,
                 (ValueType::Any, _) => ValueType::Any,
@@ -645,7 +647,6 @@ impl Value {
                 &l.as_a::<Currency>().unwrap(),
                 &r.as_a::<Currency>().unwrap(),
             ),
-            ValueType::Int => Int::cmp(&l.as_a::<Int>().unwrap(), &r.as_a::<Int>().unwrap()),
 
             ValueType::U8 => U8::cmp(&l.as_a::<U8>().unwrap(), &r.as_a::<U8>().unwrap()),
             ValueType::U16 => U16::cmp(&l.as_a::<U16>().unwrap(), &r.as_a::<U16>().unwrap()),
@@ -666,6 +667,13 @@ impl Value {
             }
             ValueType::Object => {
                 Object::cmp(&l.as_a::<Object>().unwrap(), &r.as_a::<Object>().unwrap())
+            }
+
+            ValueType::Int => {
+                return Err(Error::ValueConversion {
+                    src_type: self.own_type(),
+                    dst_type: ValueType::Int,
+                })
             }
 
             ValueType::Numeric => {
@@ -712,7 +720,6 @@ impl std::fmt::Display for Value {
             Value::I32(v) => write!(f, "{}", v),
             Value::I64(v) => write!(f, "{}", v),
 
-            Value::Int(v) => write!(f, "{}", v),
             Value::String(v) => write!(f, "{}", v),
             Value::Range(v) => write!(f, "{}", v),
             Value::Array(v) => write!(f, "{}", v),
@@ -752,9 +759,6 @@ impl PartialOrd for Value {
 
                 (Value::I64(_), _) => Some(std::cmp::Ordering::Less),
                 (_, Value::I64(_)) => Some(std::cmp::Ordering::Greater),
-
-                (Value::Int(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::Int(_)) => Some(std::cmp::Ordering::Greater),
 
                 (Value::Float(_), _) => Some(std::cmp::Ordering::Less),
                 (_, Value::Float(_)) => Some(std::cmp::Ordering::Greater),
@@ -817,7 +821,6 @@ impl BooleanOperationExt for Value {
             (Value::Currency(l), Value::Currency(r)) => {
                 Currency::boolean_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Int(l), Value::Int(r)) => Int::boolean_op(&l, &r, operation).map(Into::into),
 
             (Value::U8(l), Value::U8(r)) => U8::boolean_op(&l, &r, operation).map(Into::into),
             (Value::U16(l), Value::U16(r)) => U16::boolean_op(&l, &r, operation).map(Into::into),
@@ -864,12 +867,11 @@ impl BitwiseOperationExt for Value {
             (Value::I8(l), Value::I8(r)) => I8::bitwise_op(&l, &r, operation).map(Into::into),
             (Value::I16(l), Value::I16(r)) => I16::bitwise_op(&l, &r, operation).map(Into::into),
             (Value::I32(l), Value::I32(r)) => I32::bitwise_op(&l, &r, operation).map(Into::into),
-            (Value::I64(l), Value::I64(r)) => I64::bitwise_op(&l, &r, operation).map(Into::into),
 
             _ => {
-                let left = left.as_a::<Int>()?;
-                let right = right.as_a::<Int>()?;
-                Int::bitwise_op(&left, &right, operation).map(Into::into)
+                let left = left.as_a::<I64>()?;
+                let right = right.as_a::<I64>()?;
+                I64::bitwise_op(&left, &right, operation).map(Into::into)
             }
         }
     }
@@ -903,8 +905,6 @@ impl ArithmeticOperationExt for Value {
             (Value::Currency(l), Value::Currency(r)) => {
                 Currency::arithmetic_op(&l, &r, operation).map(Into::into)
             }
-
-            (Value::Int(l), Value::Int(r)) => Int::arithmetic_op(&l, &r, operation).map(Into::into),
 
             (Value::U8(l), Value::U8(r)) => U8::arithmetic_op(&l, &r, operation).map(Into::into),
             (Value::U16(l), Value::U16(r)) => U16::arithmetic_op(&l, &r, operation).map(Into::into),
@@ -1000,11 +1000,6 @@ impl ArithmeticOperationExt for Value {
                 &other.as_a::<I64>().unwrap(),
                 operation,
             ),
-            ValueType::Int => Int::is_operator_supported(
-                &self.as_a::<Int>().unwrap(),
-                &other.as_a::<Int>().unwrap(),
-                operation,
-            ),
             ValueType::String => Str::is_operator_supported(
                 &self.as_a::<Str>().unwrap(),
                 &other.as_a::<Str>().unwrap(),
@@ -1026,7 +1021,7 @@ impl ArithmeticOperationExt for Value {
                 operation,
             ),
 
-            ValueType::Numeric | ValueType::Compound | ValueType::Any => false,
+            ValueType::Int | ValueType::Numeric | ValueType::Compound | ValueType::Any => false,
         }
     }
 }
@@ -1245,7 +1240,7 @@ mod test {
         );
         assert_eq!(
             value.as_a::<Object>().unwrap().get(&Value::from("int")),
-            Some(&Value::from(1))
+            Some(&Value::from(1i64))
         );
         assert_eq!(
             value.as_a::<Object>().unwrap().get(&Value::from("string")),
@@ -1254,17 +1249,17 @@ mod test {
         assert_eq!(
             value.as_a::<Object>().unwrap().get(&Value::from("array")),
             Some(&Value::from(vec![
-                Value::from(1),
-                Value::from(2),
-                Value::from(3)
+                Value::i64(1),
+                Value::i64(2),
+                Value::i64(3)
             ]))
         );
         assert_eq!(
             value.as_a::<Object>().unwrap().get(&Value::from("range")),
             Some(&Value::from(vec![
-                Value::from(1),
-                Value::from(2),
-                Value::from(3)
+                Value::i64(1),
+                Value::i64(2),
+                Value::i64(3)
             ]))
         );
         assert_eq!(
@@ -1315,8 +1310,8 @@ mod test {
         let a = Value::from(1);
         let b = Value::from(2);
         let (a, b) = a.resolve(&b).expect("Could not resolve types");
-        assert!(a.own_type() == ValueType::Int);
-        assert!(b.own_type() == ValueType::Int);
+        assert!(a.own_type() == ValueType::I32);
+        assert!(b.own_type() == ValueType::I32);
 
         let a = Value::from("abc");
         let b = Value::from(2);
@@ -1347,7 +1342,7 @@ mod test {
     fn test_own_type() {
         assert_eq!(Value::from(false).own_type(), ValueType::Bool);
         assert_eq!(Value::from(1.0).own_type(), ValueType::Float);
-        assert_eq!(Value::from(1).own_type(), ValueType::Int);
+        assert_eq!(Value::from(1).own_type(), ValueType::I32);
         assert_eq!(Value::from("abc").own_type(), ValueType::String);
         assert_eq!(
             Value::from(vec![Value::from(1)]).own_type(),
@@ -1396,9 +1391,9 @@ mod test {
     fn test_as_a() {
         let value = Value::from(1.0);
         let int = value
-            .as_a::<Int>()
+            .as_a::<I64>()
             .expect("Value could not be converted to int!");
-        assert_eq!(int, Int::from(1i64));
+        assert_eq!(int, I64::from(1i64));
 
         let value = Value::from(1);
         let float = value
@@ -1417,7 +1412,7 @@ mod test {
             .expect("Value could not be converted to object!");
         assert_eq!(
             object,
-            Object::try_from(vec![(Value::from(0), Value::from(1.0))]).unwrap()
+            Object::try_from(vec![(Value::u64(0), Value::from(1.0))]).unwrap()
         );
     }
 
@@ -1462,7 +1457,7 @@ mod test {
         let int = value
             .as_type(ValueType::Int)
             .expect("Value could not be converted to int!");
-        assert_eq!(int, Value::from(1));
+        assert_eq!(int, Value::i64(1));
 
         let value = Value::from(1);
         let float = value
@@ -1481,7 +1476,7 @@ mod test {
             .expect("Value could not be converted to compound!");
         assert_eq!(
             value,
-            Value::try_from(vec![(Value::from(0), Value::from(1.0))]).unwrap()
+            Value::try_from(vec![(Value::u64(0), Value::from(1.0))]).unwrap()
         );
 
         let value = Value::from(1.0);
@@ -1491,7 +1486,7 @@ mod test {
         assert_eq!(value, Value::from(1.0));
 
         let value = Value::from(1);
-        assert_eq!(value.as_type(ValueType::Numeric).unwrap(), Value::from(1));
+        assert_eq!(value.as_type(ValueType::Numeric).unwrap(), Value::i32(1));
 
         let value = Value::from(1.0);
         assert_eq!(value.as_type(ValueType::Numeric).unwrap(), Value::from(1.0));
@@ -1535,7 +1530,7 @@ mod test {
 
         assert_eq!(
             Value::from(1).as_type(ValueType::Object).unwrap(),
-            Value::try_from(vec![(Value::from(0), Value::from(1))]).unwrap()
+            Value::try_from(vec![(Value::u64(0), Value::from(1))]).unwrap()
         );
 
         // u8 etc
@@ -1590,9 +1585,9 @@ mod test {
         assert_eq!(a.type_for_comparison(&b), ValueType::Float);
 
         // int/bool = int
-        let a = Value::from(1);
+        let a = Value::from(1i64);
         let b = Value::from(true);
-        assert_eq!(a.type_for_comparison(&b), ValueType::Int);
+        assert_eq!(a.type_for_comparison(&b), ValueType::I64);
 
         // int/string = string
         let a = Value::from(1);
@@ -2166,14 +2161,14 @@ mod test {
         // Get index on range
         let range = Value::from(Range::from(1..=3));
         let v = range.get_index(&Value::from(1)).unwrap();
-        assert_eq!(v, Value::from(2));
+        assert_eq!(v, Value::from(2i64));
 
         // Get indices on range
         let range = Value::from(Range::from(1..=3));
         let v = range
             .get_indices(&Value::from(vec![Value::from(0), Value::from(1)]))
             .unwrap();
-        assert_eq!(v, Value::from(vec![Value::from(1), Value::from(2)]));
+        assert_eq!(v, Value::from(vec![Value::from(1i64), Value::from(2i64)]));
 
         // Get indices on string
         assert_eq!(
@@ -2234,19 +2229,14 @@ mod test {
             Value::from(10)
         );
 
+        assert_eq!(Value::bitwise_not(&l).unwrap(), Value::from(-11));
         assert_eq!(
-            Value::bitwise_op(&l, &r, BitwiseOperation::Not).unwrap(),
-            Value::from(0b0101)
+            Value::bitwise_not(&Value::from(0u8)).unwrap(),
+            Value::u8(255)
         );
-
         assert_eq!(
-            Value::bitwise_op(&Value::from(0), &r, BitwiseOperation::Not).unwrap(),
-            Value::from(1)
-        );
-
-        assert_eq!(
-            Value::bitwise_op(&Value::from(1), &r, BitwiseOperation::Not).unwrap(),
-            Value::from(0)
+            Value::bitwise_not(&Value::from(1)).unwrap(),
+            Value::from(-2)
         );
 
         assert_eq!(

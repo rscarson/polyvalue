@@ -86,11 +86,6 @@ map_value!(
             Ok(Float::from(p))
         }
 
-        Value::Int(v) => {
-            let p = *v.inner() as f64;
-            Ok(Float::from(p))
-        }
-
         Value::Bool(v) => {
             let p = *v.inner() as i64 as f64;
             Ok(Float::from(p))

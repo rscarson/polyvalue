@@ -31,8 +31,8 @@ impl Str {
     /// This is necessary because the string is UTF-8 encoded
     /// Can fail if the range is out of bounds, or if the range is not a valid integer range
     fn map_range_to_bytes(&self, range: RangeInclusive<&Value>) -> Result<Range<usize>, Error> {
-        let mut range = *Int::try_from((*range.start()).clone())?.inner()
-            ..*Int::try_from((*range.end()).clone())?.inner();
+        let mut range = *I64::try_from((*range.start()).clone())?.inner()
+            ..*I64::try_from((*range.end()).clone())?.inner();
 
         let chars = self.inner().chars().count() as i64;
         if range.start < 0 {
@@ -121,8 +121,8 @@ impl Str {
         index: RangeInclusive<&Value>,
         value: Value,
     ) -> Result<(), crate::Error> {
-        let range = *Int::try_from((*index.start()).clone())?.inner() as usize
-            ..*Int::try_from((*index.end()).clone())?.inner() as usize;
+        let range = *I64::try_from((*index.start()).clone())?.inner() as usize
+            ..*I64::try_from((*index.end()).clone())?.inner() as usize;
 
         let value = Str::try_from(value)?.inner().clone();
 
@@ -153,7 +153,7 @@ impl Str {
         let indices = index
             .inner()
             .iter()
-            .map(|v| Ok::<IntInner, Error>(*v.as_a::<Int>()?.inner()))
+            .map(|v| Ok::<<I64 as ValueTrait>::Inner, Error>(*v.as_a::<I64>()?.inner()))
             .collect::<Result<Vec<_>, _>>()?;
         if indices.is_empty() {
             Err(Error::Index {
@@ -459,7 +459,8 @@ mod test {
         let value_range = Value::from(value_range);
         let value_range = Str::index_value_to_range(&value_range).unwrap();
         let value_range = value_range.start()..=value_range.end();
-        assert_eq!(value_range, &0.into()..=&2.into());
+        assert_eq!(value_range.start(), &&Value::i64(0));
+        assert_eq!(value_range.end(), &&Value::i64(2));
         let s = Str::from("012");
         assert_eq!(s.substr(value_range).unwrap(), "012");
 

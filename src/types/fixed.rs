@@ -25,49 +25,44 @@ map_value!(
     handle_from = |v: Value| match v {
         Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Fixed(v) => Ok(v),
-        Value::Int(v) => {
+
+        Value::U8(v) => {
             let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
-
-        Value::U8(v) => {
-            let p = *v.inner() as IntInner;
-            let p: Decimal = p.into();
-            Ok(Fixed::from(p))
-        }
         Value::U16(v) => {
-            let p = *v.inner() as IntInner;
+            let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
         Value::U32(v) => {
-            let p = *v.inner() as IntInner;
+            let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
         Value::U64(v) => {
-            let p = *v.inner() as IntInner;
+            let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
         Value::I8(v) => {
-            let p = *v.inner() as IntInner;
+            let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
         Value::I16(v) => {
-            let p = *v.inner() as IntInner;
+            let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
         Value::I32(v) => {
-            let p = *v.inner() as IntInner;
+            let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
         Value::I64(v) => {
-            let p = *v.inner() as IntInner;
+            let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }

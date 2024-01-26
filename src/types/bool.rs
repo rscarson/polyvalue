@@ -58,9 +58,6 @@ map_value!(
             Ok(Bool::from(*v.inner() != 0))
         }
 
-        Value::Int(v) => {
-            Ok(Bool::from(*v.inner() != 0))
-        }
         Value::Float(v) => {
             Ok(Bool::from(*v.inner() != 0.0))
         }

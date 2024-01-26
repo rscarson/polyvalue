@@ -16,8 +16,10 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{ops::RangeInclusive, str::FromStr};
 
+type RangeIndex = <int::I64 as ValueTrait>::Inner;
+
 /// Inner type of `Range`
-pub type RangeInner = RangeInclusive<IntInner>;
+pub type RangeInner = RangeInclusive<RangeIndex>;
 
 /// Subtype of `Value` that represents a range
 #[derive(PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Debug)]
@@ -30,7 +32,7 @@ impl_value!(Range, RangeInner, |v: &Self| format!(
 
 impl Range {
     /// Length of the range
-    pub fn len(&self) -> IntInner {
+    pub fn len(&self) -> RangeIndex {
         self.inner().end() - self.inner().start()
     }
 }
@@ -47,8 +49,8 @@ impl FromStr for Range {
         let start = parts.next().ok_or(Error::InvalidRange)?;
         let end = parts.next().ok_or(Error::InvalidRange)?;
 
-        let start = start.parse::<Int>()?;
-        let end = end.parse::<Int>()?;
+        let start = start.parse::<I64>()?;
+        let end = end.parse::<I64>()?;
 
         if start > end {
             return Err(Error::InvalidRange);
@@ -143,7 +145,7 @@ impl ArithmeticOperationExt for Range {
 
 impl IndexingOperationExt for Range {
     fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
-        let index = *index.as_a::<Int>()?.inner();
+        let index = *index.as_a::<I64>()?.inner();
         let offset = if index < 0 {
             *self.inner().end() + index + 1
         } else {
@@ -197,7 +199,7 @@ impl MatchingOperationExt for Range {
             MatchingOperation::Contains => {
                 let pattern = pattern.as_a::<Array>()?;
                 for value in pattern.inner().iter() {
-                    let i = *value.as_a::<Int>()?.inner();
+                    let i = *value.as_a::<I64>()?.inner();
                     if !container.inner().contains(&i) {
                         return Ok(false.into());
                     }
@@ -283,22 +285,22 @@ mod test {
         Range::new(1..=10).get_index(&Value::from(-20)).unwrap_err();
         assert_eq!(
             Range::new(1..=10).get_index(&Value::from(2)).unwrap(),
-            3.into()
+            Value::i64(3)
         );
         assert_eq!(
             Range::new(1..=10).get_index(&Value::from(-1)).unwrap(),
-            10.into()
+            Value::i64(10)
         );
 
         assert_eq!(
             Range::new(1..=10).get_indices(&Value::from(0..=2)).unwrap(),
-            vec![1.into(), 2.into(), 3.into()].into()
+            vec![Value::i64(1), Value::i64(2), Value::i64(3),].into()
         );
         assert_eq!(
             Range::new(1..=10)
                 .get_indices(&Value::from(vec![0.into(), 2.into()]))
                 .unwrap(),
-            vec![1.into(), 3.into()].into()
+            vec![Value::i64(1), Value::i64(3),].into()
         );
 
         Range::new(0..=9999999999)
