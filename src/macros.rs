@@ -101,7 +101,9 @@ macro_rules! map_primitive {
 /// Those implementations will use the `TryInto<Str>` implementation.
 macro_rules! impl_value {
     ($own_type:ty, $inner_type:ty, $to_string:expr) => {
-        impl $crate::ValueTrait<$inner_type> for $own_type {
+        impl $crate::ValueTrait for $own_type {
+            type Inner = $inner_type;
+
             fn new(inner: $inner_type) -> Self {
                 Self(inner)
             }
@@ -121,6 +123,151 @@ macro_rules! impl_value {
             #[allow(clippy::redundant_closure_call)]
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", $to_string(self))
+            }
+        }
+    };
+}
+
+macro_rules! overload_operator {
+    ($type:ident, arithmetic) => {
+        overload_operator!($type, add);
+        overload_operator!($type, sub);
+        overload_operator!($type, mul);
+        overload_operator!($type, div);
+        overload_operator!($type, rem);
+        overload_operator!($type, neg);
+    };
+
+    ($type:ident, add) => {
+        impl std::ops::Add for $type {
+            type Output = Result<Self, crate::Error>;
+            fn add(self, rhs: Self) -> Self::Output {
+                Self::arithmetic_op(&self, &rhs, ArithmeticOperation::Add)
+            }
+        }
+    };
+
+    ($type:ident, sub) => {
+        impl std::ops::Sub for $type {
+            type Output = Result<Self, crate::Error>;
+            fn sub(self, rhs: Self) -> Self::Output {
+                Self::arithmetic_op(&self, &rhs, ArithmeticOperation::Subtract)
+            }
+        }
+    };
+
+    ($type:ident, mul) => {
+        impl std::ops::Mul for $type {
+            type Output = Result<Self, crate::Error>;
+            fn mul(self, rhs: Self) -> Self::Output {
+                Self::arithmetic_op(&self, &rhs, ArithmeticOperation::Multiply)
+            }
+        }
+    };
+
+    ($type:ident, div) => {
+        impl std::ops::Div for $type {
+            type Output = Result<Self, crate::Error>;
+            fn div(self, rhs: Self) -> Self::Output {
+                Self::arithmetic_op(&self, &rhs, ArithmeticOperation::Divide)
+            }
+        }
+    };
+
+    ($type:ident, rem) => {
+        impl std::ops::Rem for $type {
+            type Output = Result<Self, crate::Error>;
+            fn rem(self, rhs: Self) -> Self::Output {
+                Self::arithmetic_op(&self, &rhs, ArithmeticOperation::Modulo)
+            }
+        }
+    };
+
+    ($type:ident, neg) => {
+        impl std::ops::Neg for $type {
+            type Output = Result<Self, crate::Error>;
+            fn neg(self) -> Self::Output {
+                Self::arithmetic_neg(&self)
+            }
+        }
+    };
+
+    // //////////////////////////////////////////////////////////////////////////////////
+    ($type:ident, bitwise) => {
+        overload_operator!($type, bitand);
+        overload_operator!($type, bitor);
+        overload_operator!($type, bitxor);
+        overload_operator!($type, shl);
+        overload_operator!($type, shr);
+    };
+
+    ($type:ident, bitand) => {
+        impl std::ops::BitAnd for $type {
+            type Output = Result<Self, crate::Error>;
+            fn bitand(self, rhs: Self) -> Self::Output {
+                Self::bitwise_op(&self, &rhs, BitwiseOperation::And)
+            }
+        }
+    };
+
+    ($type:ident, bitor) => {
+        impl std::ops::BitOr for $type {
+            type Output = Result<Self, crate::Error>;
+            fn bitor(self, rhs: Self) -> Self::Output {
+                Self::bitwise_op(&self, &rhs, BitwiseOperation::Or)
+            }
+        }
+    };
+
+    ($type:ident, bitxor) => {
+        impl std::ops::BitXor for $type {
+            type Output = Result<Self, crate::Error>;
+            fn bitxor(self, rhs: Self) -> Self::Output {
+                Self::bitwise_op(&self, &rhs, BitwiseOperation::Xor)
+            }
+        }
+    };
+
+    ($type:ident, shl) => {
+        impl std::ops::Shl for $type {
+            type Output = Result<Self, crate::Error>;
+            fn shl(self, rhs: Self) -> Self::Output {
+                Self::bitwise_op(&self, &rhs, BitwiseOperation::LeftShift)
+            }
+        }
+    };
+
+    ($type:ident, shr) => {
+        impl std::ops::Shr for $type {
+            type Output = Result<Self, crate::Error>;
+            fn shr(self, rhs: Self) -> Self::Output {
+                Self::bitwise_op(&self, &rhs, BitwiseOperation::RightShift)
+            }
+        }
+    };
+
+    // ///////////////////////////////////////////////////////////////////////////
+    ($type:ident, bool_not) => {
+        impl std::ops::Not for $type {
+            type Output = Result<Value, crate::Error>;
+            fn not(self) -> Self::Output {
+                Self::boolean_not(&self)
+            }
+        }
+    };
+
+    // ///////////////////////////////////////////////////////////////////////////
+    ($type:ident, deref) => {
+        impl std::ops::Deref for $type {
+            type Target = <$type as ValueTrait>::Inner;
+            fn deref(&self) -> &Self::Target {
+                self.inner()
+            }
+        }
+
+        impl std::ops::DerefMut for $type {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                self.inner_mut()
             }
         }
     };

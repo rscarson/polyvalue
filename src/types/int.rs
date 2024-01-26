@@ -184,6 +184,10 @@ map_type!(Str, Int);
 map_type!(Object, Int);
 map_type!(Range, Int);
 
+overload_operator!(Int, arithmetic);
+overload_operator!(Int, bitwise);
+overload_operator!(Int, deref);
+
 impl ArithmeticOperationExt for Int {
     fn arithmetic_op(
         left: &Self,
@@ -311,6 +315,38 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_bitwise() {
+        let a = Int::from(10);
+        let b = Int::from(5);
+
+        assert_eq!(
+            Int::bitwise_op(&a, &b, BitwiseOperation::And).unwrap(),
+            Int::from(0)
+        );
+        assert_eq!(
+            Int::bitwise_op(&a, &b, BitwiseOperation::Or).unwrap(),
+            Int::from(15)
+        );
+        assert_eq!(
+            Int::bitwise_op(&a, &b, BitwiseOperation::Xor).unwrap(),
+            Int::from(15)
+        );
+        assert_eq!(
+            Int::bitwise_op(&a, &b, BitwiseOperation::LeftShift).unwrap(),
+            Int::from(320)
+        );
+        assert_eq!(
+            Int::bitwise_op(&a, &b, BitwiseOperation::RightShift).unwrap(),
+            Int::from(0)
+        );
+        assert_eq!(
+            Int::bitwise_op(&a, &a, BitwiseOperation::Not).unwrap(),
+            Int::from(5)
+        );
+        assert_eq!(Int::bitwise_not(&a).unwrap(), Int::from(5));
+    }
+
+    #[test]
     fn test_arithmetic() {
         let a = Int::from(10);
         let b = Int::from(5);
@@ -339,9 +375,23 @@ mod test {
             Int::arithmetic_op(&a, &b, ArithmeticOperation::Exponentiate).unwrap(),
             Int::from(100000)
         );
+        Int::arithmetic_op(
+            &a,
+            &Int::from(i32::MAX as i64 + 1),
+            ArithmeticOperation::Exponentiate,
+        )
+        .unwrap_err();
+        Int::arithmetic_op(&a, &Int::from(-1), ArithmeticOperation::Exponentiate).unwrap_err();
+
         assert_eq!(
             Int::arithmetic_op(&a, &b, ArithmeticOperation::Negate).unwrap(),
             Int::from(-10)
+        );
+        assert_eq!(Int::arithmetic_neg(&a).unwrap(), Int::from(-10));
+
+        assert_eq!(
+            Int::is_operator_supported(&a, &b, ArithmeticOperation::Add),
+            true
         );
     }
 
@@ -386,6 +436,7 @@ mod test {
             Int::boolean_op(&a, &b, BooleanOperation::Not).unwrap(),
             Value::from(false)
         );
+        assert_eq!(Int::boolean_not(&a).unwrap(), Value::from(false));
     }
 
     #[test]
@@ -429,6 +480,49 @@ mod test {
         ])
         .unwrap();
         Int::try_from(Value::from(o)).expect_err("Should fail");
+
+        let value = Value::from(0..=99999999);
+        assert!(Int::try_from(value).is_err());
+
+        assert_eq!(
+            Int::try_from(Value::from(U8::new(10))).unwrap(),
+            Int::from(10)
+        );
+
+        assert_eq!(
+            Int::try_from(Value::from(U16::new(10))).unwrap(),
+            Int::from(10)
+        );
+
+        assert_eq!(
+            Int::try_from(Value::from(U32::new(10))).unwrap(),
+            Int::from(10)
+        );
+
+        assert_eq!(
+            Int::try_from(Value::from(U64::new(10))).unwrap(),
+            Int::from(10)
+        );
+
+        assert_eq!(
+            Int::try_from(Value::from(I8::new(10))).unwrap(),
+            Int::from(10)
+        );
+
+        assert_eq!(
+            Int::try_from(Value::from(I16::new(10))).unwrap(),
+            Int::from(10)
+        );
+
+        assert_eq!(
+            Int::try_from(Value::from(I32::new(10))).unwrap(),
+            Int::from(10)
+        );
+
+        assert_eq!(
+            Int::try_from(Value::from(I64::new(10))).unwrap(),
+            Int::from(10)
+        );
     }
 
     #[test]
@@ -439,5 +533,12 @@ mod test {
         assert_eq!(Int::from_str_radix("0o12").unwrap(), Int::from(10));
         assert_eq!(Int::from_str_radix("012").unwrap(), Int::from(10));
         assert_eq!(Int::from_str_radix("0xFAF").unwrap(), Int::from(4015));
+        assert_eq!(Int::from_str_radix("07").unwrap(), Int::from(7));
+
+        assert!(Int::from_str_radix("0").is_err());
+        assert!(Int::from_str_radix("1x").is_err());
+        assert!(Int::from_str_radix("1x1").is_err());
+        assert!(Int::from_str_radix("0n0").is_err());
+        assert!(Int::from_str_radix("0b2").is_err());
     }
 }

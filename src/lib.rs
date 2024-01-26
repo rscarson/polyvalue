@@ -24,18 +24,17 @@
 //! - [`ArithmeticOperationExt`](crate::operations::ArithmeticOperationExt) : Operations such as addition, subtraction, etc.
 //! - [`BooleanOperationExt`](crate::operations::BooleanOperationExt) : Equality, comparisons, as well as AND and OR
 //! - [`BitwiseOperationExt`](crate::operations::BitwiseOperationExt) : Bitwise operations such as AND, OR, XOR, etc.
-//! - [`IndexingOperationExt`](crate::operations::IndexingOperationExt) : Indexing into arrays and objects
+//! - [`IndexingOperationExt`](crate::operations::IndexingOperationExt) : Indexing into arrays, objects, ranges, and strings
+//! - [`IndexingOperationExt`](crate::operations::IndexingOperationExt) : Indexing mutably into arrays and objects
 //!
 //! Note that while indexing into strings is supported, it is not provided through the `IndexOperationExt` trait.
 //! This is because we return substrings references, which have additional constraints. See [`Str`](crate::types::Str) for more information.
 //!
-#![doc(html_root_url = "https://docs.rs/polyvalue/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/polyvalue/0.3.0")]
 #![warn(missing_docs)]
 
 #[macro_use]
 mod macros;
-
-mod ryu;
 
 mod inner_currency;
 mod is_currency;

@@ -141,6 +141,9 @@ map_type!(Currency, Fixed);
 map_type!(Str, Fixed);
 map_type!(Range, Fixed);
 
+overload_operator!(Fixed, arithmetic);
+overload_operator!(Fixed, deref);
+
 //
 // Trait implementations
 //
@@ -237,6 +240,15 @@ mod tests {
 
     #[test]
     fn test_arithmetic() {
+        let fixed = Fixed::from_str("10.0").unwrap();
+        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Add));
+        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Subtract));
+        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Multiply));
+        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Divide));
+        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Modulo));
+        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Exponentiate));
+        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Negate));
+
         assert_eq!(
             Fixed::arithmetic_op(
                 &Fixed::from_str("10").unwrap(),
@@ -305,6 +317,29 @@ mod tests {
             )
             .unwrap(),
             Fixed::from_str("-10").unwrap()
+        );
+
+        assert_eq!(
+            Fixed::arithmetic_neg(&Fixed::from_str("10").unwrap()).unwrap(),
+            Fixed::from_str("-10").unwrap()
+        );
+
+        assert_eq!(
+            Currency::is_operator_supported(
+                &Currency::from_str("$10.00").unwrap(),
+                &Currency::from_str("$10.00").unwrap(),
+                ArithmeticOperation::Add
+            ),
+            true
+        );
+
+        assert_eq!(
+            Currency::is_operator_supported(
+                &Currency::from_str("$10.00").unwrap(),
+                &Currency::from_str("$10.00").unwrap(),
+                ArithmeticOperation::Subtract
+            ),
+            true
         );
     }
 
@@ -399,6 +434,11 @@ mod tests {
             .unwrap(),
             Value::from(false)
         );
+
+        assert_eq!(
+            Fixed::boolean_not(&Fixed::from_str("10").unwrap()).unwrap(),
+            Value::from(false)
+        );
     }
 
     #[test]
@@ -438,6 +478,11 @@ mod tests {
             Fixed::from_str("1").unwrap()
         );
 
+        assert_eq!(
+            Fixed::try_from(Value::from(false)).unwrap(),
+            Fixed::from_str("0").unwrap()
+        );
+
         // From str should fail
         assert!(Fixed::try_from(Value::from("1")).is_err());
 
@@ -466,6 +511,49 @@ mod tests {
             .unwrap()
         )
         .is_err());
+
+        let value = Value::from(0..=99999999);
+        assert!(Fixed::try_from(value).is_err());
+
+        assert_eq!(
+            Fixed::try_from(Value::from(U8::new(10))).unwrap(),
+            Fixed::from(Dec!(10))
+        );
+
+        assert_eq!(
+            Fixed::try_from(Value::from(U16::new(10))).unwrap(),
+            Fixed::from(Dec!(10))
+        );
+
+        assert_eq!(
+            Fixed::try_from(Value::from(U32::new(10))).unwrap(),
+            Fixed::from(Dec!(10))
+        );
+
+        assert_eq!(
+            Fixed::try_from(Value::from(U64::new(10))).unwrap(),
+            Fixed::from(Dec!(10))
+        );
+
+        assert_eq!(
+            Fixed::try_from(Value::from(I8::new(10))).unwrap(),
+            Fixed::from(Dec!(10))
+        );
+
+        assert_eq!(
+            Fixed::try_from(Value::from(I16::new(10))).unwrap(),
+            Fixed::from(Dec!(10))
+        );
+
+        assert_eq!(
+            Fixed::try_from(Value::from(I32::new(10))).unwrap(),
+            Fixed::from(Dec!(10))
+        );
+
+        assert_eq!(
+            Fixed::try_from(Value::from(I64::new(10))).unwrap(),
+            Fixed::from(Dec!(10))
+        );
     }
 
     #[test]

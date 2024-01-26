@@ -184,6 +184,11 @@ map_type!(Currency, Str);
 map_type!(Array, Str);
 map_type!(Object, Str);
 
+overload_operator!(Str, add);
+overload_operator!(Str, sub);
+overload_operator!(Str, neg);
+overload_operator!(Str, deref);
+
 impl MatchingOperationExt for Str {
     fn matching_op(
         container: &Self,
@@ -247,7 +252,7 @@ impl ArithmeticOperationExt for Str {
             }
 
             _ => Err(Error::UnsupportedOperation {
-                operation,
+                operation: operation.to_string(),
                 actual_type: ValueType::String,
             })?,
         };
@@ -263,9 +268,9 @@ impl ArithmeticOperationExt for Str {
 
     fn is_operator_supported(&self, _: &Self, operation: ArithmeticOperation) -> bool {
         match operation {
-            ArithmeticOperation::Add => true,
-            ArithmeticOperation::Subtract => true,
-            ArithmeticOperation::Negate => true,
+            ArithmeticOperation::Add
+            | ArithmeticOperation::Subtract
+            | ArithmeticOperation::Negate => true,
             _ => false,
         }
     }
@@ -311,12 +316,17 @@ impl IndexingOperationExt for Str {
                 .and_then(|s| Ok(Value::from(s)))
         } else {
             let indices = index.as_a::<Array>()?;
+            if indices.inner().is_empty() {
+                return Ok(Value::from(""));
+            }
+
             let results = indices
                 .inner()
                 .iter()
-                .map(|i| self.get_index(i))
+                .map(|i| Ok(self.get_index(i)?.as_a::<Str>()?.inner().to_string()))
                 .collect::<Result<Vec<_>, Error>>()?;
-            Ok(Value::from(results))
+            // join into one Str
+            Ok(Value::from(results.join("")))
         }
     }
 }
@@ -332,8 +342,10 @@ where
     // Check if the string contains a regex pattern
     if input.starts_with('/') {
         let end = input.rfind('/').unwrap();
-        pattern = input[1..end].to_string();
-        flags = Some(input[end + 1..].to_string());
+        if end != 0 {
+            pattern = input[1..end].to_string();
+            flags = Some(input[end + 1..].to_string());
+        }
     }
 
     pattern = formatting_callback(pattern);
@@ -348,7 +360,9 @@ where
                 'U' => regex.swap_greed(true),
                 'u' => regex.unicode(true),
                 'x' => regex.ignore_whitespace(true),
-                _ => &mut regex,
+                _ => {
+                    return Err(Error::InvalidRegexFlag(flag.to_string()));
+                }
             };
         }
     }
@@ -405,6 +419,38 @@ mod test {
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
+
+        // test the m s U u x flags
+        let result = Str::matching_op(
+            &Str::from("Hello\n, world!"),
+            &Str::from("/h.*/isUuxm").into(),
+            MatchingOperation::Matches,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Str::matching_op(
+            &Str::from("Hello, world!"),
+            &Str::from("/H.*/").into(),
+            MatchingOperation::Matches,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(true).into());
+
+        let result = Str::matching_op(
+            &Str::from("Hello, world!"),
+            &Str::from("/h.*").into(),
+            MatchingOperation::Matches,
+        )
+        .unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        Str::matching_op(
+            &Str::from("Hello, world!"),
+            &Str::from("/h.*/y").into(),
+            MatchingOperation::Matches,
+        )
+        .unwrap_err();
     }
 
     #[test]
@@ -416,6 +462,10 @@ mod test {
         assert_eq!(value_range, &0.into()..=&2.into());
         let s = Str::from("012");
         assert_eq!(s.substr(value_range).unwrap(), "012");
+
+        // test mut_substr
+        let mut s = Str::from("012");
+        assert_eq!(s.mut_substr(&0.into()..=&1.into()).unwrap(), "01");
 
         let s = Str::from("012");
         assert_eq!(s.substr(&(-2).into()..=&(-1).into()).unwrap(), "12");
@@ -443,6 +493,20 @@ mod test {
         let mut s = Str::from("S👋🌎");
         s.set_substr(&2.into()..=&2.into(), "B".into()).unwrap();
         assert_eq!(s, "S👋B".into());
+
+        let s = Str::from("S👋🌎");
+        let s = s
+            .get_indices(&Value::from(vec![0.into(), 2.into()]))
+            .unwrap();
+        assert_eq!(s, "S🌎".into());
+
+        let s = Str::from("S👋🌎");
+        let s = s.get_indices(&Value::from(vec![])).unwrap();
+        assert_eq!(s, "".into());
+
+        let s = Str::from("S👋🌎");
+        let s = s.get_indices(&Value::from(0..=1)).unwrap();
+        assert_eq!(s, "S👋".into());
     }
 
     #[test]
@@ -469,6 +533,30 @@ mod test {
         // now with emojis
         let result = Str::arithmetic_neg(&Str::from("👋🌎")).unwrap();
         assert_eq!(result, Str::from("🌎👋"));
+
+        Str::arithmetic_op(
+            &Str::from("👋🌎"),
+            &Str::from("🌎"),
+            ArithmeticOperation::Divide,
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            true,
+            Str::is_operator_supported(
+                &Str::from("Hello, world!"),
+                &Str::from("d!"),
+                ArithmeticOperation::Subtract
+            )
+        );
+        assert_eq!(
+            false,
+            Str::is_operator_supported(
+                &Str::from("Hello, world!"),
+                &Str::from("d!"),
+                ArithmeticOperation::Divide
+            )
+        );
     }
 
     #[test]
@@ -536,5 +624,8 @@ mod test {
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
+
+        let result = Str::boolean_not(&Str::from("Hello, world!")).unwrap();
+        assert_eq!(result, Bool::from(false).into());
     }
 }

@@ -3,6 +3,8 @@
 //! Boolean operations can be performed on any value, by converting it to a boolean first.
 //! Bitwise operations can be performed on any value, which can be converted to an integer.
 //! Arithmetic operations can be performed on numeric values, and on strings (for some ops)
+//! Indexing operations can be performed on arrays, objects, strings, and ranges
+//! Mutable indexing operations can be performed on arrays and objects
 use crate::Value;
 
 /// Available arithmetic operations
@@ -92,7 +94,7 @@ pub trait ArithmeticOperationExt {
     ///
     /// # Examples
     /// ```
-    /// use polyvalue::{Value, ArithmeticOperationExt};
+    /// use polyvalue::{Value, operations::{ArithmeticOperationExt, ArithmeticOperation}};
     ///
     /// let a = Value::from(1);
     /// let b = Value::from(2);
@@ -416,4 +418,52 @@ pub trait MatchingOperationExt {
     ) -> Result<Value, crate::Error>
     where
         Self: Sized;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_bitwise_display() {
+        assert_eq!(BitwiseOperation::And.to_string(), "and");
+        assert_eq!(BitwiseOperation::Or.to_string(), "or");
+        assert_eq!(BitwiseOperation::Xor.to_string(), "xor");
+        assert_eq!(BitwiseOperation::LeftShift.to_string(), "lshift");
+        assert_eq!(BitwiseOperation::RightShift.to_string(), "rshift");
+        assert_eq!(BitwiseOperation::Not.to_string(), "not");
+    }
+
+    #[test]
+    fn test_boolean_display() {
+        assert_eq!(BooleanOperation::And.to_string(), "and");
+        assert_eq!(BooleanOperation::Or.to_string(), "or");
+        assert_eq!(BooleanOperation::LT.to_string(), "lt");
+        assert_eq!(BooleanOperation::GT.to_string(), "gt");
+        assert_eq!(BooleanOperation::LTE.to_string(), "lte");
+        assert_eq!(BooleanOperation::GTE.to_string(), "gte");
+        assert_eq!(BooleanOperation::EQ.to_string(), "eq");
+        assert_eq!(BooleanOperation::NEQ.to_string(), "neq");
+        assert_eq!(BooleanOperation::Not.to_string(), "not");
+    }
+
+    #[test]
+    fn test_arithmetic_display() {
+        assert_eq!(ArithmeticOperation::Add.to_string(), "add");
+        assert_eq!(ArithmeticOperation::Subtract.to_string(), "sub");
+        assert_eq!(ArithmeticOperation::Multiply.to_string(), "mul");
+        assert_eq!(ArithmeticOperation::Divide.to_string(), "div");
+        assert_eq!(ArithmeticOperation::Modulo.to_string(), "mod");
+        assert_eq!(ArithmeticOperation::Exponentiate.to_string(), "exp");
+        assert_eq!(ArithmeticOperation::Negate.to_string(), "neg");
+    }
+
+    #[test]
+    fn test_matching_display() {
+        assert_eq!(MatchingOperation::Contains.to_string(), "contains");
+        assert_eq!(MatchingOperation::Matches.to_string(), "matches");
+        assert_eq!(MatchingOperation::Is.to_string(), "is");
+        assert_eq!(MatchingOperation::StartsWith.to_string(), "startswith");
+        assert_eq!(MatchingOperation::EndsWith.to_string(), "endswith");
+    }
 }

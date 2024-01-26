@@ -105,16 +105,34 @@ map_type!(Currency, Bool);
 map_type!(Str, Bool);
 map_type!(Range, Bool);
 
+overload_operator!(Bool, arithmetic);
+overload_operator!(Bool, bool_not);
+overload_operator!(Bool, deref);
+
 impl ArithmeticOperationExt for Bool {
     fn arithmetic_op(
         left: &Self,
         right: &Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
-        let left = Int::try_from(Value::from(left.clone()))?;
-        let right = Int::try_from(Value::from(right.clone()))?;
-        let result = Int::arithmetic_op(&left, &right, operation)?;
-        Value::from(result).try_into()
+        let left = *left.inner();
+        let right = *right.inner();
+        let result = match operation {
+            ArithmeticOperation::Add => left ^ right,
+            ArithmeticOperation::Subtract => left ^ right,
+            ArithmeticOperation::Multiply => left & right,
+            ArithmeticOperation::Divide | ArithmeticOperation::Modulo => {
+                if right == false {
+                    return Err(Error::Overflow);
+                }
+
+                left
+            }
+            ArithmeticOperation::Exponentiate => !right | left,
+            ArithmeticOperation::Negate => !left,
+        };
+
+        Ok(result.into())
     }
 
     fn arithmetic_neg(&self) -> Result<Self, crate::Error>
@@ -170,7 +188,107 @@ mod test {
             ArithmeticOperation::Add,
         )
         .unwrap();
+        assert_eq!(result, Bool::from(false));
+        let result = Bool::arithmetic_op(
+            &Bool::from(false),
+            &Bool::from(true),
+            ArithmeticOperation::Add,
+        )
+        .unwrap();
         assert_eq!(result, Bool::from(true));
+
+        assert_eq!(
+            Bool::arithmetic_neg(&Bool::from(true)).unwrap(),
+            Bool::from(false)
+        );
+
+        // division by 0 is error
+        assert!(Bool::arithmetic_op(
+            &Bool::from(true),
+            &Bool::from(false),
+            ArithmeticOperation::Divide
+        )
+        .is_err());
+
+        assert_eq!(
+            Bool::arithmetic_op(
+                &Bool::from(true),
+                &Bool::from(true),
+                ArithmeticOperation::Divide
+            )
+            .unwrap(),
+            Bool::from(true)
+        );
+
+        assert_eq!(
+            Bool::arithmetic_op(
+                &Bool::from(true),
+                &Bool::from(true),
+                ArithmeticOperation::Subtract
+            )
+            .unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(
+            Bool::arithmetic_op(
+                &Bool::from(true),
+                &Bool::from(true),
+                ArithmeticOperation::Multiply
+            )
+            .unwrap(),
+            Bool::from(true)
+        );
+
+        assert_eq!(
+            Bool::arithmetic_op(
+                &Bool::from(true),
+                &Bool::from(false),
+                ArithmeticOperation::Multiply
+            )
+            .unwrap(),
+            Bool::from(false)
+        );
+
+        // test that base-2 exponentiation holds
+        assert_eq!(
+            Bool::arithmetic_op(
+                &Bool::from(true),
+                &Bool::from(true),
+                ArithmeticOperation::Exponentiate
+            )
+            .unwrap(),
+            Bool::from(true)
+        );
+
+        assert_eq!(
+            Bool::arithmetic_op(
+                &Bool::from(true),
+                &Bool::from(false),
+                ArithmeticOperation::Exponentiate
+            )
+            .unwrap(),
+            Bool::from(true)
+        );
+
+        assert_eq!(
+            Bool::arithmetic_op(
+                &Bool::from(false),
+                &Bool::from(true),
+                ArithmeticOperation::Exponentiate
+            )
+            .unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(
+            Bool::is_operator_supported(
+                &Bool::from(true),
+                &Bool::from(true),
+                ArithmeticOperation::Add
+            ),
+            true
+        );
     }
 
     #[test]
@@ -210,6 +328,11 @@ mod test {
         let result =
             Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::NEQ).unwrap();
         assert_eq!(result, Bool::from(true).into());
+
+        assert_eq!(
+            Bool::boolean_not(&Bool::from(true)).unwrap(),
+            Bool::from(false).into()
+        );
     }
 
     #[test]
@@ -269,6 +392,72 @@ mod test {
         assert_eq!(
             Bool::try_from(Value::from(Currency::from_str("0.0").unwrap())).unwrap(),
             Bool::from(true)
+        );
+
+        assert_eq!(Bool::try_from(Value::from(1_u8)).unwrap(), Bool::from(true));
+        assert_eq!(
+            Bool::try_from(Value::from(0_u8)).unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(
+            Bool::try_from(Value::from(1_u16)).unwrap(),
+            Bool::from(true)
+        );
+        assert_eq!(
+            Bool::try_from(Value::from(0_u16)).unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(
+            Bool::try_from(Value::from(1_u32)).unwrap(),
+            Bool::from(true)
+        );
+        assert_eq!(
+            Bool::try_from(Value::from(0_u32)).unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(
+            Bool::try_from(Value::from(1_u64)).unwrap(),
+            Bool::from(true)
+        );
+        assert_eq!(
+            Bool::try_from(Value::from(0_u64)).unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(Bool::try_from(Value::from(1_i8)).unwrap(), Bool::from(true));
+        assert_eq!(
+            Bool::try_from(Value::from(0_i8)).unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(
+            Bool::try_from(Value::from(1_i16)).unwrap(),
+            Bool::from(true)
+        );
+        assert_eq!(
+            Bool::try_from(Value::from(0_i16)).unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(
+            Bool::try_from(Value::I32(I32::new(1_i32))).unwrap(),
+            Bool::from(true)
+        );
+        assert_eq!(
+            Bool::try_from(Value::I32(I32::new(0_i32))).unwrap(),
+            Bool::from(false)
+        );
+
+        assert_eq!(
+            Bool::try_from(Value::I64(I64::new(1_i64))).unwrap(),
+            Bool::from(true)
+        );
+        assert_eq!(
+            Bool::try_from(Value::I64(I64::new(0_i64))).unwrap(),
+            Bool::from(false)
         );
     }
 

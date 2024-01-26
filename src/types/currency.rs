@@ -54,6 +54,9 @@ map_type!(Bool, Currency);
 map_type!(Str, Currency);
 map_type!(Range, Currency);
 
+overload_operator!(Currency, arithmetic);
+overload_operator!(Currency, deref);
+
 impl Currency {
     /// Get the symbol of this `Currency`
     pub fn symbol(&self) -> &Option<String> {
@@ -154,6 +157,18 @@ mod test {
         let b = Currency::from_str("¥5").unwrap();
         let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
         assert_eq!(result.to_string(), "15.00".to_string());
+
+        let result = Currency::arithmetic_neg(&Currency::from_str("$10.00").unwrap()).unwrap();
+        assert_eq!(result.to_string(), "$-10.00".to_string());
+
+        assert_eq!(
+            Currency::is_operator_supported(
+                &Currency::from_str("$10.00").unwrap(),
+                &Currency::from_str("$10.00").unwrap(),
+                ArithmeticOperation::Add
+            ),
+            true
+        );
     }
 
     #[test]
@@ -220,6 +235,9 @@ mod test {
             BooleanOperation::NEQ,
         )
         .unwrap();
+        assert_eq!(result, Bool::from(false).into());
+
+        let result = Currency::boolean_not(&Currency::from_str("$10.00").unwrap()).unwrap();
         assert_eq!(result, Bool::from(false).into());
     }
 

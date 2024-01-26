@@ -135,6 +135,9 @@ map_type!(Str, Float);
 map_type!(Object, Float);
 map_type!(Range, Float);
 
+overload_operator!(Float, arithmetic);
+overload_operator!(Float, deref);
+
 //
 // Trait implementations
 //
@@ -280,6 +283,19 @@ mod test {
             Float::arithmetic_op(&a, &b, ArithmeticOperation::Negate).unwrap(),
             Float::from(-1.0)
         );
+        assert_eq!(Float::arithmetic_neg(&a).unwrap(), Float::from(-1.0));
+
+        assert_eq!(
+            Float::is_operator_supported(&a, &b, ArithmeticOperation::Add),
+            true
+        );
+
+        assert!(Float::arithmetic_op(
+            &Float::from(-1.0),
+            &Float::from(0.0),
+            ArithmeticOperation::Divide
+        )
+        .is_err());
     }
 
     #[test]
@@ -324,6 +340,7 @@ mod test {
             Float::boolean_op(&a, &b, BooleanOperation::Not).unwrap(),
             Value::from(false)
         );
+        assert_eq!(Float::boolean_not(&a).unwrap(), Value::from(false));
     }
 
     #[test]
@@ -382,6 +399,49 @@ mod test {
             .unwrap(),
         )
         .expect_err("Should fail");
+
+        let value = Value::from(0..=99999999);
+        assert!(Float::try_from(value).is_err());
+
+        assert_eq!(
+            Float::try_from(Value::from(U8::new(10))).unwrap(),
+            Float::from(10.0)
+        );
+
+        assert_eq!(
+            Float::try_from(Value::from(U16::new(10))).unwrap(),
+            Float::from(10.0)
+        );
+
+        assert_eq!(
+            Float::try_from(Value::from(U32::new(10))).unwrap(),
+            Float::from(10.0)
+        );
+
+        assert_eq!(
+            Float::try_from(Value::from(U64::new(10))).unwrap(),
+            Float::from(10.0)
+        );
+
+        assert_eq!(
+            Float::try_from(Value::from(I8::new(10))).unwrap(),
+            Float::from(10.0)
+        );
+
+        assert_eq!(
+            Float::try_from(Value::from(I16::new(10))).unwrap(),
+            Float::from(10.0)
+        );
+
+        assert_eq!(
+            Float::try_from(Value::from(I32::new(10))).unwrap(),
+            Float::from(10.0)
+        );
+
+        assert_eq!(
+            Float::try_from(Value::from(I64::new(10))).unwrap(),
+            Float::from(10.0)
+        );
     }
 
     #[test]

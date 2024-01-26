@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// A trait that all values must implement
 /// It enforces a set of common traits and accessors
-pub trait ValueTrait<T>:
+pub trait ValueTrait:
     std::fmt::Display
     + std::fmt::Debug
     + Clone
@@ -19,14 +19,17 @@ pub trait ValueTrait<T>:
     + for<'a> Deserialize<'a>
     + Default
 {
+    /// The inner type of the value
+    type Inner;
+
     /// Creates a new value from the given inner value
-    fn new(inner: T) -> Self;
+    fn new(inner: Self::Inner) -> Self;
 
     /// Returns a reference to the inner value
-    fn inner(&self) -> &T;
+    fn inner(&self) -> &Self::Inner;
 
     /// Returns a mutable reference to the inner value
-    fn inner_mut(&mut self) -> &mut T;
+    fn inner_mut(&mut self) -> &mut Self::Inner;
 }
 
 /// The set of types that can be used as values
@@ -152,7 +155,7 @@ impl std::fmt::Display for ValueType {
 impl TryFrom<&str> for ValueType {
     type Error = Error;
     fn try_from(s: &str) -> Result<Self, Error> {
-        match s.to_lowercase().as_str() {
+        match s {
             "bool" => Ok(ValueType::Bool),
             "fixed" => Ok(ValueType::Fixed),
             "float" => Ok(ValueType::Float),
@@ -189,15 +192,6 @@ pub enum Value {
     /// An integer value
     Int(Int),
 
-    /// A floating-point value
-    Float(Float),
-
-    /// A fixed-point value
-    Fixed(Fixed),
-
-    /// A currency value
-    Currency(Currency),
-
     /// An unsigned 8bit integer value
     U8(U8),
 
@@ -221,6 +215,15 @@ pub enum Value {
 
     /// An signed 64bit integer value
     I64(I64),
+
+    /// A floating-point value
+    Float(Float),
+
+    /// A fixed-point value
+    Fixed(Fixed),
+
+    /// A currency value
+    Currency(Currency),
 
     /// A string value
     String(Str),
@@ -379,7 +382,31 @@ impl Value {
                 Object::try_from(other.clone())?.into(),
             ),
 
-            _ => unreachable!(),
+            ValueType::Range => (
+                Range::try_from(self.clone())?.into(),
+                Range::try_from(other.clone())?.into(),
+            ),
+
+            ValueType::Numeric => {
+                return Err(Error::ValueConversion {
+                    src_type: self.own_type(),
+                    dst_type: ValueType::Numeric,
+                })
+            }
+
+            ValueType::Compound => {
+                return Err(Error::ValueConversion {
+                    src_type: self.own_type(),
+                    dst_type: ValueType::Compound,
+                })
+            }
+
+            ValueType::Any => {
+                return Err(Error::ValueConversion {
+                    src_type: self.own_type(),
+                    dst_type: ValueType::Any,
+                })
+            }
         };
 
         Ok(values)
@@ -463,20 +490,7 @@ impl Value {
     /// ```
     pub fn is_a(&self, type_name: ValueType) -> bool {
         match type_name {
-            ValueType::Numeric => {
-                Int::try_from(self.clone()).is_ok()
-                    || Float::try_from(self.clone()).is_ok()
-                    || Fixed::try_from(self.clone()).is_ok()
-                    || Currency::try_from(self.clone()).is_ok()
-                    || U8::try_from(self.clone()).is_ok()
-                    || U16::try_from(self.clone()).is_ok()
-                    || U32::try_from(self.clone()).is_ok()
-                    || U64::try_from(self.clone()).is_ok()
-                    || I8::try_from(self.clone()).is_ok()
-                    || I16::try_from(self.clone()).is_ok()
-                    || I32::try_from(self.clone()).is_ok()
-                    || I64::try_from(self.clone()).is_ok()
-            }
+            ValueType::Numeric => Int::try_from(self.clone()).is_ok(),
             ValueType::Compound => {
                 self.own_type() == ValueType::Array
                     || self.own_type() == ValueType::Object
@@ -539,37 +553,15 @@ impl Value {
 
             ValueType::Compound => {
                 if self.own_type() == ValueType::Array {
-                    Array::try_from(self.clone())?.into()
+                    self.clone()
                 } else {
                     Object::try_from(self.clone())?.into()
                 }
             }
 
             ValueType::Numeric => {
-                if self.own_type() == ValueType::Int {
-                    Int::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::Fixed {
-                    Fixed::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::Float {
-                    Float::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::Currency {
-                    Currency::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::U8 {
-                    U8::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::U16 {
-                    U16::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::U32 {
-                    U32::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::U64 {
-                    U64::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::I8 {
-                    I8::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::I16 {
-                    I16::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::I32 {
-                    I32::try_from(self.clone())?.into()
-                } else if self.own_type() == ValueType::I64 {
-                    I64::try_from(self.clone())?.into()
+                if self.is_a(ValueType::Numeric) {
+                    self.clone()
                 } else {
                     Fixed::try_from(self.clone())?.into()
                 }
@@ -602,52 +594,103 @@ impl Value {
     pub fn type_for_comparison(&self, other: &Self) -> ValueType {
         if self.own_type() == other.own_type() {
             self.own_type()
-        } else if self.either_type(other, ValueType::Range) {
-            ValueType::Range
-        } else if self.either_type(other, ValueType::Object) {
-            ValueType::Object
-        } else if self.either_type(other, ValueType::Array) {
-            ValueType::Array
-        } else if self.either_type(other, ValueType::String) {
-            ValueType::String
-        } else if self.either_type(other, ValueType::Currency) {
-            ValueType::Currency
-        } else if self.either_type(other, ValueType::Fixed) {
-            ValueType::Fixed
-        } else if self.either_type(other, ValueType::Float) {
-            ValueType::Float
-        } else if self.either_type(other, ValueType::Int) {
-            ValueType::Int
-        } else if self.either_type(other, ValueType::Bool) {
-            ValueType::Bool
-        } else if self.either_type(other, ValueType::U8) {
-            ValueType::U8
-        } else if self.either_type(other, ValueType::U16) {
-            ValueType::U16
-        } else if self.either_type(other, ValueType::U32) {
-            ValueType::U32
-        } else if self.either_type(other, ValueType::U64) {
-            ValueType::U64
-        } else if self.either_type(other, ValueType::I8) {
-            ValueType::I8
-        } else if self.either_type(other, ValueType::I16) {
-            ValueType::I16
-        } else if self.either_type(other, ValueType::I32) {
-            ValueType::I32
-        } else if self.either_type(other, ValueType::I64) {
-            ValueType::I64
         } else {
-            panic!(
-                "Type {:?} was not recognized; this should never happen",
-                self
-            );
+            match (self.own_type(), other.own_type()) {
+                (ValueType::Range, _) | (_, ValueType::Range) => ValueType::Range,
+                (ValueType::Object, _) | (_, ValueType::Object) => ValueType::Object,
+                (ValueType::Array, _) | (_, ValueType::Array) => ValueType::Array,
+                (ValueType::String, _) | (_, ValueType::String) => ValueType::String,
+
+                (ValueType::Currency, _) | (_, ValueType::Currency) => ValueType::Currency,
+                (ValueType::Fixed, _) | (_, ValueType::Fixed) => ValueType::Fixed,
+                (ValueType::Float, _) | (_, ValueType::Float) => ValueType::Float,
+                (ValueType::Int, _) | (_, ValueType::Int) => ValueType::Int,
+
+                (ValueType::I64, _) | (_, ValueType::I64) => ValueType::I64,
+                (ValueType::U64, _) | (_, ValueType::U64) => ValueType::U64,
+                (ValueType::I32, _) | (_, ValueType::I32) => ValueType::I32,
+                (ValueType::U32, _) | (_, ValueType::U32) => ValueType::U32,
+                (ValueType::I16, _) | (_, ValueType::I16) => ValueType::I16,
+                (ValueType::U16, _) | (_, ValueType::U16) => ValueType::U16,
+                (ValueType::I8, _) | (_, ValueType::I8) => ValueType::I8,
+                (ValueType::U8, _) | (_, ValueType::U8) => ValueType::U8,
+
+                (ValueType::Bool, _) | (_, ValueType::Bool) => ValueType::Bool,
+
+                (ValueType::Numeric, _) | (_, ValueType::Numeric) => ValueType::Numeric,
+                (ValueType::Compound, _) | (_, ValueType::Compound) => ValueType::Compound,
+                (ValueType::Any, _) => ValueType::Any,
+            }
         }
     }
 
-    /// Compares two values using, ignoring type
+    /// Compares two values, ignoring type
     pub fn weak_equality(&self, other: &Self) -> Result<bool, Error> {
         let (l, r) = self.resolve(other)?;
         Ok(l == r)
+    }
+
+    /// Compares two values, ignoring type
+    fn weak_ord(&self, other: &Self) -> Result<std::cmp::Ordering, Error> {
+        let (l, r) = self.resolve(other)?;
+        let res = match l.own_type() {
+            ValueType::Bool => Bool::cmp(&l.as_a::<Bool>().unwrap(), &r.as_a::<Bool>().unwrap()),
+            ValueType::Fixed => {
+                Fixed::cmp(&l.as_a::<Fixed>().unwrap(), &r.as_a::<Fixed>().unwrap())
+            }
+            ValueType::Float => {
+                Float::cmp(&l.as_a::<Float>().unwrap(), &r.as_a::<Float>().unwrap())
+            }
+            ValueType::Currency => Currency::cmp(
+                &l.as_a::<Currency>().unwrap(),
+                &r.as_a::<Currency>().unwrap(),
+            ),
+            ValueType::Int => Int::cmp(&l.as_a::<Int>().unwrap(), &r.as_a::<Int>().unwrap()),
+
+            ValueType::U8 => U8::cmp(&l.as_a::<U8>().unwrap(), &r.as_a::<U8>().unwrap()),
+            ValueType::U16 => U16::cmp(&l.as_a::<U16>().unwrap(), &r.as_a::<U16>().unwrap()),
+            ValueType::U32 => U32::cmp(&l.as_a::<U32>().unwrap(), &r.as_a::<U32>().unwrap()),
+            ValueType::U64 => U64::cmp(&l.as_a::<U64>().unwrap(), &r.as_a::<U64>().unwrap()),
+
+            ValueType::I8 => I8::cmp(&l.as_a::<I8>().unwrap(), &r.as_a::<I8>().unwrap()),
+            ValueType::I16 => I16::cmp(&l.as_a::<I16>().unwrap(), &r.as_a::<I16>().unwrap()),
+            ValueType::I32 => I32::cmp(&l.as_a::<I32>().unwrap(), &r.as_a::<I32>().unwrap()),
+            ValueType::I64 => I64::cmp(&l.as_a::<I64>().unwrap(), &r.as_a::<I64>().unwrap()),
+
+            ValueType::String => Str::cmp(&l.as_a::<Str>().unwrap(), &r.as_a::<Str>().unwrap()),
+            ValueType::Range => {
+                Range::cmp(&l.as_a::<Range>().unwrap(), &r.as_a::<Range>().unwrap())
+            }
+            ValueType::Array => {
+                Array::cmp(&l.as_a::<Array>().unwrap(), &r.as_a::<Array>().unwrap())
+            }
+            ValueType::Object => {
+                Object::cmp(&l.as_a::<Object>().unwrap(), &r.as_a::<Object>().unwrap())
+            }
+
+            ValueType::Numeric => {
+                return Err(Error::ValueConversion {
+                    src_type: self.own_type(),
+                    dst_type: ValueType::Numeric,
+                })
+            }
+
+            ValueType::Compound => {
+                return Err(Error::ValueConversion {
+                    src_type: self.own_type(),
+                    dst_type: ValueType::Compound,
+                })
+            }
+
+            ValueType::Any => {
+                return Err(Error::ValueConversion {
+                    src_type: self.own_type(),
+                    dst_type: ValueType::Any,
+                })
+            }
+        };
+
+        Ok(res)
     }
 }
 
@@ -680,40 +723,61 @@ impl std::fmt::Display for Value {
 
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if let Ok((l, r)) = self.resolve(other) {
-            match l.own_type() {
-                ValueType::Bool => {
-                    Bool::partial_cmp(&l.as_a::<Bool>().unwrap(), &r.as_a::<Bool>().unwrap())
-                }
-                ValueType::Fixed => {
-                    Fixed::partial_cmp(&l.as_a::<Fixed>().unwrap(), &r.as_a::<Fixed>().unwrap())
-                }
-                ValueType::Float => {
-                    Float::partial_cmp(&l.as_a::<Float>().unwrap(), &r.as_a::<Float>().unwrap())
-                }
-                ValueType::Currency => Currency::partial_cmp(
-                    &l.as_a::<Currency>().unwrap(),
-                    &r.as_a::<Currency>().unwrap(),
-                ),
-                ValueType::Int => {
-                    Int::partial_cmp(&l.as_a::<Int>().unwrap(), &r.as_a::<Int>().unwrap())
-                }
-                ValueType::String => {
-                    Str::partial_cmp(&l.as_a::<Str>().unwrap(), &r.as_a::<Str>().unwrap())
-                }
-                ValueType::Range => {
-                    Range::partial_cmp(&l.as_a::<Range>().unwrap(), &r.as_a::<Range>().unwrap())
-                }
-                ValueType::Array => {
-                    Array::partial_cmp(&l.as_a::<Array>().unwrap(), &r.as_a::<Array>().unwrap())
-                }
-                ValueType::Object => {
-                    Object::partial_cmp(&l.as_a::<Object>().unwrap(), &r.as_a::<Object>().unwrap())
-                }
-                _ => unreachable!(),
+        let weak_order = self.weak_ord(other).ok()?;
+        if weak_order == std::cmp::Ordering::Equal && self.own_type() != other.own_type() {
+            match (self, other) {
+                (Value::Bool(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::Bool(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::U8(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::U8(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::I8(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::I8(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::U16(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::U16(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::I16(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::I16(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::U32(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::U32(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::I32(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::I32(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::U64(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::U64(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::I64(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::I64(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::Int(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::Int(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::Float(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::Float(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::Fixed(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::Fixed(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::Currency(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::Currency(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::String(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::String(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::Range(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::Range(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::Array(_), _) => Some(std::cmp::Ordering::Less),
+                (_, Value::Array(_)) => Some(std::cmp::Ordering::Greater),
+
+                (Value::Object(_), _) => Some(std::cmp::Ordering::Greater),
             }
         } else {
-            None
+            Some(weak_order)
         }
     }
 }
@@ -723,9 +787,18 @@ impl Ord for Value {
         if let Some(ordering) = self.partial_cmp(other) {
             ordering
         } else {
+            // Ranges-other will always be a weak-comparison
+            if self.either_type(other, ValueType::Range) {
+                if other.is_a(ValueType::Compound) {
+                    return std::cmp::Ordering::Less;
+                } else {
+                    return std::cmp::Ordering::Greater;
+                }
+            }
+
             // We should in theory never get here
             // Anything here is a bug in resolution order logic
-            panic!("Could not compare values")
+            panic!("Could not compare values {:?} and {:?}", self, other);
         }
     }
 }
@@ -764,7 +837,11 @@ impl BooleanOperationExt for Value {
             (Value::Object(l), Value::Object(r)) => {
                 Object::boolean_op(&l, &r, operation).map(Into::into)
             }
-            _ => unreachable!("Invalid type combination during boolean operation"),
+            (Value::Range(l), Value::Range(r)) => {
+                Range::boolean_op(&l, &r, operation).map(Into::into)
+            }
+
+            _ => unreachable!("Invalid type combination for boolean operation"),
         }
     }
 
@@ -846,6 +923,9 @@ impl ArithmeticOperationExt for Value {
             }
             (Value::Object(l), Value::Object(r)) => {
                 Object::arithmetic_op(&l, &r, operation).map(Into::into)
+            }
+            (Value::Range(l), Value::Range(r)) => {
+                Range::arithmetic_op(&l, &r, operation).map(Into::into)
             }
             _ => unreachable!("Invalid type combination during boolean operation"),
         }
@@ -940,7 +1020,13 @@ impl ArithmeticOperationExt for Value {
                 &other.as_a::<Object>().unwrap(),
                 operation,
             ),
-            _ => unreachable!(),
+            ValueType::Range => Range::is_operator_supported(
+                &self.as_a::<Range>().unwrap(),
+                &other.as_a::<Range>().unwrap(),
+                operation,
+            ),
+
+            ValueType::Numeric | ValueType::Compound | ValueType::Any => false,
         }
     }
 }
@@ -960,12 +1046,22 @@ impl MatchingOperationExt for Value {
             return Ok(Value::Bool(Bool::new(
                 &container.own_type().to_string() == type_name.inner(),
             )));
-        }
-
-        if container.is_a(ValueType::Compound) {
-            Array::matching_op(&container.as_a::<Array>()?, pattern, operation)
         } else {
-            Str::matching_op(&container.as_a::<Str>()?, pattern, operation)
+            match container.own_type() {
+                ValueType::Array => {
+                    return Array::matching_op(&container.as_a::<Array>()?, pattern, operation)
+                }
+
+                ValueType::Object => {
+                    return Object::matching_op(&container.as_a::<Object>()?, pattern, operation)
+                }
+
+                ValueType::Range => {
+                    return Range::matching_op(&container.as_a::<Range>()?, pattern, operation)
+                }
+
+                _ => Str::matching_op(&container.as_a::<Str>()?, pattern, operation),
+            }
         }
     }
 }
@@ -1056,16 +1152,143 @@ impl IndexingMutationExt for Value {
 
 #[cfg(test)]
 mod test {
+    use std::{cmp::Ordering, vec};
+
     use super::*;
     use fpdec::Decimal;
 
     #[test]
+    fn test_valuetype() {
+        // serialize / deserialize valuetype
+        let serialized = serde_json::to_string(&ValueType::Bool).unwrap();
+        let deserialized: ValueType = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, ValueType::Bool);
+
+        // display
+        assert_eq!(format!("{}", ValueType::Bool), "bool");
+        assert_eq!(format!("{}", ValueType::Fixed), "fixed");
+        assert_eq!(format!("{}", ValueType::Float), "float");
+        assert_eq!(format!("{}", ValueType::Currency), "currency");
+        assert_eq!(format!("{}", ValueType::Int), "int");
+        assert_eq!(format!("{}", ValueType::String), "string");
+        assert_eq!(format!("{}", ValueType::Array), "array");
+        assert_eq!(format!("{}", ValueType::Object), "object");
+        assert_eq!(format!("{}", ValueType::Range), "range");
+        assert_eq!(format!("{}", ValueType::Compound), "compound");
+        assert_eq!(format!("{}", ValueType::Numeric), "numeric");
+        assert_eq!(format!("{}", ValueType::Any), "any");
+        assert_eq!(format!("{}", ValueType::U8), "u8");
+        assert_eq!(format!("{}", ValueType::U16), "u16");
+        assert_eq!(format!("{}", ValueType::U32), "u32");
+        assert_eq!(format!("{}", ValueType::U64), "u64");
+        assert_eq!(format!("{}", ValueType::I8), "i8");
+        assert_eq!(format!("{}", ValueType::I16), "i16");
+        assert_eq!(format!("{}", ValueType::I32), "i32");
+        assert_eq!(format!("{}", ValueType::I64), "i64");
+
+        // try_from str
+        assert_eq!(ValueType::try_from("bool").unwrap(), ValueType::Bool);
+        assert_eq!(ValueType::try_from("fixed").unwrap(), ValueType::Fixed);
+        assert_eq!(ValueType::try_from("float").unwrap(), ValueType::Float);
+        assert_eq!(
+            ValueType::try_from("currency").unwrap(),
+            ValueType::Currency
+        );
+        assert_eq!(ValueType::try_from("int").unwrap(), ValueType::Int);
+        assert_eq!(ValueType::try_from("string").unwrap(), ValueType::String);
+        assert_eq!(ValueType::try_from("array").unwrap(), ValueType::Array);
+        assert_eq!(ValueType::try_from("object").unwrap(), ValueType::Object);
+        assert_eq!(ValueType::try_from("range").unwrap(), ValueType::Range);
+        assert_eq!(
+            ValueType::try_from("compound").unwrap(),
+            ValueType::Compound
+        );
+        assert_eq!(ValueType::try_from("numeric").unwrap(), ValueType::Numeric);
+        assert_eq!(ValueType::try_from("any").unwrap(), ValueType::Any);
+        ValueType::try_from("poo").unwrap_err();
+    }
+
+    #[test]
+    fn test_from_json_value() {
+        let value = serde_json::json!({
+            "bool": true,
+            "fixed": 1.0,
+            "float": 1.0,
+            "currency": 1.0,
+            "int": 1,
+            "string": "abc",
+            "array": [1, 2, 3],
+            "object": {"a": 1},
+            "range": [1, 2, 3],
+            "null": serde_json::Value::Null,
+        });
+        let value = Value::try_from(value).unwrap();
+        assert_eq!(value.own_type(), ValueType::Object);
+        assert_eq!(
+            value.as_a::<Object>().unwrap().get(&Value::from("bool")),
+            Some(&Value::from(true))
+        );
+        assert_eq!(
+            value.as_a::<Object>().unwrap().get(&Value::from("fixed")),
+            Some(&Value::from(1.0))
+        );
+        assert_eq!(
+            value.as_a::<Object>().unwrap().get(&Value::from("float")),
+            Some(&Value::from(1.0))
+        );
+        assert_eq!(
+            value
+                .as_a::<Object>()
+                .unwrap()
+                .get(&Value::from("currency")),
+            Some(&Value::from(1.0))
+        );
+        assert_eq!(
+            value.as_a::<Object>().unwrap().get(&Value::from("int")),
+            Some(&Value::from(1))
+        );
+        assert_eq!(
+            value.as_a::<Object>().unwrap().get(&Value::from("string")),
+            Some(&Value::from("abc"))
+        );
+        assert_eq!(
+            value.as_a::<Object>().unwrap().get(&Value::from("array")),
+            Some(&Value::from(vec![
+                Value::from(1),
+                Value::from(2),
+                Value::from(3)
+            ]))
+        );
+        assert_eq!(
+            value.as_a::<Object>().unwrap().get(&Value::from("range")),
+            Some(&Value::from(vec![
+                Value::from(1),
+                Value::from(2),
+                Value::from(3)
+            ]))
+        );
+        assert_eq!(
+            value.as_a::<Object>().unwrap().get(&Value::from("null")),
+            Some(&Value::from(""))
+        );
+    }
+
+    #[test]
     fn test_matching() {
-        // lets only test 'is' for now
         let value = Value::from(1.0);
         let pattern = Value::from("float");
         let result = Value::matching_op(&value, &pattern, MatchingOperation::Is)
             .expect("Could not perform matching operation");
+        assert_eq!(result, Value::from(true));
+
+        let value = Value::from(vec![Value::from(1.0)]);
+        let pattern = Value::from(Value::from(1.0));
+        let result = Value::matching_op(&value, &pattern, MatchingOperation::Contains).unwrap();
+        assert_eq!(result, Value::from(true));
+
+        let value = Value::from("test");
+        let pattern = Value::from("test");
+        let result = Value::matching_op(&value, &pattern, MatchingOperation::Matches).unwrap();
         assert_eq!(result, Value::from(true));
     }
 
@@ -1214,9 +1437,23 @@ mod test {
         assert!(value.is_a(ValueType::Compound));
         assert!(!value.is_a(ValueType::Object));
 
-        let value = Value::from(1);
-        assert!(value.is_a(ValueType::Numeric));
-        assert!(value.is_a(ValueType::Any));
+        assert!(Value::from(1).is_a(ValueType::Numeric));
+        assert!(Value::from(1).is_a(ValueType::Any));
+
+        assert!(Value::from(1.0).is_a(ValueType::Numeric));
+        assert!(Value::from(Decimal::ZERO).is_a(ValueType::Numeric));
+        assert!(
+            Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO)))
+                .is_a(ValueType::Numeric)
+        );
+        assert!(Value::from(1u8).is_a(ValueType::Numeric));
+        assert!(Value::from(1u16).is_a(ValueType::Numeric));
+        assert!(Value::from(1u32).is_a(ValueType::Numeric));
+        assert!(Value::from(1u64).is_a(ValueType::Numeric));
+        assert!(Value::from(1i8).is_a(ValueType::Numeric));
+        assert!(Value::from(1i16).is_a(ValueType::Numeric));
+        assert!(Value::from(I32::new(1)).is_a(ValueType::Numeric));
+        assert!(Value::from(I64::new(1)).is_a(ValueType::Numeric));
     }
 
     #[test]
@@ -1270,6 +1507,79 @@ mod test {
             value.as_type(ValueType::Numeric).unwrap(),
             Value::from(Fixed::from(Decimal::ZERO))
         );
+
+        assert_eq!(
+            Value::from(1).as_type(ValueType::Bool).unwrap(),
+            Value::from(true)
+        );
+
+        assert_eq!(
+            Value::from(0).as_type(ValueType::Fixed).unwrap(),
+            Value::from(Fixed::from(Decimal::ZERO))
+        );
+
+        assert_eq!(
+            Value::from(0).as_type(ValueType::Currency).unwrap(),
+            Value::from(CurrencyInner::from_fixed(Fixed::from(Decimal::ZERO)))
+        );
+
+        assert_eq!(
+            Value::from(1).as_type(ValueType::String).unwrap(),
+            Value::from("1")
+        );
+
+        assert_eq!(
+            Value::from(1).as_type(ValueType::Array).unwrap(),
+            Value::from(vec![Value::from(1)])
+        );
+
+        assert_eq!(
+            Value::from(1).as_type(ValueType::Object).unwrap(),
+            Value::try_from(vec![(Value::from(0), Value::from(1))]).unwrap()
+        );
+
+        // u8 etc
+        assert_eq!(
+            Value::from(1).as_type(ValueType::U8).unwrap(),
+            Value::from(1u8)
+        );
+        assert_eq!(
+            Value::from(1).as_type(ValueType::U16).unwrap(),
+            Value::from(1u16)
+        );
+        assert_eq!(
+            Value::from(1).as_type(ValueType::U32).unwrap(),
+            Value::from(1u32)
+        );
+        assert_eq!(
+            Value::from(1).as_type(ValueType::U64).unwrap(),
+            Value::from(1u64)
+        );
+        assert_eq!(
+            Value::from(1).as_type(ValueType::I8).unwrap(),
+            Value::from(1i8)
+        );
+        assert_eq!(
+            Value::from(1).as_type(ValueType::I16).unwrap(),
+            Value::from(1i16)
+        );
+        assert_eq!(
+            Value::from(1).as_type(ValueType::I32).unwrap(),
+            Value::from(I32::new(1))
+        );
+        assert_eq!(
+            Value::from(1).as_type(ValueType::I64).unwrap(),
+            Value::from(I64::new(1))
+        );
+
+        Value::from(vec![Value::from(1)])
+            .as_type(ValueType::Compound)
+            .unwrap();
+
+        Value::from(1).as_type(ValueType::Range).unwrap_err();
+
+        let u = u8::try_from(1i64);
+        assert!(u.is_ok());
     }
 
     #[test]
@@ -1308,6 +1618,51 @@ mod test {
         let a = Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO)));
         let b = Value::from(Fixed::from(Decimal::ZERO));
         assert_eq!(a.type_for_comparison(&b), ValueType::Currency);
+
+        // u8/u16 = u16
+        let a = Value::from(1u8);
+        let b = Value::from(1u16);
+        assert_eq!(a.type_for_comparison(&b), ValueType::U16);
+
+        // u8/u32 = u32
+        let a = Value::from(1u8);
+        let b = Value::from(1u32);
+        assert_eq!(a.type_for_comparison(&b), ValueType::U32);
+
+        // u8/u64 = u64
+        let a = Value::from(1u8);
+        let b = Value::from(1u64);
+        assert_eq!(a.type_for_comparison(&b), ValueType::U64);
+
+        // u8/i8 = i8
+        let a = Value::from(1u8);
+        let b = Value::from(1i8);
+        assert_eq!(a.type_for_comparison(&b), ValueType::I8);
+
+        // u8/i16 = i16
+        let a = Value::from(1u8);
+        let b = Value::from(1i16);
+        assert_eq!(a.type_for_comparison(&b), ValueType::I16);
+
+        // u8/i32 = i32
+        let a = Value::from(1u8);
+        let b = Value::from(I32::new(1));
+        assert_eq!(a.type_for_comparison(&b), ValueType::I32);
+
+        // u8/i64 = i64
+        let a = Value::from(1u8);
+        let b = Value::from(I64::new(1));
+        assert_eq!(a.type_for_comparison(&b), ValueType::I64);
+
+        // u8/bool = u8
+        let a = Value::from(1u8);
+        let b = Value::from(true);
+        assert_eq!(a.type_for_comparison(&b), ValueType::U8);
+
+        // bool / bool = bool
+        let a = Value::from(true);
+        let b = Value::from(false);
+        assert_eq!(a.type_for_comparison(&b), ValueType::Bool);
     }
 
     #[test]
@@ -1330,26 +1685,118 @@ mod test {
             Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO))).to_string(),
             "$0.00"
         );
+
+        assert_eq!(Value::from(1u8).to_string(), "1");
+        assert_eq!(Value::from(1u16).to_string(), "1");
+        assert_eq!(Value::from(1u32).to_string(), "1");
+        assert_eq!(Value::from(1u64).to_string(), "1");
+        assert_eq!(Value::from(1i8).to_string(), "1");
+        assert_eq!(Value::from(1i16).to_string(), "1");
+        assert_eq!(Value::from(I32::new(1)).to_string(), "1");
+        assert_eq!(Value::from(I64::new(1)).to_string(), "1");
     }
 
     #[test]
     fn test_ord() {
-        // 2 of the same - string to string
-        assert!(Value::from("abc") < Value::from("def"));
-        assert!(Value::from("def") > Value::from("abc"));
-        assert!(Value::from("abc") == Value::from("abc"));
+        /*
+         * We test all possible combinations of types
+         * and make sure that the ordering is correct
+         * We do not need to test all possible values
+         * as the underlying types should test those
+         */
 
-        // 2 different, but comparable - float to int
-        assert!(Value::from(2.0) > Value::from(1));
-        assert!(Value::from(1.0) == Value::from(1.0));
+        assert_eq!(Value::from(1u8).cmp(&Value::from(true)), Ordering::Greater);
+        assert_eq!(Value::from(true).cmp(&Value::from(1u8)), Ordering::Less);
 
-        // 2 different, not comparable - big array to int
-        assert!(Value::from(vec![Value::from(1), Value::from(2)]) > Value::from(1));
+        assert_eq!(Value::from(1i8).cmp(&Value::from(1u8)), Ordering::Greater);
+        assert_eq!(Value::from(1u8).cmp(&Value::from(1i8)), Ordering::Less);
 
-        // object to array
-        assert!(
-            Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap()
-                > Value::from(vec![Value::from(1), Value::from(2)])
+        assert_eq!(Value::from(1i8).cmp(&Value::from(1i16)), Ordering::Less);
+        assert_eq!(Value::from(1i16).cmp(&Value::from(1i8)), Ordering::Greater);
+
+        assert_eq!(Value::from(1u16).cmp(&Value::from(1i16)), Ordering::Less);
+        assert_eq!(Value::from(1i16).cmp(&Value::from(1)), Ordering::Less);
+        assert_eq!(Value::from(1).cmp(&Value::from(1i16)), Ordering::Greater);
+
+        assert_eq!(Value::from(1i32).cmp(&Value::from(1u32)), Ordering::Greater);
+        assert_eq!(Value::from(1u32).cmp(&Value::from(1)), Ordering::Less);
+
+        // bool, then u8, i8... etc
+        assert_eq!(Value::from(true).cmp(&Value::from(true)), Ordering::Equal);
+        assert_eq!(Value::from(1u8).cmp(&Value::from(1u8)), Ordering::Equal);
+        assert_eq!(Value::from(1i8).cmp(&Value::from(1i8)), Ordering::Equal);
+        assert_eq!(Value::from(1u16).cmp(&Value::from(1u16)), Ordering::Equal);
+        assert_eq!(Value::from(1i16).cmp(&Value::from(1i16)), Ordering::Equal);
+        assert_eq!(Value::from(1u32).cmp(&Value::from(1u32)), Ordering::Equal);
+        assert_eq!(
+            Value::from(I32::new(1)).cmp(&Value::from(I32::new(1))),
+            Ordering::Equal
+        );
+        assert_eq!(
+            Value::from(I64::new(1)).cmp(&Value::from(I64::new(1))),
+            Ordering::Equal
+        );
+        assert_eq!(Value::from(1i64).cmp(&Value::from(1i64)), Ordering::Equal);
+        assert_eq!(Value::from(1).cmp(&Value::from(1)), Ordering::Equal);
+        assert_eq!(Value::from(1.0).cmp(&Value::from(1.0)), Ordering::Equal);
+        assert_eq!(
+            Value::from(Decimal::ZERO).cmp(&Value::from(Decimal::ZERO)),
+            Ordering::Equal
+        );
+        assert_eq!(
+            Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO))).cmp(&Value::from(
+                CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO))
+            )),
+            Ordering::Equal
+        );
+        assert_eq!(Value::from("a").cmp(&Value::from("a")), Ordering::Equal);
+        assert_eq!(
+            Value::from(0..=10).cmp(&Value::from(0..=10)),
+            Ordering::Equal
+        );
+        assert_eq!(
+            Value::from(vec![Value::from(1)]).cmp(&Value::from(vec![Value::from(1)])),
+            Ordering::Equal
+        );
+        assert_eq!(
+            Value::try_from(vec![(Value::from("a"), Value::from(1))])
+                .unwrap()
+                .cmp(&Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap()),
+            Ordering::Equal
+        );
+
+        // Bool to all
+        assert_eq!(Value::from(true).cmp(&Value::from(1u8)), Ordering::Less);
+        assert_eq!(Value::from(true).cmp(&Value::from(0u8)), Ordering::Greater);
+        assert_eq!(Value::from(true).cmp(&Value::from(1i8)), Ordering::Less);
+        assert_eq!(Value::from(true).cmp(&Value::from(1u16)), Ordering::Less);
+        assert_eq!(Value::from(true).cmp(&Value::from(1i16)), Ordering::Less);
+        assert_eq!(Value::from(true).cmp(&Value::from(1u32)), Ordering::Less);
+        assert_eq!(Value::from(true).cmp(&Value::from(1i32)), Ordering::Less);
+        assert_eq!(Value::from(true).cmp(&Value::from(1u64)), Ordering::Less);
+        assert_eq!(Value::from(true).cmp(&Value::from(1i64)), Ordering::Less);
+        assert_eq!(Value::from(true).cmp(&Value::from(1)), Ordering::Less);
+        assert_eq!(Value::from(true).cmp(&Value::from(1.0)), Ordering::Less);
+        assert_eq!(
+            Value::from(true).cmp(&Value::from(Decimal::ONE)),
+            Ordering::Less
+        );
+        assert_eq!(
+            Value::from(true).cmp(&Value::from(CurrencyInner::as_dollars(Fixed::from(
+                Decimal::ONE
+            )))),
+            Ordering::Less
+        );
+        assert_eq!(Value::from(true).cmp(&Value::from("true")), Ordering::Less);
+        assert_eq!(Value::from(true).cmp(&Value::from(0..=10)), Ordering::Less);
+        assert_eq!(
+            Value::from(true).cmp(&Value::from(vec![Value::from(1)])),
+            Ordering::Less
+        );
+        assert_eq!(
+            Value::from(true)
+                .cmp(&Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap()),
+            Ordering::Less
         );
     }
 
@@ -1414,9 +1861,130 @@ mod test {
             Value::from(100000.0)
         );
 
+        assert_eq!(Value::arithmetic_neg(&a).unwrap(), Value::from(-10));
+
+        Value::arithmetic_neg(&Value::from("test")).unwrap();
+        Value::arithmetic_neg(&Value::from(false)).unwrap();
+        Value::arithmetic_neg(&Value::from(1)).unwrap();
+        Value::arithmetic_neg(&Value::from(1.0)).unwrap();
+        Value::arithmetic_neg(&Value::from(Decimal::ZERO)).unwrap();
+        Value::arithmetic_neg(&Value::from(CurrencyInner::as_dollars(Fixed::from(
+            Decimal::ZERO,
+        ))))
+        .unwrap();
+        Value::arithmetic_op(
+            &Value::from(1u8),
+            &Value::from(1u8),
+            ArithmeticOperation::Add,
+        )
+        .unwrap();
+        Value::arithmetic_op(
+            &Value::from(1u16),
+            &Value::from(1u8),
+            ArithmeticOperation::Add,
+        )
+        .unwrap();
+        Value::arithmetic_op(
+            &Value::from(1u32),
+            &Value::from(1u8),
+            ArithmeticOperation::Add,
+        )
+        .unwrap();
+        Value::arithmetic_op(
+            &Value::from(1u64),
+            &Value::from(1u8),
+            ArithmeticOperation::Add,
+        )
+        .unwrap();
+
+        Value::arithmetic_neg(&Value::from(1i8)).unwrap();
+        Value::arithmetic_neg(&Value::from(1i16)).unwrap();
+        Value::arithmetic_neg(&Value::from(I32::new(1))).unwrap();
+        Value::arithmetic_neg(&Value::from(I64::new(1))).unwrap();
+
+        let a = Value::from(vec![Value::from(1), Value::from(2)]);
+        let b = Value::from(vec![Value::from(3), Value::from(4)]);
+        Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
+
+        let a = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
+        let b = Value::try_from(vec![(Value::from("b"), Value::from(2))]).unwrap();
+        Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
+
+        let a = Value::from(1..=2);
+        let b = Value::from(3..=4);
+        Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap_err();
+
         assert_eq!(
-            Value::arithmetic_op(&a, &a, ArithmeticOperation::Negate).unwrap(),
-            Value::from(-10)
+            true,
+            Value::from(false).is_operator_supported(&Value::from(false), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(1u8).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(1i8).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(1u16).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(1i16).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(1u32).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(I32::new(1))
+                .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(I64::new(1))
+                .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(1u64).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(1).is_operator_supported(&Value::from(1), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(1.0).is_operator_supported(&Value::from(1.0), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(Decimal::ZERO)
+                .is_operator_supported(&Value::from(Decimal::ZERO), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(CurrencyInner::as_dollars(Fixed::from(Decimal::ZERO)))
+                .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            false,
+            Value::from(0..=10)
+                .is_operator_supported(&Value::from(0..=10), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::from(vec![Value::from(1)])
+                .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
+        );
+        assert_eq!(
+            true,
+            Value::try_from(vec![(Value::from("a"), Value::from(1))])
+                .unwrap()
+                .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
     }
 
@@ -1469,6 +2037,8 @@ mod test {
             Value::boolean_op(&a, &b, BooleanOperation::NEQ).unwrap(),
             Value::from(true)
         );
+
+        assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(false));
     }
 
     #[test]
@@ -1488,6 +2058,8 @@ mod test {
             Value::from("abc").get_index(&Value::from(1)).unwrap(),
             Value::from("b")
         );
+
+        Value::from(1.0).get_index(&Value::from(1)).unwrap_err();
 
         // Get indices on array
         let array = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
@@ -1571,6 +2143,45 @@ mod test {
         Value::from(1)
             .set_index(&Value::from(1), Value::from(2))
             .expect_err("Expected error");
+
+        // Delete index on array
+        let mut array = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
+        let v = array.delete_index(&Value::from(1)).unwrap();
+        assert_eq!(v, Value::from(2));
+
+        // Delete index on object
+        let mut object = Value::try_from(vec![
+            (Value::from("a"), Value::from(1)),
+            (Value::from("b"), Value::from(2)),
+        ])
+        .unwrap();
+        let v = object.delete_index(&Value::from("a")).unwrap();
+        assert_eq!(v, Value::from(1));
+
+        // Delete index on float
+        Value::from(1.0)
+            .delete_index(&Value::from(1))
+            .expect_err("Expected error");
+
+        // Get index on range
+        let range = Value::from(Range::from(1..=3));
+        let v = range.get_index(&Value::from(1)).unwrap();
+        assert_eq!(v, Value::from(2));
+
+        // Get indices on range
+        let range = Value::from(Range::from(1..=3));
+        let v = range
+            .get_indices(&Value::from(vec![Value::from(0), Value::from(1)]))
+            .unwrap();
+        assert_eq!(v, Value::from(vec![Value::from(1), Value::from(2)]));
+
+        // Get indices on string
+        assert_eq!(
+            Value::from("abc")
+                .get_indices(&Value::from(vec![Value::from(0), Value::from(1)]))
+                .unwrap(),
+            Value::from("ab")
+        );
     }
 
     #[test]
@@ -1636,6 +2247,39 @@ mod test {
         assert_eq!(
             Value::bitwise_op(&Value::from(1), &r, BitwiseOperation::Not).unwrap(),
             Value::from(0)
+        );
+
+        assert_eq!(
+            Value::bitwise_not(&Value::from(0u8)).unwrap(),
+            Value::from(u8::MAX)
+        );
+        assert_eq!(
+            Value::bitwise_not(&Value::from(0u16)).unwrap(),
+            Value::from(u16::MAX)
+        );
+        assert_eq!(
+            Value::bitwise_not(&Value::from(0u32)).unwrap(),
+            Value::from(u32::MAX)
+        );
+        assert_eq!(
+            Value::bitwise_not(&Value::from(0u64)).unwrap(),
+            Value::from(u64::MAX)
+        );
+        assert_eq!(
+            Value::bitwise_not(&Value::from(0i8)).unwrap(),
+            Value::from((-1) as i8)
+        );
+        assert_eq!(
+            Value::bitwise_not(&Value::from(0i16)).unwrap(),
+            Value::from((-1) as i16)
+        );
+        assert_eq!(
+            Value::bitwise_not(&Value::from(I32::new(0))).unwrap(),
+            Value::from(I32::new(-1))
+        );
+        assert_eq!(
+            Value::bitwise_not(&Value::from(I64::new(0))).unwrap(),
+            Value::from(I64::new(-1))
         );
     }
 

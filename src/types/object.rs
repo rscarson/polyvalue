@@ -124,9 +124,48 @@ map_type!(Str, Object);
 map_type!(Array, Object);
 map_type!(Range, Object);
 
+overload_operator!(Object, add);
+overload_operator!(Object, deref);
+
 //
 // Trait implementations
 //
+
+impl MatchingOperationExt for Object {
+    fn matching_op(
+        container: &Self,
+        pattern: &Value,
+        operation: MatchingOperation,
+    ) -> Result<Value, crate::Error>
+    where
+        Self: Sized,
+    {
+        let result = match operation {
+            MatchingOperation::Contains => {
+                let pattern = pattern.as_a::<Array>()?;
+                pattern
+                    .inner()
+                    .iter()
+                    .all(|p| container.inner().contains_key(p))
+            }
+            MatchingOperation::StartsWith | MatchingOperation::EndsWith => {
+                return Err(Error::UnsupportedOperation {
+                    operation: operation.to_string(),
+                    actual_type: ValueType::Object,
+                })?
+            }
+            MatchingOperation::Matches => {
+                let pattern = pattern.as_a::<Object>()?;
+                container.inner().eq(pattern.inner())
+            }
+
+            // Handled by Value
+            _ => false,
+        };
+
+        Ok(result.into())
+    }
+}
 
 impl ArithmeticOperationExt for Object {
     fn arithmetic_op(
@@ -142,7 +181,7 @@ impl ArithmeticOperationExt for Object {
             }
 
             _ => Err(Error::UnsupportedOperation {
-                operation,
+                operation: operation.to_string(),
                 actual_type: ValueType::Object,
             })?,
         }
@@ -332,6 +371,64 @@ mod test {
             ])
             .unwrap()
         );
+
+        assert!(Object::arithmetic_neg(
+            &Object::try_from(vec![
+                (Value::Int(0.into()), Value::Int(1.into())),
+                (Value::Int(1.into()), Value::Int(2.into())),
+            ])
+            .unwrap()
+        )
+        .is_err());
+
+        assert_eq!(
+            Object::is_operator_supported(
+                &Object::try_from(vec![
+                    (Value::Int(0.into()), Value::Int(1.into())),
+                    (Value::Int(1.into()), Value::Int(2.into())),
+                ])
+                .unwrap(),
+                &Object::try_from(vec![
+                    (Value::Int(0.into()), Value::Int(3.into())),
+                    (Value::Int(1.into()), Value::Int(4.into())),
+                ])
+                .unwrap(),
+                ArithmeticOperation::Add
+            ),
+            true
+        );
+
+        assert_eq!(
+            Object::is_operator_supported(
+                &Object::try_from(vec![
+                    (Value::Int(0.into()), Value::Int(1.into())),
+                    (Value::Int(1.into()), Value::Int(2.into())),
+                ])
+                .unwrap(),
+                &Object::try_from(vec![
+                    (Value::Int(0.into()), Value::Int(3.into())),
+                    (Value::Int(1.into()), Value::Int(4.into())),
+                ])
+                .unwrap(),
+                ArithmeticOperation::Subtract
+            ),
+            false
+        );
+
+        let result = Object::arithmetic_op(
+            &Object::try_from(vec![
+                (Value::Int(0.into()), Value::Int(1.into())),
+                (Value::Int(1.into()), Value::Int(2.into())),
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
+                (Value::Int(0.into()), Value::Int(3.into())),
+                (Value::Int(1.into()), Value::Int(4.into())),
+            ])
+            .unwrap(),
+            ArithmeticOperation::Subtract,
+        );
+        assert!(result.is_err());
     }
 
     #[test]
@@ -472,6 +569,11 @@ mod test {
         )
         .unwrap();
         assert_eq!(result, Value::from(true));
+
+        assert_eq!(
+            Object::boolean_not(&Object::try_from(vec![]).unwrap()).unwrap(),
+            Value::from(true)
+        );
     }
 
     #[test]
@@ -537,5 +639,49 @@ mod test {
             Object::try_from(Value::from(true)).unwrap(),
             Object::try_from(vec![(Value::Int(0.into()), Value::Bool(true.into()))]).unwrap()
         );
+
+        let value = Value::from(0..=99999999);
+        assert!(Object::try_from(value).is_err());
+    }
+
+    #[test]
+    fn test_obj_impl() {
+        let mut obj = Object::try_from(vec![
+            (Value::Int(0.into()), Value::Int(1.into())),
+            (Value::Int(1.into()), Value::Int(2.into())),
+        ])
+        .unwrap();
+
+        assert_eq!(obj.get(&Value::Int(0.into())), Some(&Value::Int(1.into())));
+        assert_eq!(obj.get(&Value::Int(1.into())), Some(&Value::Int(2.into())));
+        assert_eq!(obj.get(&Value::Int(2.into())), None);
+
+        assert_eq!(obj.is_empty(), false);
+
+        assert!(obj.keys().contains(&&Value::Int(0.into())));
+
+        assert_eq!(obj.values().len(), 2);
+
+        assert_eq!(
+            obj.insert(Value::Int(2.into()), Value::Int(3.into()))
+                .unwrap(),
+            None
+        );
+        assert_eq!(obj.get(&Value::Int(2.into())), Some(&Value::Int(3.into())));
+
+        assert_eq!(
+            obj.insert(Value::Int(2.into()), Value::Int(4.into()))
+                .unwrap(),
+            Some(Value::Int(3.into()))
+        );
+        assert_eq!(obj.get(&Value::Int(2.into())), Some(&Value::Int(4.into())));
+
+        assert_eq!(
+            obj.remove(&Value::Int(2.into())),
+            Some(Value::Int(4.into()))
+        );
+        assert_eq!(obj.get(&Value::Int(2.into())), None);
+
+        assert_eq!(obj.remove(&Value::Int(2.into())), None);
     }
 }

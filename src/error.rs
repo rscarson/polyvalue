@@ -1,4 +1,3 @@
-use crate::operations::*;
 use crate::ValueType;
 use thiserror::Error;
 
@@ -6,10 +5,10 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     /// An error caused by attempting to use a value of the wrong type in a calculation
-    #[error("Cannot not perform arithmetic {operation} on {actual_type}")]
+    #[error("Cannot not perform {operation} on {actual_type}")]
     UnsupportedOperation {
         /// Operation that caused the error
-        operation: ArithmeticOperation,
+        operation: String,
 
         /// Type that caused the error
         actual_type: ValueType,
@@ -52,6 +51,10 @@ pub enum Error {
     /// An error caused by attempting to use an type as an object key
     #[error("Type {0} cannot be used as an object key")]
     InvalidTypeForKey(ValueType),
+
+    /// An error caused by attempting to use an invalid regex flag
+    #[error("Invalid regex flag {0}")]
+    InvalidRegexFlag(String),
 
     /// An error caused by attempting to use an unsupported type
     #[error("Unrecognized type {0}. Expected one of [array, bool, currency, fixed, float, int, object, string, numeric, compound, any]")]

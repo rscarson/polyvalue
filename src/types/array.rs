@@ -10,8 +10,6 @@ use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
-const MAX_CONVERTIBLE_RANGE: usize = 0x10000;
-
 /// Inner type used for array storage
 pub type ArrayInner = Vec<Value>;
 
@@ -30,6 +28,9 @@ impl_value!(Array, ArrayInner, |v: &Self| {
 });
 
 impl Array {
+    /// Largest range that can be converted to an array
+    pub const MAX_CONVERTIBLE_RANGE: usize = 0x10000;
+
     /// Pop a value from the array
     pub fn pop(&mut self) -> Option<Value> {
         self.inner_mut().pop()
@@ -73,6 +74,20 @@ impl Array {
     pub fn is_empty(&self) -> bool {
         self.inner().is_empty()
     }
+
+    /// Preallocate space for a large array conversion
+    pub fn prealloc_range_conversion(length: usize) -> Result<Self, Error> {
+        if length > Self::MAX_CONVERTIBLE_RANGE {
+            return Err(Error::RangeTooLarge { length })?;
+        }
+
+        let mut container = ArrayInner::new();
+        if let Err(e) = container.try_reserve(length) {
+            return Err(Error::from(e));
+        }
+
+        Ok(container.into())
+    }
 }
 
 map_value!(
@@ -81,20 +96,12 @@ map_value!(
     handle_from = |v: Value| match v {
         Value::Array(v) => Ok(v),
         Value::Range(v) => {
-            let mut container = ArrayInner::new();
             let length = (v.inner().end() - v.inner().start()) as usize;
-            if length > MAX_CONVERTIBLE_RANGE {
-                return Err(Error::RangeTooLarge { length })?;
-            }
-
-            if let Err(e) = container.try_reserve(length) {
-                return Err(Error::from(e));
-            }
-
+            let mut container = Array::prealloc_range_conversion(length)?;
             for i in v.inner().clone() {
                 container.push(Value::from(i));
             }
-            Ok(container.into())
+            Ok(container)
         }
         Value::Int(_)
         | Value::Bool(_)
@@ -135,6 +142,11 @@ map_type!(Currency, Array);
 map_type!(Str, Array);
 map_type!(Object, Array);
 map_type!(Range, Array);
+
+overload_operator!(Array, add);
+overload_operator!(Array, sub);
+overload_operator!(Array, neg);
+overload_operator!(Array, deref);
 
 impl MatchingOperationExt for Array {
     fn matching_op(
@@ -202,7 +214,7 @@ impl ArithmeticOperationExt for Array {
             }
 
             _ => Err(Error::UnsupportedOperation {
-                operation,
+                operation: operation.to_string(),
                 actual_type: ValueType::Array,
             })?,
         }
@@ -217,9 +229,9 @@ impl ArithmeticOperationExt for Array {
 
     fn is_operator_supported(&self, _other: &Self, operation: ArithmeticOperation) -> bool {
         match operation {
-            ArithmeticOperation::Add => true,
-            ArithmeticOperation::Subtract => true,
-            ArithmeticOperation::Negate => true,
+            ArithmeticOperation::Add
+            | ArithmeticOperation::Subtract
+            | ArithmeticOperation::Negate => true,
             _ => false,
         }
     }
@@ -362,6 +374,32 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_innerarray_impl() {
+        let mut array = Array::from(vec![1.into(), 2.into(), 3.into()]);
+        assert_eq!(array.pop().unwrap(), 3.into());
+        array.push(4.into());
+        assert_eq!(array.pop().unwrap(), 4.into());
+        array.insert(0, 5.into());
+        assert_eq!(array.pop().unwrap(), 2.into());
+        assert_eq!(array.pop().unwrap(), 1.into());
+        assert_eq!(array.pop().unwrap(), 5.into());
+        assert_eq!(array.pop(), None);
+        array.push(1.into());
+        array.push(2.into());
+        array.push(3.into());
+        assert_eq!(array.remove(1).unwrap(), 2.into());
+        assert_eq!(array.remove(1).unwrap(), 3.into());
+        assert_eq!(array.remove(0).unwrap(), 1.into());
+        assert_eq!(array.remove(0), None);
+        assert_eq!(array.len(), 0);
+        assert_eq!(array.is_empty(), true);
+
+        let mut array = Array::from(vec![1.into(), 2.into(), 3.into()]);
+        array.insert(1, 4.into());
+        assert_eq!(array.pop().unwrap(), 3.into());
+    }
+
+    #[test]
     fn test_matching() {
         let array = Array::from(vec![1.into(), 2.into(), 3.into()]);
         assert_eq!(
@@ -469,7 +507,10 @@ mod test {
         *array.get_index_mut(&0.into()).unwrap() = 4.into();
         assert_eq!(array.get_index_mut(&0.into()).unwrap(), &mut 4.into());
 
+        array.delete_index(&99.into()).unwrap_err();
+
         // test set_index
+        array.set_index(&99.into(), 5.into()).unwrap_err();
         array.set_index(&0.into(), 5.into()).unwrap();
         assert_eq!(array.get_index(&0.into()).unwrap(), 5.into());
 
@@ -528,6 +569,17 @@ mod test {
             Array::arithmetic_neg(&array).unwrap(),
             Array::from(vec![3.into(), 2.into(), 1.into()])
         );
+
+        assert_eq!(
+            Array::is_operator_supported(&array, &array, ArithmeticOperation::Add),
+            true
+        );
+
+        assert_eq!(
+            Array::is_operator_supported(&array, &array, ArithmeticOperation::Exponentiate),
+            false
+        );
+        assert!(Array::arithmetic_op(&array, &array, ArithmeticOperation::Exponentiate).is_err())
     }
 
     #[test]
@@ -603,6 +655,8 @@ mod test {
             Array::boolean_op(&array, &Array::from(vec![1.into()]), BooleanOperation::Not).unwrap(),
             false.into()
         );
+
+        assert_eq!(Array::boolean_not(&array).unwrap(), false.into());
     }
 
     #[test]

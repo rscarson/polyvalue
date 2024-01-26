@@ -5,15 +5,19 @@
 //!
 use crate::{Error, Value, ValueType};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
+#[allow(unused_imports)]
+use std::collections::{BTreeMap, HashMap};
+
+type InnerObjectMeta = BTreeMap<Value, Value>;
 
 /// Inner type used for object storage
-#[derive(PartialEq, Eq, Clone, Default, Debug)]
-pub struct ObjectInner(HashMap<Value, Value>);
+#[derive(PartialEq, Eq, Clone, Default, Debug, PartialOrd, Ord, Hash)]
+pub struct ObjectInner(InnerObjectMeta);
 impl ObjectInner {
     /// Create a new `ObjectInner`
     pub fn new() -> Self {
-        Self(HashMap::new())
+        Self(InnerObjectMeta::new())
     }
 
     /// Insert a key-value pair into the object, if the key is not a compound type
@@ -29,27 +33,27 @@ impl ObjectInner {
         self.0.remove(key)
     }
 
-    /// Invokes the inner `HashMap`'s iterator
+    /// Invokes the inner `InnerObjectMeta`'s iterator
     pub fn iter(&self) -> impl Iterator<Item = (&Value, &Value)> {
         self.0.iter()
     }
 
-    /// Invokes the inner `HashMap`'s mutable iterator
+    /// Invokes the inner `InnerObjectMeta`'s mutable iterator
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Value, &mut Value)> {
         self.0.iter_mut()
     }
 
-    /// Extends the inner `HashMap` with another
+    /// Extends the inner `InnerObjectMeta` with another
     pub fn extend(&mut self, other: ObjectInner) {
         self.0.extend(other.0);
     }
 
-    /// The number of key-value pairs in the inner `HashMap`
+    /// The number of key-value pairs in the inner `InnerObjectMeta`
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    /// Returns true if the inner `HashMap` is empty
+    /// Returns true if the inner `InnerObjectMeta` is empty
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -64,12 +68,12 @@ impl ObjectInner {
         self.0.get_mut(key)
     }
 
-    /// Get the keys from the inner `HashMap`
+    /// Get the keys from the inner `InnerObjectMeta`
     pub fn keys(&self) -> impl Iterator<Item = &Value> {
         self.0.keys()
     }
 
-    /// Get the values from the inner `HashMap`
+    /// Get the values from the inner `InnerObjectMeta`
     pub fn values(&self) -> impl Iterator<Item = &Value> {
         self.0.values()
     }
@@ -79,7 +83,7 @@ impl ObjectInner {
         self.0.contains_key(key)
     }
 
-    /// Get a mutable reference to the inner `HashMap`'s values
+    /// Get a mutable reference to the inner `InnerObjectMeta`'s values
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> {
         self.0.values_mut()
     }
@@ -127,30 +131,6 @@ impl Serialize for ObjectInner {
     }
 }
 
-impl std::hash::Hash for ObjectInner {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let mut v: Vec<(&Value, &Value)> = self.0.iter().collect();
-        v.sort_by_key(|(k, _)| *k);
-        v.hash(state);
-    }
-}
-
-impl PartialOrd for ObjectInner {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let mut v1: Vec<(&Value, &Value)> = self.0.iter().collect();
-        let mut v2: Vec<(&Value, &Value)> = other.0.iter().collect();
-        v1.sort_by_key(|(k, _)| *k);
-        v2.sort_by_key(|(k, _)| *k);
-        v1.partial_cmp(&v2)
-    }
-}
-
-impl Ord for ObjectInner {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
-    }
-}
-
 #[cfg(test)]
 mod test {
     use std::hash::Hash;
@@ -162,6 +142,62 @@ mod test {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         obj.hash(&mut hasher);
         std::hash::Hasher::finish(&hasher)
+    }
+
+    #[test]
+    fn test_nd_ord() {
+        fn cmp_objects() {
+            let mut obj = ObjectInner::new();
+            obj.insert(Value::from(false), Value::from(0)).unwrap();
+            obj.insert(Value::from(0), Value::from(1)).unwrap();
+            obj.insert(Value::from(0.0), Value::from(2)).unwrap();
+            obj.insert(Value::from(Decimal::ZERO), Value::from(3))
+                .unwrap();
+            obj.insert(Value::from("".to_string()), Value::from(4))
+                .unwrap();
+
+            let mut obj2 = ObjectInner::new();
+            obj2.insert(Value::from(0), Value::from(1)).unwrap();
+            obj2.insert(Value::from(0.0), Value::from(2)).unwrap();
+            obj2.insert(Value::from(Decimal::ZERO), Value::from(3))
+                .unwrap();
+            obj2.insert(Value::from("".to_string()), Value::from(4))
+                .unwrap();
+
+            assert_eq!(obj.cmp(&obj2), std::cmp::Ordering::Less);
+        }
+
+        for _ in 0..100 {
+            cmp_objects();
+        }
+    }
+
+    #[test]
+    fn test_ord() {
+        let mut obj = ObjectInner::new();
+        obj.insert(Value::from(false), Value::from(0)).unwrap();
+        obj.insert(Value::from(0), Value::from(1)).unwrap();
+        obj.insert(Value::from(0.0), Value::from(2)).unwrap();
+        obj.insert(Value::from(Decimal::ZERO), Value::from(3))
+            .unwrap();
+        obj.insert(Value::from("".to_string()), Value::from(4))
+            .unwrap();
+
+        let mut obj2 = obj.clone();
+        assert_eq!(obj, obj2);
+        assert_eq!(obj.cmp(&obj2), std::cmp::Ordering::Equal);
+
+        obj2.remove(&Value::from(false));
+        assert_ne!(obj, obj2);
+        assert_eq!(obj.cmp(&obj2), std::cmp::Ordering::Less);
+
+        obj2.insert(Value::from(false), Value::from(0)).unwrap();
+        assert_eq!(obj, obj2);
+        assert_eq!(obj.cmp(&obj2), std::cmp::Ordering::Equal);
+
+        obj2.insert(Value::from(0), Value::from(5)).unwrap();
+        assert_ne!(obj, obj2);
+        assert_eq!(obj.cmp(&obj2), std::cmp::Ordering::Less);
     }
 
     #[test]
@@ -240,10 +276,51 @@ mod test {
 
         // Now we ensure it stored as a vector of tuples
         let serialized = serde_json::to_string(&obj).unwrap();
+        println!("{}", serialized);
         assert!(serialized.starts_with("[["));
 
         // Make sure we can deserialize it back
         let obj2 = serde_json::from_str::<ObjectInner>(&serialized).unwrap();
         assert_eq!(obj, obj2);
+
+        // Invalid objects should not panic
+        serde_json::from_str::<ObjectInner>("[[1]]").unwrap_err();
+    }
+
+    #[test]
+    fn test_impl() {
+        let mut obj = ObjectInner::new();
+        obj.insert(Value::from(false), Value::from(0)).unwrap();
+        obj.insert(Value::from(0), Value::from(1)).unwrap();
+
+        assert_eq!(obj.len(), 2);
+        assert!(!obj.is_empty());
+        assert_eq!(obj.get(&Value::from(false)), Some(&Value::from(0)));
+        assert_eq!(obj.get_mut(&Value::from(false)), Some(&mut Value::from(0)));
+
+        assert_eq!(
+            obj.values().collect::<Vec<_>>(),
+            vec![&Value::from(0), &Value::from(1)]
+        );
+
+        assert_eq!(
+            obj.values_mut().collect::<Vec<_>>(),
+            vec![&mut Value::from(0), &mut Value::from(1)]
+        );
+
+        assert_eq!(
+            obj.keys().collect::<Vec<_>>(),
+            vec![&Value::from(false), &Value::from(0)]
+        );
+
+        obj.retain(|k, v| {
+            if k == &Value::from(false) {
+                *v = Value::from(2);
+                false
+            } else {
+                true
+            }
+        });
+        assert_eq!(obj.len(), 1);
     }
 }

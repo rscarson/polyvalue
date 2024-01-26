@@ -20,7 +20,9 @@ mod macros {
             /// A subtype of `Value` that represents a specific integer variant
             pub struct $name($subtype);
 
-            impl crate::ValueTrait<$subtype> for $name {
+            impl crate::ValueTrait for $name {
+                type Inner = $subtype;
+
                 fn new(inner: $subtype) -> Self {
                     Self(inner)
                 }
@@ -77,14 +79,14 @@ mod macros {
                         }
                     };
 
-                    let value = IntInner::from_str_radix(&s, radix).map_err(|_| {
+                    let value = $subtype::from_str_radix(&s, radix).map_err(|_| {
                         Error::ValueConversion {
                             src_type: ValueType::String,
                             dst_type: ValueType::Int,
                         }
                     })?;
 
-                    if value > <$subtype>::MAX as IntInner || value < <$subtype>::MIN as IntInner {
+                    if value > <$subtype>::MAX || value < <$subtype>::MIN {
                         return Err(Error::Overflow);
                     }
                     Ok($name::new(value as $subtype))
@@ -98,110 +100,86 @@ mod macros {
 
                     Value::U8(v) => {
                         let v = *v.inner() as u8;
-                        if v > <$subtype>::MAX as u8 || v < <$subtype>::MIN as u8 {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(v as $subtype))
-                        }
+                        $subtype::try_from(v)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
 
                     Value::U16(v) => {
                         let v = *v.inner() as u16;
-                        if v > <$subtype>::MAX as u16 || v < <$subtype>::MIN as u16 {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(v as $subtype))
-                        }
+                        $subtype::try_from(v)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
 
                     Value::U32(v) => {
                         let v = *v.inner() as u32;
-                        if v > <$subtype>::MAX as u32 || v < <$subtype>::MIN as u32 {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(v as $subtype))
-                        }
+                        $subtype::try_from(v)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
 
                     Value::U64(v) => {
                         let v = *v.inner() as u64;
-                        if v > <$subtype>::MAX as u64 || v < <$subtype>::MIN as u64 {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(v as $subtype))
-                        }
+                        $subtype::try_from(v)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
 
                     Value::I8(v) => {
                         let v = *v.inner() as i8;
-                        if v > <$subtype>::MAX as i8 || v < <$subtype>::MIN as i8 {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(v as $subtype))
-                        }
+                        $subtype::try_from(v)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
 
                     Value::I16(v) => {
                         let v = *v.inner() as i16;
-                        if v > <$subtype>::MAX as i16 || v < <$subtype>::MIN as i16 {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(v as $subtype))
-                        }
+                        $subtype::try_from(v)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
 
                     Value::I32(v) => {
                         let v = *v.inner() as i32;
-                        if v > <$subtype>::MAX as i32 || v < <$subtype>::MIN as i32 {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(v as $subtype))
-                        }
+                        $subtype::try_from(v)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
 
                     Value::I64(v) => {
                         let v = *v.inner() as IntInner;
-                        if v > <$subtype>::MAX as IntInner || v < <$subtype>::MIN as IntInner {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(v as $subtype))
-                        }
+                        $subtype::try_from(v)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
 
                     Value::Int(v) => {
                         let v = *v.inner();
-                        if v > <$subtype>::MAX as IntInner || v < <$subtype>::MIN as IntInner {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(v as $subtype))
-                        }
+                        $subtype::try_from(v)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
                     Value::Fixed(v) => {
                         let p = *v.inner();
                         let p: IntInner = p.trunc().coefficient() as IntInner;
-                        if p > <$subtype>::MAX as IntInner || p < <$subtype>::MIN as IntInner {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(p as $subtype))
-                        }
+                        $subtype::try_from(p)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
                     Value::Float(v) => {
                         let p = *v.inner();
-                        let p = p as i64;
-                        if p > <$subtype>::MAX as IntInner || p < <$subtype>::MIN as IntInner {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(p as $subtype))
-                        }
+                        let p = p.trunc() as IntInner;
+                        $subtype::try_from(p)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
                     Value::Currency(v) => {
                         let p = *v.inner().value().inner();
                         let p: IntInner = p.trunc().coefficient() as IntInner;
-                        if p > <$subtype>::MAX as IntInner || p < <$subtype>::MIN as IntInner {
-                            Err(Error::Overflow)
-                        } else {
-                            Ok($name::new(p as $subtype))
-                        }
+                        $subtype::try_from(p)
+                            .map_err(|_| Error::Overflow)
+                            .and_then(|v| Ok($name::new(v)))
                     }
                     Value::Bool(v) => {
                         let p = *v.inner() as i64;
@@ -255,6 +233,10 @@ mod macros {
             map_type!(Object, $name);
             map_type!(Range, $name);
 
+            overload_operator!($name, arithmetic);
+            overload_operator!($name, bitwise);
+            overload_operator!($name, deref);
+
             #[allow(unused_comparisons)]
             impl ArithmeticOperationExt for $name {
                 fn arithmetic_op(
@@ -283,7 +265,7 @@ mod macros {
                                 Some(-(left as i64) as $subtype)
                             } else {
                                 return Err(Error::UnsupportedOperation {
-                                    operation,
+                                    operation: operation.to_string(),
                                     actual_type: ValueType::$name,
                                 });
                             }
@@ -354,24 +336,24 @@ mod macros {
                     right: &Self,
                     operation: BitwiseOperation,
                 ) -> Result<Self, Error> {
-                    let mut operation = operation;
+                    let operation = operation;
                     let left = *left.inner();
-                    let mut right = *right.inner();
-
-                    if right < 0 && operation == BitwiseOperation::LeftShift {
-                        operation = BitwiseOperation::LeftShift;
-                        right = -(right as i64) as $subtype;
-                    } else if right < 0 && operation == BitwiseOperation::LeftShift {
-                        operation = BitwiseOperation::RightShift;
-                        right = -(right as i64) as $subtype;
-                    }
+                    let right = *right.inner();
 
                     let result = match operation {
                         BitwiseOperation::And => Some(left & right),
                         BitwiseOperation::Or => Some(left | right),
                         BitwiseOperation::Xor => Some(left ^ right),
+
+                        BitwiseOperation::LeftShift if right < 0 => {
+                            left.checked_shr(-(right as i64) as u32)
+                        }
                         BitwiseOperation::LeftShift => {
                             left.checked_shl((right % $subtype::BITS as $subtype) as u32)
+                        }
+
+                        BitwiseOperation::RightShift if right < 0 => {
+                            left.checked_shl(-(right as i64) as u32)
                         }
                         BitwiseOperation::RightShift => {
                             left.checked_shr((right % $subtype::BITS as $subtype) as u32)
@@ -410,3 +392,212 @@ map_primitive!(from = U8, primitive = u8);
 map_primitive!(from = U16, primitive = u16);
 map_primitive!(from = U32, primitive = u32);
 map_primitive!(from = U64, primitive = u64);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_boolean() {
+        assert_eq!(
+            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::And).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::Or).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::LT).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::GT).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::LTE).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::GTE).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::EQ).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::NEQ).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::Not).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(0), &I8::new(5), BooleanOperation::Not).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(10), &I8::new(0), BooleanOperation::Not).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            I8::boolean_op(&I8::new(0), &I8::new(0), BooleanOperation::Not).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(I8::boolean_not(&I8::new(10)).unwrap(), Value::from(false));
+    }
+
+    #[test]
+    fn test_bitwise() {
+        assert_eq!(
+            I8::bitwise_op(&I8::new(10), &I8::new(5), BitwiseOperation::And).unwrap(),
+            I8::new(0)
+        );
+        assert_eq!(
+            I8::bitwise_op(&I8::new(10), &I8::new(5), BitwiseOperation::Or).unwrap(),
+            I8::new(15)
+        );
+        assert_eq!(
+            I8::bitwise_op(&I8::new(10), &I8::new(5), BitwiseOperation::Xor).unwrap(),
+            I8::new(15)
+        );
+        assert_eq!(
+            I8::bitwise_op(&I8::new(10), &I8::new(1), BitwiseOperation::LeftShift).unwrap(),
+            I8::new(20)
+        );
+        assert_eq!(
+            I8::bitwise_op(&I8::new(10), &I8::new(5), BitwiseOperation::RightShift).unwrap(),
+            I8::new(0)
+        );
+        assert_eq!(
+            I8::bitwise_op(&I8::new(10), &I8::new(-5), BitwiseOperation::LeftShift).unwrap(),
+            I8::new(0)
+        );
+        assert_eq!(
+            I8::bitwise_op(&I8::new(10), &I8::new(-1), BitwiseOperation::RightShift).unwrap(),
+            I8::new(20)
+        );
+        assert_eq!(
+            I8::bitwise_op(&I8::new(10), &I8::new(10), BitwiseOperation::Not).unwrap(),
+            I8::new(-11)
+        );
+        assert_eq!(
+            I8::bitwise_op(&I8::new(10), &I8::new(-5), BitwiseOperation::Not).unwrap(),
+            I8::new(-11)
+        );
+        assert_eq!(
+            I8::bitwise_op(&I8::new(-10), &I8::new(5), BitwiseOperation::Not).unwrap(),
+            I8::new(9)
+        );
+        assert_eq!(I8::bitwise_not(&I8::new(-10)).unwrap(), I8::new(9));
+    }
+
+    #[test]
+    fn test_arithmetic() {
+        assert_eq!(
+            I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Add).unwrap(),
+            I8::new(15)
+        );
+        assert_eq!(
+            I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Subtract).unwrap(),
+            I8::new(5)
+        );
+        assert_eq!(
+            I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Multiply).unwrap(),
+            I8::new(50)
+        );
+        assert_eq!(
+            I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Divide).unwrap(),
+            I8::new(2)
+        );
+        assert_eq!(
+            I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Modulo).unwrap(),
+            I8::new(0)
+        );
+        I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Exponentiate)
+            .unwrap_err();
+        I64::arithmetic_op(
+            &I64::new(10),
+            &I64::new(i64::MAX),
+            ArithmeticOperation::Exponentiate,
+        )
+        .unwrap_err();
+
+        U8::arithmetic_neg(&U8::new(10)).unwrap_err();
+        assert_eq!(I8::arithmetic_neg(&I8::new(10)).unwrap(), I8::new(-10));
+
+        let i = I8::new(10);
+        let u = U8::new(10);
+        assert_eq!(
+            U8::is_operator_supported(&u, &u, ArithmeticOperation::Add),
+            true
+        );
+        assert_eq!(
+            U8::is_operator_supported(&u, &u, ArithmeticOperation::Negate),
+            false
+        );
+        assert_eq!(
+            I8::is_operator_supported(&i, &i, ArithmeticOperation::Negate),
+            true
+        );
+    }
+
+    #[test]
+    fn test_from_str() {
+        assert_eq!(I8::from_str_radix("0b1010").unwrap(), I8::new(10));
+        I8::from_str_radix("0b10000000000000").unwrap_err();
+
+        assert_eq!(I16::from_str_radix("0b1010").unwrap(), I16::new(10));
+        I16::from_str_radix("0b10000000000000000").unwrap_err();
+
+        assert_eq!(I32::from_str_radix("0b1010").unwrap(), I32::new(10));
+        assert_eq!(I32::from_str_radix("0b1").unwrap(), I32::new(1));
+
+        assert_eq!(I64::from_str_radix("0b1010").unwrap(), I64::new(10));
+        assert_eq!(I64::from_str_radix("0b11111").unwrap(), I64::new(31));
+
+        assert_eq!(U8::from_str_radix("0b1010").unwrap(), U8::new(10));
+        U8::from_str_radix("0b10000000000000").unwrap_err();
+
+        assert_eq!(U16::from_str_radix("0b1010").unwrap(), U16::new(10));
+        U16::from_str_radix("0b10000000000000000").unwrap_err();
+
+        assert_eq!(U32::from_str_radix("0b1010").unwrap(), U32::new(10));
+        assert_eq!(U32::from_str_radix("0b1").unwrap(), U32::new(1));
+
+        assert_eq!(U64::from_str_radix("0b1010").unwrap(), U64::new(10));
+        assert_eq!(U64::from_str_radix("0b11111").unwrap(), U64::new(31));
+        assert_eq!(U64::from_str_radix("0xFF").unwrap(), U64::new(255));
+        assert_eq!(U64::from_str_radix("0o7").unwrap(), U64::new(7));
+        assert_eq!(U64::from_str_radix("07").unwrap(), U64::new(7));
+
+        I8::from_str_radix("0").unwrap_err();
+        I8::from_str_radix("0o").unwrap_err();
+        I8::from_str_radix("1x1").unwrap_err();
+        I8::from_str_radix("0n1").unwrap_err();
+        I8::from_str_radix("0xFFF").unwrap_err();
+
+        let mut u = U64::from_str_radix("0b11111").unwrap();
+        *u.inner_mut() = 32;
+        assert_eq!(u, U64::new(32));
+
+        assert_eq!(I8::from_str("10").unwrap(), I8::new(10));
+        assert_eq!(I16::from_str("10,000").unwrap(), I16::new(10000));
+        I8::from_str("10,000").unwrap_err();
+    }
+
+    #[test]
+    fn test_to_string() {
+        assert_eq!(I8::new(10).to_string(), "10");
+        assert_eq!(I16::new(10).to_string(), "10");
+        assert_eq!(I32::new(10).to_string(), "10");
+        assert_eq!(I64::new(10).to_string(), "10");
+        assert_eq!(U8::new(10).to_string(), "10");
+        assert_eq!(U16::new(10).to_string(), "10");
+        assert_eq!(U32::new(10).to_string(), "10");
+        assert_eq!(U64::new(10).to_string(), "10");
+    }
+}
