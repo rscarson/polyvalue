@@ -272,12 +272,10 @@ impl ArithmeticOperationExt for Str {
     }
 
     fn is_operator_supported(&self, _: &Self, operation: ArithmeticOperation) -> bool {
-        match operation {
-            ArithmeticOperation::Add
-            | ArithmeticOperation::Subtract
-            | ArithmeticOperation::Negate => true,
-            _ => false,
-        }
+        matches!(
+            operation,
+            ArithmeticOperation::Add | ArithmeticOperation::Subtract | ArithmeticOperation::Negate
+        )
     }
 }
 
@@ -546,20 +544,16 @@ mod test {
         )
         .unwrap_err();
 
-        assert!(
-            Str::is_operator_supported(
-                &Str::from("Hello, world!"),
-                &Str::from("d!"),
-                ArithmeticOperation::Subtract
-            )
-        );
-        assert!(
-            !Str::is_operator_supported(
-                &Str::from("Hello, world!"),
-                &Str::from("d!"),
-                ArithmeticOperation::Divide
-            )
-        );
+        assert!(Str::is_operator_supported(
+            &Str::from("Hello, world!"),
+            &Str::from("d!"),
+            ArithmeticOperation::Subtract
+        ));
+        assert!(!Str::is_operator_supported(
+            &Str::from("Hello, world!"),
+            &Str::from("d!"),
+            ArithmeticOperation::Divide
+        ));
     }
 
     #[test]

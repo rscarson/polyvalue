@@ -126,7 +126,7 @@ impl std::fmt::Display for ValueType {
 impl TryFrom<&str> for ValueType {
     type Error = Error;
     fn try_from(s: &str) -> Result<Self, Error> {
-        match s {
+        match s.to_lowercase().as_str() {
             "bool" => Ok(ValueType::Bool),
             "fixed" => Ok(ValueType::Fixed),
             "float" => Ok(ValueType::Float),
@@ -191,6 +191,7 @@ mod test {
 
         // try_from str
         assert_eq!(ValueType::try_from("bool").unwrap(), ValueType::Bool);
+        assert_eq!(ValueType::try_from("Bool").unwrap(), ValueType::Bool);
         assert_eq!(ValueType::try_from("fixed").unwrap(), ValueType::Fixed);
         assert_eq!(ValueType::try_from("float").unwrap(), ValueType::Float);
         assert_eq!(

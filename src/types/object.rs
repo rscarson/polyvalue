@@ -210,10 +210,7 @@ impl ArithmeticOperationExt for Object {
     }
 
     fn is_operator_supported(&self, _: &Self, operation: ArithmeticOperation) -> bool {
-        match operation {
-            ArithmeticOperation::Add => true,
-            _ => false,
-        }
+        matches!(operation, ArithmeticOperation::Add)
     }
 }
 
@@ -435,37 +432,33 @@ mod test {
         )
         .is_err());
 
-        assert!(
-            Object::is_operator_supported(
-                &Object::try_from(vec![
-                    (Value::I64(0.into()), Value::I64(1.into())),
-                    (Value::I64(1.into()), Value::I64(2.into())),
-                ])
-                .unwrap(),
-                &Object::try_from(vec![
-                    (Value::I64(0.into()), Value::I64(3.into())),
-                    (Value::I64(1.into()), Value::I64(4.into())),
-                ])
-                .unwrap(),
-                ArithmeticOperation::Add
-            )
-        );
+        assert!(Object::is_operator_supported(
+            &Object::try_from(vec![
+                (Value::I64(0.into()), Value::I64(1.into())),
+                (Value::I64(1.into()), Value::I64(2.into())),
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
+                (Value::I64(0.into()), Value::I64(3.into())),
+                (Value::I64(1.into()), Value::I64(4.into())),
+            ])
+            .unwrap(),
+            ArithmeticOperation::Add
+        ));
 
-        assert!(
-            !Object::is_operator_supported(
-                &Object::try_from(vec![
-                    (Value::I64(0.into()), Value::I64(1.into())),
-                    (Value::I64(1.into()), Value::I64(2.into())),
-                ])
-                .unwrap(),
-                &Object::try_from(vec![
-                    (Value::I64(0.into()), Value::I64(3.into())),
-                    (Value::I64(1.into()), Value::I64(4.into())),
-                ])
-                .unwrap(),
-                ArithmeticOperation::Subtract
-            )
-        );
+        assert!(!Object::is_operator_supported(
+            &Object::try_from(vec![
+                (Value::I64(0.into()), Value::I64(1.into())),
+                (Value::I64(1.into()), Value::I64(2.into())),
+            ])
+            .unwrap(),
+            &Object::try_from(vec![
+                (Value::I64(0.into()), Value::I64(3.into())),
+                (Value::I64(1.into()), Value::I64(4.into())),
+            ])
+            .unwrap(),
+            ArithmeticOperation::Subtract
+        ));
 
         let result = Object::arithmetic_op(
             &Object::try_from(vec![

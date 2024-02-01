@@ -87,7 +87,7 @@ mod macros {
                         }
                     })?;
 
-                    if value > <$subtype>::MAX || value < <$subtype>::MIN {
+                    if !(<$subtype>::MIN..=<$subtype>::MAX).contains(&value) {
                         return Err(Error::Overflow);
                     }
                     Ok($name::new(value as $subtype))
@@ -638,15 +638,17 @@ mod test {
 
         let i = I8::new(10);
         let u = U8::new(10);
-        assert!(
-            U8::is_operator_supported(&u, &u, ArithmeticOperation::Add)
-        );
-        assert!(
-            !U8::is_operator_supported(&u, &u, ArithmeticOperation::Negate)
-        );
-        assert!(
-            I8::is_operator_supported(&i, &i, ArithmeticOperation::Negate)
-        );
+        assert!(U8::is_operator_supported(&u, &u, ArithmeticOperation::Add));
+        assert!(!U8::is_operator_supported(
+            &u,
+            &u,
+            ArithmeticOperation::Negate
+        ));
+        assert!(I8::is_operator_supported(
+            &i,
+            &i,
+            ArithmeticOperation::Negate
+        ));
     }
 
     #[test]

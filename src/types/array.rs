@@ -244,12 +244,10 @@ impl ArithmeticOperationExt for Array {
     }
 
     fn is_operator_supported(&self, _other: &Self, operation: ArithmeticOperation) -> bool {
-        match operation {
-            ArithmeticOperation::Add
-            | ArithmeticOperation::Subtract
-            | ArithmeticOperation::Negate => true,
-            _ => false,
-        }
+        matches!(
+            operation,
+            ArithmeticOperation::Add | ArithmeticOperation::Subtract | ArithmeticOperation::Negate
+        )
     }
 }
 
@@ -586,13 +584,17 @@ mod test {
             Array::from(vec![3.into(), 2.into(), 1.into()])
         );
 
-        assert!(
-            Array::is_operator_supported(&array, &array, ArithmeticOperation::Add)
-        );
+        assert!(Array::is_operator_supported(
+            &array,
+            &array,
+            ArithmeticOperation::Add
+        ));
 
-        assert!(
-            !Array::is_operator_supported(&array, &array, ArithmeticOperation::Exponentiate)
-        );
+        assert!(!Array::is_operator_supported(
+            &array,
+            &array,
+            ArithmeticOperation::Exponentiate
+        ));
         assert!(Array::arithmetic_op(&array, &array, ArithmeticOperation::Exponentiate).is_err())
     }
 
