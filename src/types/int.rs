@@ -61,7 +61,7 @@ mod macros {
                             Ok(Self::new($subtype::from_str_radix(s, 8)? as $subtype))
                         }
                     } else {
-                        Ok($name::new(s.replace(',', "").parse::<$subtype>()?))
+                        Ok($name::new(s.replace('_', "").parse::<$subtype>()?))
                     }
                 }
             }
@@ -666,8 +666,8 @@ mod test {
         assert_eq!(u, U64::new(32));
 
         assert_eq!(I8::from_str("10").unwrap(), I8::new(10));
-        assert_eq!(I16::from_str("10,000").unwrap(), I16::new(10000));
-        I8::from_str("10,000").unwrap_err();
+        assert_eq!(I16::from_str("10_000").unwrap(), I16::new(10000));
+        I8::from_str("10_000").unwrap_err();
     }
 
     #[test]
