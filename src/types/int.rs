@@ -86,10 +86,6 @@ mod macros {
                             dst_type: ValueType::Int,
                         }
                     })?;
-
-                    if !(<$subtype>::MIN..=<$subtype>::MAX).contains(&value) {
-                        return Err(Error::Overflow);
-                    }
                     Ok($name::new(value as $subtype))
                 }
             }
