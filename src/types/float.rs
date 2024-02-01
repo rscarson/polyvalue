@@ -280,9 +280,8 @@ mod test {
         );
         assert_eq!(Float::arithmetic_neg(&a).unwrap(), Float::from(-1.0));
 
-        assert_eq!(
-            Float::is_operator_supported(&a, &b, ArithmeticOperation::Add),
-            true
+        assert!(
+            Float::is_operator_supported(&a, &b, ArithmeticOperation::Add)
         );
 
         assert!(Float::arithmetic_op(
@@ -364,7 +363,7 @@ mod test {
         );
         Float::try_from(Value::from("")).expect_err("Should fail");
         assert_eq!(
-            Float::try_from(Value::from(Currency::from_fixed(Fixed::from(fixed!(1.0))))).unwrap(),
+            Float::try_from(Value::from(Currency::from_fixed(fixed!(1.0)))).unwrap(),
             Float::from(1.0)
         );
 

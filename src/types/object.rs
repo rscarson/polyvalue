@@ -116,7 +116,7 @@ map_value!(
         | Value::I32(_)
         | Value::I64(_) => {
             let mut map = ObjectInner::new();
-            map.insert(Value::from(0 as usize), v).ok();
+            map.insert(Value::from(0_usize), v).ok();
             Ok(Object(map))
         }
 
@@ -435,7 +435,7 @@ mod test {
         )
         .is_err());
 
-        assert_eq!(
+        assert!(
             Object::is_operator_supported(
                 &Object::try_from(vec![
                     (Value::I64(0.into()), Value::I64(1.into())),
@@ -448,12 +448,11 @@ mod test {
                 ])
                 .unwrap(),
                 ArithmeticOperation::Add
-            ),
-            true
+            )
         );
 
-        assert_eq!(
-            Object::is_operator_supported(
+        assert!(
+            !Object::is_operator_supported(
                 &Object::try_from(vec![
                     (Value::I64(0.into()), Value::I64(1.into())),
                     (Value::I64(1.into()), Value::I64(2.into())),
@@ -465,8 +464,7 @@ mod test {
                 ])
                 .unwrap(),
                 ArithmeticOperation::Subtract
-            ),
-            false
+            )
         );
 
         let result = Object::arithmetic_op(
@@ -710,7 +708,7 @@ mod test {
         assert_eq!(obj.get(&Value::I64(1.into())), Some(&Value::I64(2.into())));
         assert_eq!(obj.get(&Value::I64(2.into())), None);
 
-        assert_eq!(obj.is_empty(), false);
+        assert!(!obj.is_empty());
 
         assert!(obj.keys().contains(&&Value::I64(0.into())));
 

@@ -638,17 +638,14 @@ mod test {
 
         let i = I8::new(10);
         let u = U8::new(10);
-        assert_eq!(
-            U8::is_operator_supported(&u, &u, ArithmeticOperation::Add),
-            true
+        assert!(
+            U8::is_operator_supported(&u, &u, ArithmeticOperation::Add)
         );
-        assert_eq!(
-            U8::is_operator_supported(&u, &u, ArithmeticOperation::Negate),
-            false
+        assert!(
+            !U8::is_operator_supported(&u, &u, ArithmeticOperation::Negate)
         );
-        assert_eq!(
-            I8::is_operator_supported(&i, &i, ArithmeticOperation::Negate),
-            true
+        assert!(
+            I8::is_operator_supported(&i, &i, ArithmeticOperation::Negate)
         );
     }
 

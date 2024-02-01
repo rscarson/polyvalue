@@ -84,9 +84,9 @@ impl TaggedValue {
     }
 }
 
-impl Into<Value> for TaggedValue {
-    fn into(self) -> Value {
-        match self {
+impl From<TaggedValue> for Value {
+    fn from(val: TaggedValue) -> Self {
+        match val {
             TaggedValue::Bool(v) => Value::Bool(v),
             TaggedValue::U8(v) => Value::U8(v),
             TaggedValue::I8(v) => Value::I8(v),
@@ -158,7 +158,7 @@ mod test {
         assert_eq!(value, deserialized);
 
         let value = TaggedValue::Array(
-            vec![TaggedValue::U8(1u8.into()), TaggedValue::U8(2u8.into())].into(),
+            vec![TaggedValue::U8(1u8.into()), TaggedValue::U8(2u8.into())],
         );
         let serialized = value.serialize().unwrap();
         let deserialized = TaggedValue::deserialize(&serialized).unwrap();

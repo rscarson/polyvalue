@@ -309,7 +309,7 @@ impl BooleanOperationExt for Str {
 
 impl IndexingOperationExt for Str {
     fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
-        self.substr(index..=index).and_then(|s| Ok(Value::from(s)))
+        self.substr(index..=index).map(Value::from)
     }
 
     fn get_indices(&self, index: &Value) -> Result<Value, crate::Error> {
@@ -317,8 +317,7 @@ impl IndexingOperationExt for Str {
             let indices = index.as_a::<crate::types::Range>()?.inner().clone();
             let lower = Value::from(*indices.start());
             let upper = Value::from(*indices.end());
-            self.substr(&lower..=&upper)
-                .and_then(|s| Ok(Value::from(s)))
+            self.substr(&lower..=&upper).map(Value::from)
         } else {
             let indices = index.as_a::<Array>()?;
             if indices.inner().is_empty() {
@@ -547,17 +546,15 @@ mod test {
         )
         .unwrap_err();
 
-        assert_eq!(
-            true,
+        assert!(
             Str::is_operator_supported(
                 &Str::from("Hello, world!"),
                 &Str::from("d!"),
                 ArithmeticOperation::Subtract
             )
         );
-        assert_eq!(
-            false,
-            Str::is_operator_supported(
+        assert!(
+            !Str::is_operator_supported(
                 &Str::from("Hello, world!"),
                 &Str::from("d!"),
                 ArithmeticOperation::Divide

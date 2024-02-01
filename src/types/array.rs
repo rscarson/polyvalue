@@ -408,7 +408,7 @@ mod test {
         assert_eq!(array.remove(0).unwrap(), 1.into());
         assert_eq!(array.remove(0), None);
         assert_eq!(array.len(), 0);
-        assert_eq!(array.is_empty(), true);
+        assert!(array.is_empty());
 
         let mut array = Array::from(vec![1.into(), 2.into(), 3.into()]);
         array.insert(1, 4.into());
@@ -586,14 +586,12 @@ mod test {
             Array::from(vec![3.into(), 2.into(), 1.into()])
         );
 
-        assert_eq!(
-            Array::is_operator_supported(&array, &array, ArithmeticOperation::Add),
-            true
+        assert!(
+            Array::is_operator_supported(&array, &array, ArithmeticOperation::Add)
         );
 
-        assert_eq!(
-            Array::is_operator_supported(&array, &array, ArithmeticOperation::Exponentiate),
-            false
+        assert!(
+            !Array::is_operator_supported(&array, &array, ArithmeticOperation::Exponentiate)
         );
         assert!(Array::arithmetic_op(&array, &array, ArithmeticOperation::Exponentiate).is_err())
     }
@@ -695,7 +693,7 @@ mod test {
         let array = Array::try_from(Value::from(fixed!(1.0))).unwrap();
         assert_eq!(array, vec![fixed!(1.0).into()].into());
 
-        let currency = Currency::from_fixed(fixed!(1.0).into());
+        let currency = Currency::from_fixed(fixed!(1.0));
         let array = Array::try_from(Value::from(currency.clone())).unwrap();
         assert_eq!(array, vec![currency.into()].into());
 

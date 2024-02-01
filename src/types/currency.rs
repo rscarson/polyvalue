@@ -167,13 +167,12 @@ mod test {
         let result = Currency::arithmetic_neg(&Currency::from_str("$10.00").unwrap()).unwrap();
         assert_eq!(result.to_string(), "$-10.00".to_string());
 
-        assert_eq!(
+        assert!(
             Currency::is_operator_supported(
                 &Currency::from_str("$10.00").unwrap(),
                 &Currency::from_str("$10.00").unwrap(),
                 ArithmeticOperation::Add
-            ),
-            true
+            )
         );
     }
 
@@ -261,7 +260,7 @@ mod test {
         let value = Currency::new(CurrencyInner::new(
             None,
             5,
-            Fixed::from(fixed!(10.123456789)),
+            fixed!(10.123456789),
         ));
         assert_eq!(value.to_string(), "10.12346".to_string());
     }
@@ -270,19 +269,19 @@ mod test {
     fn test_from() {
         assert_eq!(
             Currency::try_from(Value::from(10)).unwrap(),
-            Currency::from_fixed(Fixed::from(fixed!(10)))
+            Currency::from_fixed(fixed!(10))
         );
         assert_eq!(
             Currency::try_from(Value::from(10.0)).unwrap(),
-            Currency::from_fixed(Fixed::from(fixed!(10)))
+            Currency::from_fixed(fixed!(10))
         );
         assert_eq!(
             Currency::try_from(Value::from(fixed!(10.0))).unwrap(),
-            Currency::from_fixed(Fixed::from(fixed!(10.0)))
+            Currency::from_fixed(fixed!(10.0))
         );
         assert_eq!(
             Currency::try_from(Value::from(true)).unwrap(),
-            Currency::from_fixed(Fixed::from(fixed!(1)))
+            Currency::from_fixed(fixed!(1))
         );
 
         // string should fail
@@ -292,7 +291,7 @@ mod test {
         let value = Value::from(vec![Value::from(10)]);
         assert_eq!(
             Currency::try_from(value).unwrap(),
-            Currency::from_fixed(Fixed::from(fixed!(10)))
+            Currency::from_fixed(fixed!(10))
         );
 
         // array with 2 elements should fail
@@ -303,7 +302,7 @@ mod test {
         let value = Value::try_from(vec![("a".into(), Value::from(10))]).unwrap();
         assert_eq!(
             Currency::try_from(value).unwrap(),
-            Currency::from_fixed(Fixed::from(fixed!(10)))
+            Currency::from_fixed(fixed!(10))
         );
 
         // object with 2 elements should fail

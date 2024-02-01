@@ -112,9 +112,9 @@ map_value!(
         }
         Value::Bool(v) => {
             if *v.inner() {
-                Ok(Fixed::from(Fixed::one()))
+                Ok(Fixed::one())
             } else {
-                Ok(Fixed::from(Fixed::zero()))
+                Ok(Fixed::zero())
             }
         }
         Value::String(_) => {
@@ -335,22 +335,20 @@ mod tests {
             Fixed::from_str("-10").unwrap()
         );
 
-        assert_eq!(
+        assert!(
             Currency::is_operator_supported(
                 &Currency::from_str("$10.00").unwrap(),
                 &Currency::from_str("$10.00").unwrap(),
                 ArithmeticOperation::Add
-            ),
-            true
+            )
         );
 
-        assert_eq!(
+        assert!(
             Currency::is_operator_supported(
                 &Currency::from_str("$10.00").unwrap(),
                 &Currency::from_str("$10.00").unwrap(),
                 ArithmeticOperation::Subtract
-            ),
-            true
+            )
         );
     }
 
@@ -528,49 +526,49 @@ mod tests {
 
         assert_eq!(
             Fixed::try_from(Value::from(U8::new(10))).unwrap(),
-            Fixed::from(fixed!(10))
+            fixed!(10)
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(U16::new(10))).unwrap(),
-            Fixed::from(fixed!(10))
+            fixed!(10)
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(U32::new(10))).unwrap(),
-            Fixed::from(fixed!(10))
+            fixed!(10)
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(U64::new(10))).unwrap(),
-            Fixed::from(fixed!(10))
+            fixed!(10)
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(I8::new(10))).unwrap(),
-            Fixed::from(fixed!(10))
+            fixed!(10)
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(I16::new(10))).unwrap(),
-            Fixed::from(fixed!(10))
+            fixed!(10)
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(I32::new(10))).unwrap(),
-            Fixed::from(fixed!(10))
+            fixed!(10)
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(I64::new(10))).unwrap(),
-            Fixed::from(fixed!(10))
+            fixed!(10)
         );
     }
 
     #[test]
     fn test_parse() {
-        assert_eq!(Fixed::from_str("10.0").unwrap(), Fixed::from(fixed!(10.0)));
-        assert_eq!(Fixed::from_str("10").unwrap(), Fixed::from(fixed!(10)));
-        assert_eq!(Fixed::from_str("-10").unwrap(), Fixed::from(fixed!(-10)));
+        assert_eq!(Fixed::from_str("10.0").unwrap(), fixed!(10.0));
+        assert_eq!(Fixed::from_str("10").unwrap(), fixed!(10));
+        assert_eq!(Fixed::from_str("-10").unwrap(), fixed!(-10));
     }
 }

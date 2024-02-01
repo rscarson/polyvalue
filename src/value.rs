@@ -838,13 +838,13 @@ impl BitwiseOperationExt for Value {
     fn bitwise_op(left: &Self, right: &Self, operation: BitwiseOperation) -> Result<Self, Error> {
         let (left, right) = left.resolve(right)?;
         match (&left, &right) {
-            (Value::U8(l), Value::U8(r)) => U8::bitwise_op(&l, &r, operation).map(Into::into),
-            (Value::U16(l), Value::U16(r)) => U16::bitwise_op(&l, &r, operation).map(Into::into),
-            (Value::U32(l), Value::U32(r)) => U32::bitwise_op(&l, &r, operation).map(Into::into),
-            (Value::U64(l), Value::U64(r)) => U64::bitwise_op(&l, &r, operation).map(Into::into),
-            (Value::I8(l), Value::I8(r)) => I8::bitwise_op(&l, &r, operation).map(Into::into),
-            (Value::I16(l), Value::I16(r)) => I16::bitwise_op(&l, &r, operation).map(Into::into),
-            (Value::I32(l), Value::I32(r)) => I32::bitwise_op(&l, &r, operation).map(Into::into),
+            (Value::U8(l), Value::U8(r)) => U8::bitwise_op(l, r, operation).map(Into::into),
+            (Value::U16(l), Value::U16(r)) => U16::bitwise_op(l, r, operation).map(Into::into),
+            (Value::U32(l), Value::U32(r)) => U32::bitwise_op(l, r, operation).map(Into::into),
+            (Value::U64(l), Value::U64(r)) => U64::bitwise_op(l, r, operation).map(Into::into),
+            (Value::I8(l), Value::I8(r)) => I8::bitwise_op(l, r, operation).map(Into::into),
+            (Value::I16(l), Value::I16(r)) => I16::bitwise_op(l, r, operation).map(Into::into),
+            (Value::I32(l), Value::I32(r)) => I32::bitwise_op(l, r, operation).map(Into::into),
 
             _ => {
                 let left = left.as_a::<I64>()?;
@@ -1027,15 +1027,15 @@ impl MatchingOperationExt for Value {
         } else {
             match container.own_type() {
                 ValueType::Array => {
-                    return Array::matching_op(&container.as_a::<Array>()?, pattern, operation)
+                    Array::matching_op(&container.as_a::<Array>()?, pattern, operation)
                 }
 
                 ValueType::Object => {
-                    return Object::matching_op(&container.as_a::<Object>()?, pattern, operation)
+                    Object::matching_op(&container.as_a::<Object>()?, pattern, operation)
                 }
 
                 ValueType::Range => {
-                    return Range::matching_op(&container.as_a::<Range>()?, pattern, operation)
+                    Range::matching_op(&container.as_a::<Range>()?, pattern, operation)
                 }
 
                 _ => Str::matching_op(&container.as_a::<Str>()?, pattern, operation),
@@ -1253,17 +1253,17 @@ mod test {
         assert_eq!(result, Value::from(true));
 
         let value = Value::from(vec![Value::from(1.0)]);
-        let pattern = Value::from(Value::from(1.0));
+        let pattern = Value::from(1.0);
         let result = Value::matching_op(&value, &pattern, MatchingOperation::Contains).unwrap();
         assert_eq!(result, Value::from(true));
 
         let value = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
-        let pattern = Value::from(Value::from("a"));
+        let pattern = Value::from("a");
         let result = Value::matching_op(&value, &pattern, MatchingOperation::Contains).unwrap();
         assert_eq!(result, Value::from(true));
 
         let value = Value::from(Range::from(1..=2));
-        let pattern = Value::from(Value::from(1));
+        let pattern = Value::from(1);
         let result = Value::matching_op(&value, &pattern, MatchingOperation::Contains).unwrap();
         assert_eq!(result, Value::from(true));
 
@@ -1317,8 +1317,8 @@ mod test {
         assert!(a.own_type() == ValueType::Object);
         assert!(b.own_type() == ValueType::Object);
 
-        let a = Value::from(CurrencyInner::as_dollars(Fixed::from(Fixed::zero())));
-        let b = Value::from(Fixed::from(Fixed::zero()));
+        let a = Value::from(CurrencyInner::as_dollars(Fixed::zero()));
+        let b = Value::from(Fixed::zero());
         let (a, b) = a.resolve(&b).expect("Could not resolve types");
         assert!(a.own_type() == ValueType::Currency);
         assert!(b.own_type() == ValueType::Currency);
@@ -1342,12 +1342,12 @@ mod test {
         );
 
         assert_eq!(
-            Value::from(CurrencyInner::as_dollars(Fixed::from(Fixed::zero()))).own_type(),
+            Value::from(CurrencyInner::as_dollars(Fixed::zero())).own_type(),
             ValueType::Currency
         );
 
         assert_eq!(
-            Value::from(Fixed::from(Fixed::zero())).own_type(),
+            Value::from(Fixed::zero()).own_type(),
             ValueType::Fixed
         );
 
@@ -1424,7 +1424,7 @@ mod test {
         assert!(Value::from(1.0).is_a(ValueType::Numeric));
         assert!(Value::from(Fixed::zero()).is_a(ValueType::Numeric));
         assert!(
-            Value::from(CurrencyInner::as_dollars(Fixed::from(Fixed::zero())))
+            Value::from(CurrencyInner::as_dollars(Fixed::zero()))
                 .is_a(ValueType::Numeric)
         );
         assert!(Value::from(1u8).is_a(ValueType::Numeric));
@@ -1487,16 +1487,16 @@ mod test {
         let value = Value::from(1.0);
         assert_eq!(value.as_type(ValueType::Numeric).unwrap(), Value::from(1.0));
 
-        let value = Value::from(CurrencyInner::as_dollars(Fixed::from(Fixed::zero())));
+        let value = Value::from(CurrencyInner::as_dollars(Fixed::zero()));
         assert_eq!(
             value.as_type(ValueType::Numeric).unwrap(),
-            Value::from(CurrencyInner::as_dollars(Fixed::from(Fixed::zero())))
+            Value::from(CurrencyInner::as_dollars(Fixed::zero()))
         );
 
         let value = Value::from(Fixed::zero());
         assert_eq!(
             value.as_type(ValueType::Numeric).unwrap(),
-            Value::from(Fixed::from(Fixed::zero()))
+            Value::from(Fixed::zero())
         );
 
         assert_eq!(
@@ -1506,12 +1506,12 @@ mod test {
 
         assert_eq!(
             Value::from(0).as_type(ValueType::Fixed).unwrap(),
-            Value::from(Fixed::from(Fixed::zero()))
+            Value::from(Fixed::zero())
         );
 
         assert_eq!(
             Value::from(0).as_type(ValueType::Currency).unwrap(),
-            Value::from(CurrencyInner::from_fixed(Fixed::from(Fixed::zero())))
+            Value::from(CurrencyInner::from_fixed(Fixed::zero()))
         );
 
         assert_eq!(
@@ -1602,13 +1602,13 @@ mod test {
 
         assert_type_for_comparison!(
             1,
-            CurrencyInner::as_dollars(Fixed::from(Fixed::zero())),
+            CurrencyInner::as_dollars(Fixed::zero()),
             ValueType::Currency
         );
 
         assert_type_for_comparison!(
-            CurrencyInner::as_dollars(Fixed::from(Fixed::zero())),
-            Fixed::from(Fixed::zero()),
+            CurrencyInner::as_dollars(Fixed::zero()),
+            Fixed::zero(),
             ValueType::Currency
         );
 
@@ -1640,7 +1640,7 @@ mod test {
         assert_eq!(Value::from(false).to_string(), "false");
 
         assert_eq!(
-            Value::from(CurrencyInner::as_dollars(Fixed::from(Fixed::zero()))).to_string(),
+            Value::from(CurrencyInner::as_dollars(Fixed::zero())).to_string(),
             "$0.00"
         );
 
@@ -1742,9 +1742,8 @@ mod test {
 
         // 2 different, but comparable - float to int
         assert_ne!(Value::from(1.0), Value::from(1));
-        assert_eq!(
-            Value::from(1.0).weak_equality(&Value::from(1)).unwrap(),
-            true
+        assert!(
+            Value::from(1.0).weak_equality(&Value::from(1)).unwrap()
         );
 
         // 2 different, not comparable - big array to int
@@ -1807,9 +1806,7 @@ mod test {
         Value::arithmetic_neg(&Value::from(1)).unwrap();
         Value::arithmetic_neg(&Value::from(1.0)).unwrap();
         Value::arithmetic_neg(&Value::from(Fixed::zero())).unwrap();
-        Value::arithmetic_neg(&Value::from(CurrencyInner::as_dollars(Fixed::from(
-            Fixed::zero(),
-        ))))
+        Value::arithmetic_neg(&Value::from(CurrencyInner::as_dollars(Fixed::zero())))
         .unwrap();
         Value::arithmetic_op(
             &Value::from(1u8),
@@ -1853,79 +1850,62 @@ mod test {
         let b = Value::from(3..=4);
         Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap_err();
 
-        assert_eq!(
-            true,
+        assert!(
             Value::from(false).is_operator_supported(&Value::from(false), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from("false")
                 .is_operator_supported(&Value::from(false), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(1u8).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(1i8).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(1u16).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(1i16).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(1u32).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(I32::new(1))
                 .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(I64::new(1))
                 .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(1u64).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(1).is_operator_supported(&Value::from(1), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(1.0).is_operator_supported(&Value::from(1.0), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(Fixed::zero())
                 .is_operator_supported(&Value::from(Fixed::zero()), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
-            Value::from(CurrencyInner::as_dollars(Fixed::from(Fixed::zero())))
+        assert!(
+            Value::from(CurrencyInner::as_dollars(Fixed::zero()))
                 .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            false,
-            Value::from(0..=10)
+        assert!(
+            !Value::from(0..=10)
                 .is_operator_supported(&Value::from(0..=10), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::from(vec![Value::from(1)])
                 .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert_eq!(
-            true,
+        assert!(
             Value::try_from(vec![(Value::from("a"), Value::from(1))])
                 .unwrap()
                 .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
@@ -1989,7 +1969,7 @@ mod test {
         assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(false));
         let a = Value::from(Fixed::zero());
         assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(true));
-        let a = Value::from(CurrencyInner::as_dollars(Fixed::from(Fixed::zero())));
+        let a = Value::from(CurrencyInner::as_dollars(Fixed::zero()));
         assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(true));
 
         // string, array, object, range - boolean_not
@@ -2262,11 +2242,11 @@ mod test {
         );
         assert_eq!(
             Value::bitwise_not(&Value::from(0i8)).unwrap(),
-            Value::from((-1) as i8)
+            Value::from(-1_i8)
         );
         assert_eq!(
             Value::bitwise_not(&Value::from(0i16)).unwrap(),
-            Value::from((-1) as i16)
+            Value::from(-1_i16)
         );
         assert_eq!(
             Value::bitwise_not(&Value::from(I32::new(0))).unwrap(),

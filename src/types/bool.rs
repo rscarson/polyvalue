@@ -118,7 +118,7 @@ impl ArithmeticOperationExt for Bool {
             ArithmeticOperation::Subtract => left ^ right,
             ArithmeticOperation::Multiply => left & right,
             ArithmeticOperation::Divide | ArithmeticOperation::Modulo => {
-                if right == false {
+                if !right {
                     return Err(Error::Overflow);
                 }
 
@@ -277,13 +277,12 @@ mod test {
             Bool::from(false)
         );
 
-        assert_eq!(
+        assert!(
             Bool::is_operator_supported(
                 &Bool::from(true),
                 &Bool::from(true),
                 ArithmeticOperation::Add
-            ),
-            true
+            )
         );
     }
 

@@ -105,7 +105,7 @@ impl BooleanOperationExt for Range {
             BooleanOperation::GTE => Ok(Bool::from(left_size >= right_size)),
             BooleanOperation::Not => Ok(Bool::from(left_size == 0)),
         }
-        .and_then(|b| Ok(Value::from(b)))
+        .map(Value::from)
     }
 
     fn boolean_not(&self) -> Result<Value, crate::Error>
@@ -125,10 +125,10 @@ impl ArithmeticOperationExt for Range {
     where
         Self: Sized,
     {
-        return Err(Error::UnsupportedOperation {
+        Err(Error::UnsupportedOperation {
             operation: operation.to_string(),
             actual_type: ValueType::Range,
-        });
+        })
     }
 
     fn arithmetic_neg(&self) -> Result<Self, crate::Error>
@@ -350,11 +350,11 @@ mod test {
         assert_eq!(Range::new(0..=0).to_string(), "0..0");
 
         assert_eq!(Range::from_str("0..10").unwrap(), Range::new(0..=10));
-        assert_eq!(Range::from_str("0..").is_err(), true);
-        assert_eq!(Range::from_str("..10").is_err(), true);
-        assert_eq!(Range::from_str("..").is_err(), true);
-        assert_eq!(Range::from_str("-1..-2").is_err(), true);
-        assert_eq!(Range::from_str("-2..-1").is_err(), false);
+        assert!(Range::from_str("0..").is_err());
+        assert!(Range::from_str("..10").is_err());
+        assert!(Range::from_str("..").is_err());
+        assert!(Range::from_str("-1..-2").is_err());
+        assert!(Range::from_str("-2..-1").is_ok());
     }
 
     #[test]

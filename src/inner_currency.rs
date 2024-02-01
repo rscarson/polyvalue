@@ -233,7 +233,7 @@ mod test {
 
     #[test]
     fn test_parse() {
-        let mut currency = CurrencyInner::as_dollars(Fixed::from(fixed!(1.0)));
+        let mut currency = CurrencyInner::as_dollars(fixed!(1.0));
         currency.set_precision(4);
 
         let currency = currency.to_string();
@@ -242,7 +242,7 @@ mod test {
 
         assert_eq!(currency.symbol, Some("$".to_string()));
         assert_eq!(currency.precision, 4);
-        assert_eq!(currency.value, Fixed::from(fixed!(1.0)));
+        assert_eq!(currency.value, fixed!(1.0));
     }
 
     #[test]
@@ -262,7 +262,7 @@ mod test {
 
     #[test]
     fn test_as_currencies() {
-        let fixed = Fixed::from(fixed!(1.0));
+        let fixed = fixed!(1.0);
         assert_eq!(
             CurrencyInner::as_dollars(fixed.clone()).to_string(),
             "$1.00"
@@ -279,7 +279,7 @@ mod test {
 
     #[test]
     fn test_manipulate() {
-        let mut currency = CurrencyInner::as_dollars(Fixed::from(fixed!(1.0)));
+        let mut currency = CurrencyInner::as_dollars(fixed!(1.0));
         currency.set_precision(4);
 
         assert_eq!(currency.to_string(), "$1.0000");
@@ -287,7 +287,7 @@ mod test {
         currency.set_symbol(Some("€".to_string()));
         assert_eq!(currency.to_string(), "€1.0000");
 
-        currency.set_value(Fixed::from(fixed!(2.0)));
+        currency.set_value(fixed!(2.0));
         assert_eq!(currency.to_string(), "€2.0000");
 
         currency.set_precision(2);

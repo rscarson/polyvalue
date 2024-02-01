@@ -46,9 +46,9 @@ impl BoxedDecimal {
     }
 }
 
-impl Into<f64> for BoxedDecimal {
-    fn into(self) -> f64 {
-        (*self.0).into()
+impl From<BoxedDecimal> for f64 {
+    fn from(val: BoxedDecimal) -> Self {
+        (*val.0).into()
     }
 }
 
