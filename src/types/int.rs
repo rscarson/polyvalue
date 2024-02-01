@@ -48,45 +48,21 @@ mod macros {
                 /// The string must be in the form of `0b<binary>`, `0o<octal>`, `0x<hex>`, or `0<octal>`
                 /// ```
                 pub fn from_str_radix(s: &str) -> Result<Self, Error> {
-                    if s.len() < 2 {
-                        return Err(Error::ValueConversion {
-                            src_type: ValueType::String,
-                            dst_type: ValueType::Int,
-                        });
+                    if let Some(s) = s.strip_prefix("0b") {
+                        Ok(Self::new($subtype::from_str_radix(s, 2)? as $subtype))
+                    } else if let Some(s) = s.strip_prefix("0o") {
+                        Ok(Self::new($subtype::from_str_radix(s, 8)? as $subtype))
+                    } else if let Some(s) = s.strip_prefix("0x") {
+                        Ok(Self::new($subtype::from_str_radix(s, 16)? as $subtype))
+                    } else if let Some(s) = s.strip_prefix("0") {
+                        if s.is_empty() {
+                            Ok(Self::new(0))
+                        } else {
+                            Ok(Self::new($subtype::from_str_radix(s, 8)? as $subtype))
+                        }
+                    } else {
+                        Ok($name::new(s.replace(',', "").parse::<$subtype>()?))
                     }
-
-                    let mut s = s.trim().to_lowercase();
-                    if s.remove(0) != '0' {
-                        return Err(Error::ValueConversion {
-                            src_type: ValueType::String,
-                            dst_type: ValueType::Int,
-                        });
-                    }
-
-                    let prefix = s.remove(0);
-                    let radix = match prefix {
-                        'b' => 2,
-                        'o' => 8,
-                        '0'..='7' => {
-                            s.insert(0, prefix);
-                            8
-                        }
-                        'x' => 16,
-                        _ => {
-                            return Err(Error::ValueConversion {
-                                src_type: ValueType::String,
-                                dst_type: ValueType::Int,
-                            })
-                        }
-                    };
-
-                    let value = $subtype::from_str_radix(&s, radix).map_err(|_| {
-                        Error::ValueConversion {
-                            src_type: ValueType::String,
-                            dst_type: ValueType::Int,
-                        }
-                    })?;
-                    Ok($name::new(value as $subtype))
                 }
             }
             map_value!(
@@ -209,7 +185,7 @@ mod macros {
                 type Err = Error;
 
                 fn from_str(s: &str) -> Result<Self, Self::Err> {
-                    Ok($name::new(s.replace(',', "").parse::<$subtype>()?))
+                    Self::from_str_radix(s)
                 }
             }
 
@@ -651,6 +627,9 @@ mod test {
     fn test_from_str() {
         assert_eq!(I8::from_str_radix("0b1010").unwrap(), I8::new(10));
         I8::from_str_radix("0b10000000000000").unwrap_err();
+        U8::from_str_radix("0b-1").unwrap_err();
+        assert_eq!(I8::from_str_radix("0-3").unwrap(), I8::new(-3));
+        assert_eq!(I8::from_str_radix("0+3").unwrap(), I8::new(3));
 
         assert_eq!(I16::from_str_radix("0b1010").unwrap(), I16::new(10));
         I16::from_str_radix("0b10000000000000000").unwrap_err();
@@ -676,7 +655,7 @@ mod test {
         assert_eq!(U64::from_str_radix("0o7").unwrap(), U64::new(7));
         assert_eq!(U64::from_str_radix("07").unwrap(), U64::new(7));
 
-        I8::from_str_radix("0").unwrap_err();
+        assert_eq!(I8::from_str_radix("0").unwrap(), I8::new(0));
         I8::from_str_radix("0o").unwrap_err();
         I8::from_str_radix("1x1").unwrap_err();
         I8::from_str_radix("0n1").unwrap_err();
