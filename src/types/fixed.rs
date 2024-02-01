@@ -7,17 +7,37 @@
 //!
 use std::str::FromStr;
 
-use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
+use crate::{
+    inner_fixed::BoxedDecimal, operations::*, types::*, Error, Value, ValueTrait, ValueType,
+};
 use fpdec::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Decimal, Round};
 use serde::{Deserialize, Serialize};
 
 /// Inner type of `Fixed`
-pub type FixedInner = Decimal;
+pub type FixedInner = BoxedDecimal;
 
 /// Subtype of `Value` that represents a fixed-point decimal
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Serialize, Deserialize, Default)]
 pub struct Fixed(FixedInner);
-impl_value!(Fixed, FixedInner, |v: &Self| v.inner().to_string());
+impl_value!(Fixed, FixedInner, |v: &Self| (*v.inner()).to_string());
+
+impl From<Decimal> for Fixed {
+    fn from(value: Decimal) -> Self {
+        Self::new(BoxedDecimal::from(value))
+    }
+}
+
+impl Fixed {
+    /// The value of Decimal::ZERO
+    pub fn zero() -> Self {
+        Self::new(BoxedDecimal::from(Decimal::ZERO))
+    }
+
+    /// The value of Decimal::ONE
+    pub fn one() -> Self {
+        Self::new(BoxedDecimal::from(Decimal::ONE))
+    }
+}
 
 map_value!(
     from = Fixed,
@@ -92,9 +112,9 @@ map_value!(
         }
         Value::Bool(v) => {
             if *v.inner() {
-                Ok(Fixed::from(Decimal::ONE))
+                Ok(Fixed::from(Fixed::one()))
             } else {
-                Ok(Fixed::from(Decimal::ZERO))
+                Ok(Fixed::from(Fixed::zero()))
             }
         }
         Value::String(_) => {
@@ -157,8 +177,8 @@ impl ArithmeticOperationExt for Fixed {
         right: &Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
-        let left_ = *left.inner();
-        let right_ = *right.inner();
+        let left_ = left.inner().clone();
+        let right_ = right.inner().clone();
 
         let result = match operation {
             ArithmeticOperation::Add => left_.checked_add(right_),
@@ -172,7 +192,7 @@ impl ArithmeticOperationExt for Fixed {
                 let right = Float::try_from(Value::from(right.clone()))?;
 
                 let result = Float::arithmetic_op(&left, &right, operation)?;
-                Some(*Fixed::try_from(Value::from(result))?.inner())
+                Some(Fixed::try_from(Value::from(result))?.inner().clone())
             }
             ArithmeticOperation::Negate => Some(-left_),
         }
@@ -196,12 +216,8 @@ impl ArithmeticOperationExt for Fixed {
 impl BooleanOperationExt for Fixed {
     fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
         let result = match operation {
-            BooleanOperation::And => {
-                *left.inner() != Decimal::ZERO && *right.inner() != Decimal::ZERO
-            }
-            BooleanOperation::Or => {
-                *left.inner() != Decimal::ZERO || *right.inner() != Decimal::ZERO
-            }
+            BooleanOperation::And => left != &Fixed::zero() && right != &Fixed::zero(),
+            BooleanOperation::Or => left != &Fixed::zero() || right != &Fixed::zero(),
 
             BooleanOperation::LT => *left.inner() < *right.inner(),
             BooleanOperation::GT => *left.inner() > *right.inner(),
@@ -209,7 +225,7 @@ impl BooleanOperationExt for Fixed {
             BooleanOperation::GTE => *left.inner() >= *right.inner(),
             BooleanOperation::EQ => *left.inner() == *right.inner(),
             BooleanOperation::NEQ => *left.inner() != *right.inner(),
-            BooleanOperation::Not => *left.inner() == Decimal::ZERO,
+            BooleanOperation::Not => left == &Fixed::zero(),
         };
 
         Ok(result.into())
@@ -229,9 +245,9 @@ impl BooleanOperationExt for Fixed {
 
 #[cfg(test)]
 mod tests {
-    use fpdec::Dec;
-
     use super::*;
+    use crate::fixed;
+    use fpdec::Decimal;
 
     #[test]
     fn test_arithmetic() {
@@ -512,49 +528,49 @@ mod tests {
 
         assert_eq!(
             Fixed::try_from(Value::from(U8::new(10))).unwrap(),
-            Fixed::from(Dec!(10))
+            Fixed::from(fixed!(10))
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(U16::new(10))).unwrap(),
-            Fixed::from(Dec!(10))
+            Fixed::from(fixed!(10))
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(U32::new(10))).unwrap(),
-            Fixed::from(Dec!(10))
+            Fixed::from(fixed!(10))
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(U64::new(10))).unwrap(),
-            Fixed::from(Dec!(10))
+            Fixed::from(fixed!(10))
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(I8::new(10))).unwrap(),
-            Fixed::from(Dec!(10))
+            Fixed::from(fixed!(10))
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(I16::new(10))).unwrap(),
-            Fixed::from(Dec!(10))
+            Fixed::from(fixed!(10))
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(I32::new(10))).unwrap(),
-            Fixed::from(Dec!(10))
+            Fixed::from(fixed!(10))
         );
 
         assert_eq!(
             Fixed::try_from(Value::from(I64::new(10))).unwrap(),
-            Fixed::from(Dec!(10))
+            Fixed::from(fixed!(10))
         );
     }
 
     #[test]
     fn test_parse() {
-        assert_eq!(Fixed::from_str("10.0").unwrap(), Fixed::from(Dec!(10.0)));
-        assert_eq!(Fixed::from_str("10").unwrap(), Fixed::from(Dec!(10)));
-        assert_eq!(Fixed::from_str("-10").unwrap(), Fixed::from(Dec!(-10)));
+        assert_eq!(Fixed::from_str("10.0").unwrap(), Fixed::from(fixed!(10.0)));
+        assert_eq!(Fixed::from_str("10").unwrap(), Fixed::from(fixed!(10)));
+        assert_eq!(Fixed::from_str("-10").unwrap(), Fixed::from(fixed!(-10)));
     }
 }

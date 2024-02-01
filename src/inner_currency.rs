@@ -12,13 +12,13 @@ trait RoundToPrecision {
 }
 impl RoundToPrecision for Fixed {
     fn round_to_precision(&self, precision: i8) -> Self {
-        Self::from(self.inner().round(precision))
+        Self::from(self.inner().clone().round(precision))
     }
 }
 
 /// Inner type of `Currency`
 /// This is a wrapper around `Fixed` that adds a currency symbol and a precision
-#[derive(Eq, PartialOrd, PartialEq, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
+#[derive(Eq, PartialOrd, PartialEq, Ord, Clone, Hash, Serialize, Deserialize, Default)]
 pub struct CurrencyInner {
     symbol: Option<String>,
     precision: i8,
@@ -161,6 +161,16 @@ impl std::fmt::Display for CurrencyInner {
     }
 }
 
+impl std::fmt::Debug for CurrencyInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let symbol = self.symbol.clone().unwrap_or_default();
+        let value = self.value.inner();
+        let precision = self.precision;
+
+        write!(f, "{}{:.*}", symbol, precision as usize, value)
+    }
+}
+
 impl std::str::FromStr for CurrencyInner {
     type Err = Error;
 
@@ -196,7 +206,8 @@ mod test {
     use crate::Value;
 
     use super::*;
-    use fpdec::{Dec, Decimal};
+    use crate::fixed;
+    use fpdec::Decimal;
     use std::str::FromStr;
 
     #[test]
@@ -222,7 +233,7 @@ mod test {
 
     #[test]
     fn test_parse() {
-        let mut currency = CurrencyInner::as_dollars(Fixed::from(Dec!(1.0)));
+        let mut currency = CurrencyInner::as_dollars(Fixed::from(fixed!(1.0)));
         currency.set_precision(4);
 
         let currency = currency.to_string();
@@ -231,7 +242,7 @@ mod test {
 
         assert_eq!(currency.symbol, Some("$".to_string()));
         assert_eq!(currency.precision, 4);
-        assert_eq!(currency.value, Fixed::from(Dec!(1.0)));
+        assert_eq!(currency.value, Fixed::from(fixed!(1.0)));
     }
 
     #[test]
@@ -251,7 +262,7 @@ mod test {
 
     #[test]
     fn test_as_currencies() {
-        let fixed = Fixed::from(Dec!(1.0));
+        let fixed = Fixed::from(fixed!(1.0));
         assert_eq!(
             CurrencyInner::as_dollars(fixed.clone()).to_string(),
             "$1.00"
@@ -268,7 +279,7 @@ mod test {
 
     #[test]
     fn test_manipulate() {
-        let mut currency = CurrencyInner::as_dollars(Fixed::from(Dec!(1.0)));
+        let mut currency = CurrencyInner::as_dollars(Fixed::from(fixed!(1.0)));
         currency.set_precision(4);
 
         assert_eq!(currency.to_string(), "$1.0000");
@@ -276,7 +287,7 @@ mod test {
         currency.set_symbol(Some("€".to_string()));
         assert_eq!(currency.to_string(), "€1.0000");
 
-        currency.set_value(Fixed::from(Dec!(2.0)));
+        currency.set_value(Fixed::from(fixed!(2.0)));
         assert_eq!(currency.to_string(), "€2.0000");
 
         currency.set_precision(2);

@@ -13,7 +13,7 @@ pub use crate::inner_currency::CurrencyInner;
 
 /// Subtype of `Value` that represents a currency
 /// This is a wrapper around `Fixed` that adds a currency symbol
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
 pub struct Currency(CurrencyInner);
 impl_value!(Currency, CurrencyInner, |v: &Self| v.inner().to_string());
 
@@ -27,6 +27,12 @@ impl Currency {
     pub fn resolve(&self, other: &Self) -> (Self, Self) {
         let (left, right) = self.inner().resolve(other.inner());
         (Self(left), Self(right))
+    }
+}
+
+impl From<fpdec::Decimal> for Currency {
+    fn from(value: fpdec::Decimal) -> Self {
+        Currency::from_fixed(Fixed::from(value))
     }
 }
 
@@ -125,9 +131,9 @@ impl BooleanOperationExt for Currency {
 
 #[cfg(test)]
 mod test {
-    use fpdec::{Dec, Decimal};
-
     use super::*;
+    use crate::fixed;
+    use fpdec::Decimal;
 
     #[test]
     fn test_arithmetic() {
@@ -252,7 +258,11 @@ mod test {
         let value = Currency::from_str("¥10").unwrap();
         assert_eq!(value.to_string(), "¥10".to_string());
 
-        let value = Currency::new(CurrencyInner::new(None, 5, Fixed::from(Dec!(10.123456789))));
+        let value = Currency::new(CurrencyInner::new(
+            None,
+            5,
+            Fixed::from(fixed!(10.123456789)),
+        ));
         assert_eq!(value.to_string(), "10.12346".to_string());
     }
 
@@ -260,19 +270,19 @@ mod test {
     fn test_from() {
         assert_eq!(
             Currency::try_from(Value::from(10)).unwrap(),
-            Currency::from_fixed(Fixed::from(Dec!(10)))
+            Currency::from_fixed(Fixed::from(fixed!(10)))
         );
         assert_eq!(
             Currency::try_from(Value::from(10.0)).unwrap(),
-            Currency::from_fixed(Fixed::from(Dec!(10)))
+            Currency::from_fixed(Fixed::from(fixed!(10)))
         );
         assert_eq!(
-            Currency::try_from(Value::from(Dec!(10.0))).unwrap(),
-            Currency::from_fixed(Fixed::from(Dec!(10.0)))
+            Currency::try_from(Value::from(fixed!(10.0))).unwrap(),
+            Currency::from_fixed(Fixed::from(fixed!(10.0)))
         );
         assert_eq!(
             Currency::try_from(Value::from(true)).unwrap(),
-            Currency::from_fixed(Fixed::from(Dec!(1)))
+            Currency::from_fixed(Fixed::from(fixed!(1)))
         );
 
         // string should fail
@@ -282,7 +292,7 @@ mod test {
         let value = Value::from(vec![Value::from(10)]);
         assert_eq!(
             Currency::try_from(value).unwrap(),
-            Currency::from_fixed(Fixed::from(Dec!(10)))
+            Currency::from_fixed(Fixed::from(fixed!(10)))
         );
 
         // array with 2 elements should fail
@@ -293,7 +303,7 @@ mod test {
         let value = Value::try_from(vec![("a".into(), Value::from(10))]).unwrap();
         assert_eq!(
             Currency::try_from(value).unwrap(),
-            Currency::from_fixed(Fixed::from(Dec!(10)))
+            Currency::from_fixed(Fixed::from(fixed!(10)))
         );
 
         // object with 2 elements should fail
@@ -310,16 +320,16 @@ mod test {
         let value = Currency::from_str("$10.00").unwrap();
         assert_eq!(value.symbol(), &Some("$".to_string()));
         assert_eq!(value.precision(), 2);
-        assert_eq!(*value.value().inner(), Dec!(10.00));
+        assert_eq!(*value.value(), fixed!(10.00));
 
         let value = Currency::from_str("10").unwrap();
         assert_eq!(value.symbol(), &None);
         assert_eq!(value.precision(), 0);
-        assert_eq!(*value.value().inner(), Dec!(10));
+        assert_eq!(*value.value(), fixed!(10));
 
         let value = Currency::from_str("¥10").unwrap();
         assert_eq!(value.symbol(), &Some("¥".to_string()));
         assert_eq!(value.precision(), 0);
-        assert_eq!(*value.value().inner(), Dec!(10));
+        assert_eq!(*value.value(), fixed!(10));
     }
 }

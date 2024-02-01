@@ -10,9 +10,14 @@ use serde::{Deserialize, Serialize};
 use std::ops::{Range, RangeInclusive};
 
 /// Subtype of `Value` that represents a string
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
 pub struct Str(String);
-impl_value!(Str, String, |v: &Self| v.inner().clone());
+impl_value!(
+    Str,
+    String,
+    |v: &Self| v.inner().clone(),
+    |v: &Self, f: &mut std::fmt::Formatter<'_>| { write!(f, "'{}'", v.inner()) }
+);
 
 impl From<&str> for Str {
     fn from(value: &str) -> Self {

@@ -112,7 +112,7 @@ macro_rules! map_primitive {
 /// Will also generate a Display and Debug implementation for the type.
 /// Those implementations will use the `TryInto<Str>` implementation.
 macro_rules! impl_value {
-    ($own_type:ty, $inner_type:ty, $to_string:expr) => {
+    ($own_type:ty, $inner_type:ty, $to_string:expr, $debug:expr) => {
         impl $crate::ValueTrait for $own_type {
             type Inner = $inner_type;
 
@@ -137,6 +137,21 @@ macro_rules! impl_value {
                 write!(f, "{}", $to_string(self))
             }
         }
+
+        impl std::fmt::Debug for $own_type {
+            #[allow(clippy::redundant_closure_call)]
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                $debug(self, f)
+            }
+        }
+    };
+    ($own_type:ty, $inner_type:ty, $to_string:expr) => {
+        impl_value!(
+            $own_type,
+            $inner_type,
+            $to_string,
+            |this: &Self, f: &mut std::fmt::Formatter<'_>| { write!(f, "{}", $to_string(this)) }
+        );
     };
 }
 

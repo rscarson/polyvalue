@@ -6,12 +6,11 @@
 //! It is represented as a string in the form of `true` or `false`
 //!
 use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
-use fpdec::Decimal;
 use serde::{Deserialize, Serialize};
 use std::{hash::Hash, str::FromStr};
 
 /// Subtype of `Value` that represents a boolean
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
 pub struct Bool(bool);
 impl_value!(Bool, bool, |v: &Self| if *v.inner() {
     "true"
@@ -62,10 +61,10 @@ map_value!(
             Ok(Bool::from(*v.inner() != 0.0))
         }
         Value::Fixed(v) => {
-            Ok(Bool::from(*v.inner() != Decimal::ZERO))
+            Ok(Bool::from(v != Fixed::zero()))
         }
         Value::Currency(v) => {
-            Ok(Bool::from(*v.inner().value().inner() == Decimal::ZERO))
+            Ok(Bool::from(v.inner().value() == &Fixed::zero()))
         }
         Value::String(v) => {
             Ok(Bool::from(!v.inner().is_empty()))
@@ -351,11 +350,11 @@ mod test {
         assert_eq!(Bool::try_from(Value::from(0.0)).unwrap(), Bool::from(false));
 
         assert_eq!(
-            Bool::try_from(Value::from(Decimal::from_str("1.0").unwrap())).unwrap(),
+            Bool::try_from(Value::from(Fixed::from_str("1.0").unwrap())).unwrap(),
             Bool::from(true)
         );
         assert_eq!(
-            Bool::try_from(Value::from(Decimal::from_str("0.0").unwrap())).unwrap(),
+            Bool::try_from(Value::from(Fixed::from_str("0.0").unwrap())).unwrap(),
             Bool::from(false)
         );
 

@@ -37,6 +37,7 @@
 mod macros;
 
 mod inner_currency;
+mod inner_fixed;
 mod is_currency;
 
 mod inner_object;

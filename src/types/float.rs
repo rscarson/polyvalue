@@ -13,7 +13,7 @@ use std::str::FromStr;
 pub type FloatInner = f64;
 
 /// Subtype of `Value` that represents a float
-#[derive(Clone, Serialize, Deserialize, Default, Debug)]
+#[derive(Clone, Serialize, Deserialize, Default)]
 pub struct Float(FloatInner);
 impl_value!(Float, FloatInner, |v: &Self| {
     let mut v = *v.inner();
@@ -36,12 +36,12 @@ map_value!(
         Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
         Value::Float(v) => Ok(v),
         Value::Fixed(v) => {
-            let p = *v.inner();
+            let p = v.inner().clone();
             let p: f64 = p.into();
             Ok(Float::from(p))
         }
         Value::Currency(v) => {
-            let p = *v.inner().value().inner();
+            let p = v.inner().value().inner().clone();
             let p: f64 = p.into();
             Ok(Float::from(p))
         }
@@ -155,13 +155,13 @@ impl Eq for Float {}
 
 impl PartialOrd for Float {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+        Some(self.inner().total_cmp(other.inner()))
     }
 }
 
 impl Ord for Float {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.inner().total_cmp(other.inner())
+        self.partial_cmp(other).unwrap()
     }
 }
 
@@ -241,9 +241,9 @@ impl BooleanOperationExt for Float {
 
 #[cfg(test)]
 mod test {
-    use fpdec::{Dec, Decimal};
-
     use super::*;
+    use crate::fixed;
+    use fpdec::Decimal;
 
     #[test]
     fn test_arithmetic() {
@@ -355,7 +355,7 @@ mod test {
         assert_eq!(Float::try_from(Value::from(1.0)).unwrap(), Float::from(1.0));
         assert_eq!(Float::try_from(Value::from(1)).unwrap(), Float::from(1.0));
         assert_eq!(
-            Float::try_from(Value::from(Dec!(1.0))).unwrap(),
+            Float::try_from(Value::from(fixed!(1.0))).unwrap(),
             Float::from(1.0)
         );
         assert_eq!(
@@ -364,7 +364,7 @@ mod test {
         );
         Float::try_from(Value::from("")).expect_err("Should fail");
         assert_eq!(
-            Float::try_from(Value::from(Currency::from_fixed(Fixed::from(Dec!(1.0))))).unwrap(),
+            Float::try_from(Value::from(Currency::from_fixed(Fixed::from(fixed!(1.0))))).unwrap(),
             Float::from(1.0)
         );
 

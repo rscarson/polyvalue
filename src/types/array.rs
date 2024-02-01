@@ -15,18 +15,33 @@ pub type ArrayInner = Vec<Value>;
 pub type ArrayIndex = <I64 as ValueTrait>::Inner;
 
 /// Subtype of `Value` that represents an array
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default)]
 pub struct Array(ArrayInner);
-impl_value!(Array, ArrayInner, |v: &Self| {
-    format!(
-        "[{}]",
-        v.inner()
-            .iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<String>>()
-            .join(", ")
-    )
-});
+impl_value!(
+    Array,
+    ArrayInner,
+    |v: &Self| {
+        format!(
+            "[{}]",
+            v.inner()
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    },
+    |v: &Self, f: &mut std::fmt::Formatter<'_>| {
+        write!(
+            f,
+            "[{}]",
+            v.inner()
+                .iter()
+                .map(|v| format!("{:?}", v))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+);
 
 impl Array {
     /// Largest range that can be converted to an array
@@ -370,9 +385,9 @@ impl IndexingMutationExt for Array {
 
 #[cfg(test)]
 mod test {
-    use fpdec::{Dec, Decimal};
-
     use super::*;
+    use crate::fixed;
+    use fpdec::Decimal;
 
     #[test]
     fn test_innerarray_impl() {
@@ -677,10 +692,10 @@ mod test {
         let array = Array::try_from(Value::from(1.0)).unwrap();
         assert_eq!(array, vec![1.0.into()].into());
 
-        let array = Array::try_from(Value::from(Dec!(1.0))).unwrap();
-        assert_eq!(array, vec![Dec!(1.0).into()].into());
+        let array = Array::try_from(Value::from(fixed!(1.0))).unwrap();
+        assert_eq!(array, vec![fixed!(1.0).into()].into());
 
-        let currency = Currency::from_fixed(Dec!(1.0).into());
+        let currency = Currency::from_fixed(fixed!(1.0).into());
         let array = Array::try_from(Value::from(currency.clone())).unwrap();
         assert_eq!(array, vec![currency.into()].into());
 

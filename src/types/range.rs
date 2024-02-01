@@ -22,7 +22,7 @@ type RangeIndex = <int::I64 as ValueTrait>::Inner;
 pub type RangeInner = RangeInclusive<RangeIndex>;
 
 /// Subtype of `Value` that represents a range
-#[derive(PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Eq, Clone, Hash, Serialize, Deserialize)]
 pub struct Range(RangeInner);
 impl_value!(Range, RangeInner, |v: &Self| format!(
     "{}..{}",
@@ -233,6 +233,18 @@ map_value!(
     handle_from = |v: Value| {
         match v {
             Value::Range(v) => Ok(v),
+            Value::Array(v) => {
+                if v.len() == 2 {
+                    let start = v.get_index(&0.into())?.as_a::<I64>()?;
+                    let end = v.get_index(&1.into())?.as_a::<I64>()?;
+                    Ok(Range::new(*start.inner()..=*end.inner()))
+                } else {
+                    Err(Error::ValueConversion {
+                        src_type: ValueType::Array,
+                        dst_type: ValueType::Range,
+                    })
+                }
+            }
             _ => Err(Error::ValueConversion {
                 src_type: v.own_type(),
                 dst_type: ValueType::Range,
@@ -255,6 +267,82 @@ overload_operator!(Range, deref);
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_match() {
+        assert_eq!(
+            Range::matching_op(
+                &Range::new(0..=10),
+                &Range::new(0..=10).into(),
+                MatchingOperation::Matches
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Range::matching_op(
+                &Range::new(0..=10),
+                &Range::new(0..=11).into(),
+                MatchingOperation::Matches
+            )
+            .unwrap(),
+            false.into()
+        );
+        assert_eq!(
+            Range::matching_op(
+                &Range::new(0..=10),
+                &Range::new(0..=11).into(),
+                MatchingOperation::Contains
+            )
+            .unwrap(),
+            false.into()
+        );
+        assert_eq!(
+            Range::matching_op(
+                &Range::new(0..=10),
+                &Range::new(0..=10).into(),
+                MatchingOperation::Contains
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Range::matching_op(
+                &Range::new(0..=10),
+                &Range::new(0..=10).into(),
+                MatchingOperation::StartsWith
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Range::matching_op(
+                &Range::new(0..=10),
+                &Range::new(0..=10).into(),
+                MatchingOperation::EndsWith
+            )
+            .unwrap(),
+            true.into()
+        );
+        assert_eq!(
+            Range::matching_op(
+                &Range::new(0..=10),
+                &Range::new(1..=10).into(),
+                MatchingOperation::StartsWith
+            )
+            .unwrap(),
+            false.into()
+        );
+        assert_eq!(
+            Range::matching_op(
+                &Range::new(0..=10),
+                &Range::new(1..=10).into(),
+                MatchingOperation::EndsWith
+            )
+            .unwrap(),
+            true.into()
+        );
+    }
 
     #[test]
     fn test_str() {

@@ -12,19 +12,35 @@ use serde::{Deserialize, Serialize};
 pub use crate::inner_object::ObjectInner;
 
 /// Subtype of `Value` that represents an object
-#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default, Debug, Hash, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default, Hash, PartialOrd, Ord)]
 pub struct Object(ObjectInner);
-impl_value!(Object, ObjectInner, |v: &Self| {
-    let mut v = v.inner().iter().collect::<Vec<_>>();
-    v.sort_by_key(|(k, _)| *k);
-    format!(
-        "{{{}}}",
-        v.iter()
-            .map(|(k, v)| format!("{k}: {v}"))
-            .collect::<Vec<String>>()
-            .join(", ")
-    )
-});
+impl_value!(
+    Object,
+    ObjectInner,
+    |v: &Self| {
+        let mut v = v.inner().iter().collect::<Vec<_>>();
+        v.sort_by_key(|(k, _)| *k);
+        format!(
+            "{{{}}}",
+            v.iter()
+                .map(|(k, v)| format!("{k}: {v}"))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    },
+    |v: &Self, f: &mut std::fmt::Formatter<'_>| {
+        let mut v = v.inner().iter().collect::<Vec<_>>();
+        v.sort_by_key(|(k, _)| *k);
+        write!(
+            f,
+            "{{{}}}",
+            v.iter()
+                .map(|(k, v)| format!("{k:?}: {v:?}"))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
+);
 
 impl TryFrom<Vec<(Value, Value)>> for Value {
     type Error = Error;
@@ -290,9 +306,48 @@ impl IndexingMutationExt for Object {
 
 #[cfg(test)]
 mod test {
-    use fpdec::{Dec, Decimal};
-
     use super::*;
+    use crate::fixed;
+    use fpdec::Decimal;
+
+    #[test]
+    fn test_match() {
+        let obj = Object::try_from(vec![
+            (Value::I64(0.into()), Value::I64(1.into())),
+            (Value::I64(1.into()), Value::I64(2.into())),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            Object::matching_op(&obj, &Value::I64(0.into()), MatchingOperation::Contains).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Object::matching_op(&obj, &Value::I64(1.into()), MatchingOperation::Contains).unwrap(),
+            Value::from(true)
+        );
+        assert_eq!(
+            Object::matching_op(&obj, &Value::I64(2.into()), MatchingOperation::Contains).unwrap(),
+            Value::from(false)
+        );
+
+        assert_eq!(
+            Object::matching_op(&obj, &Value::I64(0.into()), MatchingOperation::Matches).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            Object::matching_op(&obj, &Value::I64(1.into()), MatchingOperation::Matches).unwrap(),
+            Value::from(false)
+        );
+        assert_eq!(
+            Object::matching_op(&obj, &Value::I64(2.into()), MatchingOperation::Matches).unwrap(),
+            Value::from(false)
+        );
+
+        Object::matching_op(&obj, &Value::I64(0.into()), MatchingOperation::EndsWith).unwrap_err();
+        Object::matching_op(&obj, &Value::I64(0.into()), MatchingOperation::StartsWith)
+            .unwrap_err();
+    }
 
     #[test]
     fn test_indexing() {
@@ -625,8 +680,8 @@ mod test {
         );
 
         assert_eq!(
-            Object::try_from(Value::from(Dec!(1.0))).unwrap(),
-            Object::try_from(vec![(Value::u64(0), Value::from(Dec!(1.0)))]).unwrap()
+            Object::try_from(Value::from(fixed!(1.0))).unwrap(),
+            Object::try_from(vec![(Value::u64(0), Value::from(fixed!(1.0)))]).unwrap()
         );
 
         assert_eq!(

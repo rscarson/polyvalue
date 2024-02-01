@@ -151,3 +151,63 @@ impl TryFrom<&str> for ValueType {
         }
     }
 }
+
+//
+// Tests
+//
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_valuetype() {
+        // serialize / deserialize valuetype
+        let serialized = serde_json::to_string(&ValueType::Bool).unwrap();
+        let deserialized: ValueType = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, ValueType::Bool);
+
+        // display
+        assert_eq!(format!("{}", ValueType::Bool), "bool");
+        assert_eq!(format!("{}", ValueType::Fixed), "fixed");
+        assert_eq!(format!("{}", ValueType::Float), "float");
+        assert_eq!(format!("{}", ValueType::Currency), "currency");
+        assert_eq!(format!("{}", ValueType::Int), "int");
+        assert_eq!(format!("{}", ValueType::String), "string");
+        assert_eq!(format!("{}", ValueType::Array), "array");
+        assert_eq!(format!("{}", ValueType::Object), "object");
+        assert_eq!(format!("{}", ValueType::Range), "range");
+        assert_eq!(format!("{}", ValueType::Compound), "compound");
+        assert_eq!(format!("{}", ValueType::Numeric), "numeric");
+        assert_eq!(format!("{}", ValueType::Any), "any");
+        assert_eq!(format!("{}", ValueType::U8), "u8");
+        assert_eq!(format!("{}", ValueType::U16), "u16");
+        assert_eq!(format!("{}", ValueType::U32), "u32");
+        assert_eq!(format!("{}", ValueType::U64), "u64");
+        assert_eq!(format!("{}", ValueType::I8), "i8");
+        assert_eq!(format!("{}", ValueType::I16), "i16");
+        assert_eq!(format!("{}", ValueType::I32), "i32");
+        assert_eq!(format!("{}", ValueType::I64), "i64");
+
+        // try_from str
+        assert_eq!(ValueType::try_from("bool").unwrap(), ValueType::Bool);
+        assert_eq!(ValueType::try_from("fixed").unwrap(), ValueType::Fixed);
+        assert_eq!(ValueType::try_from("float").unwrap(), ValueType::Float);
+        assert_eq!(
+            ValueType::try_from("currency").unwrap(),
+            ValueType::Currency
+        );
+        assert_eq!(ValueType::try_from("int").unwrap(), ValueType::Int);
+        assert_eq!(ValueType::try_from("string").unwrap(), ValueType::String);
+        assert_eq!(ValueType::try_from("array").unwrap(), ValueType::Array);
+        assert_eq!(ValueType::try_from("object").unwrap(), ValueType::Object);
+        assert_eq!(ValueType::try_from("range").unwrap(), ValueType::Range);
+        assert_eq!(
+            ValueType::try_from("compound").unwrap(),
+            ValueType::Compound
+        );
+        assert_eq!(ValueType::try_from("numeric").unwrap(), ValueType::Numeric);
+        assert_eq!(ValueType::try_from("any").unwrap(), ValueType::Any);
+        ValueType::try_from("poo").unwrap_err();
+    }
+}

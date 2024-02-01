@@ -15,25 +15,32 @@ mod macros {
     macro_rules! sized_int_type {
         ($name:ident, $subtype:ident, $doc:literal) => {
             #[derive(
-                PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default, Debug,
+                PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Serialize, Deserialize, Default,
             )]
             /// A subtype of `Value` that represents a specific integer variant
             /// ranging from 8 to 64 bits, signed or unsigned
             #[doc = $doc]
             pub struct $name($subtype);
-            impl_value!($name, $subtype, |v: &Self| v.inner().to_string());
+            impl_value!(
+                $name,
+                $subtype,
+                |v: &Self| v.inner().to_string(),
+                |v: &Self, f: &mut std::fmt::Formatter<'_>| {
+                    write!(f, "{}{}", v.inner(), stringify!($subtype))
+                }
+            );
 
             impl $name {
                 /// Bitwise NOT that attempts to remove the effect of the size of the integer:
                 /// `!1u8 == 0u8` instead of `!1u8 == 254u8`
-                pub fn unsized_bitwise_not(&self) -> <Self as ValueTrait>::Inner {
+                pub fn unsized_bitwise_not(&self) -> Self {
                     let left = *self.inner();
                     if left == 0 {
-                        1
+                        (1).into()
                     } else {
-                        let mask =
-                            (std::u64::MAX >> left.leading_zeros()) as <Self as ValueTrait>::Inner;
-                        left ^ mask
+                        let mask = ((0 as $subtype).wrapping_sub(1) as u64 >> left.leading_zeros())
+                            as <Self as ValueTrait>::Inner;
+                        (left ^ mask).into()
                     }
                 }
 
@@ -488,6 +495,14 @@ map_type!(U64, U32);
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_unsized_bitwise_not() {
+        assert_eq!(U8::new(0).unsized_bitwise_not(), U8::new(1));
+        assert_eq!(U8::new(1).unsized_bitwise_not(), U8::new(0));
+        assert_eq!(U16::new(0xF0).unsized_bitwise_not(), U16::new(0x0F));
+        assert_eq!(I64::new(0xF0).unsized_bitwise_not(), I64::new(0x0F));
+    }
 
     #[test]
     fn test_boolean() {

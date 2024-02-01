@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, HashMap};
 type InnerObjectMeta = BTreeMap<Value, Value>;
 
 /// Inner type used for object storage
-#[derive(PartialEq, Eq, Clone, Default, Debug, PartialOrd, Ord, Hash)]
+#[derive(PartialEq, Eq, Clone, Default, PartialOrd, Ord, Hash)]
 pub struct ObjectInner(InnerObjectMeta);
 impl ObjectInner {
     /// Create a new `ObjectInner`
@@ -131,12 +131,22 @@ impl Serialize for ObjectInner {
     }
 }
 
+impl std::fmt::Debug for ObjectInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut map = f.debug_map();
+        for (k, v) in self.iter() {
+            map.entry(k, v);
+        }
+        map.finish()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::hash::Hash;
 
     use super::*;
-    use fpdec::Decimal;
+    use crate::types::Fixed;
 
     fn get_hash(obj: &ObjectInner) -> u64 {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -151,7 +161,7 @@ mod test {
             obj.insert(Value::from(false), Value::from(0)).unwrap();
             obj.insert(Value::from(0), Value::from(1)).unwrap();
             obj.insert(Value::from(0.0), Value::from(2)).unwrap();
-            obj.insert(Value::from(Decimal::ZERO), Value::from(3))
+            obj.insert(Value::from(Fixed::zero()), Value::from(3))
                 .unwrap();
             obj.insert(Value::from("".to_string()), Value::from(4))
                 .unwrap();
@@ -159,7 +169,7 @@ mod test {
             let mut obj2 = ObjectInner::new();
             obj2.insert(Value::from(0), Value::from(1)).unwrap();
             obj2.insert(Value::from(0.0), Value::from(2)).unwrap();
-            obj2.insert(Value::from(Decimal::ZERO), Value::from(3))
+            obj2.insert(Value::from(Fixed::zero()), Value::from(3))
                 .unwrap();
             obj2.insert(Value::from("".to_string()), Value::from(4))
                 .unwrap();
@@ -178,7 +188,7 @@ mod test {
         obj.insert(Value::from(false), Value::from(0)).unwrap();
         obj.insert(Value::from(0), Value::from(1)).unwrap();
         obj.insert(Value::from(0.0), Value::from(2)).unwrap();
-        obj.insert(Value::from(Decimal::ZERO), Value::from(3))
+        obj.insert(Value::from(Fixed::zero()), Value::from(3))
             .unwrap();
         obj.insert(Value::from("".to_string()), Value::from(4))
             .unwrap();
@@ -206,20 +216,20 @@ mod test {
         obj.insert(Value::from(false), Value::from(0)).unwrap();
         obj.insert(Value::from(0), Value::from(1)).unwrap();
         obj.insert(Value::from(0.0), Value::from(2)).unwrap();
-        obj.insert(Value::from(Decimal::ZERO), Value::from(3))
+        obj.insert(Value::from(Fixed::zero()), Value::from(3))
             .unwrap();
         obj.insert(Value::from("".to_string()), Value::from(4))
             .unwrap();
 
         assert_ne!(Value::from(false), Value::from(0));
         assert_ne!(Value::from(0), Value::from(0.0));
-        assert_ne!(Value::from(0.0), Value::from(Decimal::ZERO));
-        assert_ne!(Value::from(Decimal::ZERO), Value::from("".to_string()));
+        assert_ne!(Value::from(0.0), Value::from(Fixed::zero()));
+        assert_ne!(Value::from(Fixed::zero()), Value::from("".to_string()));
 
         assert_eq!(obj.get(&Value::from(false)), Some(&Value::from(0)));
         assert_eq!(obj.get(&Value::from(0)), Some(&Value::from(1)));
         assert_eq!(obj.get(&Value::from(0.0)), Some(&Value::from(2)));
-        assert_eq!(obj.get(&Value::from(Decimal::ZERO)), Some(&Value::from(3)));
+        assert_eq!(obj.get(&Value::from(Fixed::zero())), Some(&Value::from(3)));
         assert_eq!(obj.get(&Value::from("".to_string())), Some(&Value::from(4)));
         assert_eq!(5, obj.len());
 
@@ -269,14 +279,13 @@ mod test {
         obj.insert(Value::from(false), Value::i64(0)).unwrap();
         obj.insert(Value::i64(0), Value::i64(1)).unwrap();
         obj.insert(Value::from(0.0), Value::i64(2)).unwrap();
-        obj.insert(Value::from(Decimal::ZERO), Value::i64(3))
+        obj.insert(Value::from(Fixed::zero()), Value::i64(3))
             .unwrap();
         obj.insert(Value::from("".to_string()), Value::i64(4))
             .unwrap();
 
         // Now we ensure it stored as a vector of tuples
         let serialized = serde_json::to_string(&obj).unwrap();
-        println!("{}", serialized);
         assert!(serialized.starts_with("[["));
 
         // Make sure we can deserialize it back
