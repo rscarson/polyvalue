@@ -601,6 +601,12 @@ impl Value {
         }
     }
 
+    /// Returns true if the value is truthy
+    /// This is a convenience method for boolean values
+    pub fn is_truthy(&self) -> bool {
+        *self.as_a::<Bool>().unwrap().inner()
+    }
+
     /// Compares two values, ignoring type
     pub fn weak_equality(&self, other: &Self) -> Result<bool, Error> {
         let (l, r) = self.resolve(other)?;
@@ -608,7 +614,7 @@ impl Value {
     }
 
     /// Compares two values, ignoring type
-    fn weak_ord(&self, other: &Self) -> Result<std::cmp::Ordering, Error> {
+    pub fn weak_ord(&self, other: &Self) -> Result<std::cmp::Ordering, Error> {
         let (l, r) = self.resolve(other)?;
 
         let res = match l.own_type() {
@@ -1346,10 +1352,7 @@ mod test {
             ValueType::Currency
         );
 
-        assert_eq!(
-            Value::from(Fixed::zero()).own_type(),
-            ValueType::Fixed
-        );
+        assert_eq!(Value::from(Fixed::zero()).own_type(), ValueType::Fixed);
 
         assert_eq!(Value::from(Range::from(1..=2)).own_type(), ValueType::Range);
     }
@@ -1423,10 +1426,7 @@ mod test {
 
         assert!(Value::from(1.0).is_a(ValueType::Numeric));
         assert!(Value::from(Fixed::zero()).is_a(ValueType::Numeric));
-        assert!(
-            Value::from(CurrencyInner::as_dollars(Fixed::zero()))
-                .is_a(ValueType::Numeric)
-        );
+        assert!(Value::from(CurrencyInner::as_dollars(Fixed::zero())).is_a(ValueType::Numeric));
         assert!(Value::from(1u8).is_a(ValueType::Numeric));
         assert!(Value::from(1u16).is_a(ValueType::Numeric));
         assert!(Value::from(1u32).is_a(ValueType::Numeric));
@@ -1742,9 +1742,7 @@ mod test {
 
         // 2 different, but comparable - float to int
         assert_ne!(Value::from(1.0), Value::from(1));
-        assert!(
-            Value::from(1.0).weak_equality(&Value::from(1)).unwrap()
-        );
+        assert!(Value::from(1.0).weak_equality(&Value::from(1)).unwrap());
 
         // 2 different, not comparable - big array to int
         assert_ne!(
@@ -1806,8 +1804,7 @@ mod test {
         Value::arithmetic_neg(&Value::from(1)).unwrap();
         Value::arithmetic_neg(&Value::from(1.0)).unwrap();
         Value::arithmetic_neg(&Value::from(Fixed::zero())).unwrap();
-        Value::arithmetic_neg(&Value::from(CurrencyInner::as_dollars(Fixed::zero())))
-        .unwrap();
+        Value::arithmetic_neg(&Value::from(CurrencyInner::as_dollars(Fixed::zero()))).unwrap();
         Value::arithmetic_op(
             &Value::from(1u8),
             &Value::from(1u8),
@@ -1853,16 +1850,10 @@ mod test {
         assert!(
             Value::from(false).is_operator_supported(&Value::from(false), ArithmeticOperation::Add)
         );
-        assert!(
-            Value::from("false")
-                .is_operator_supported(&Value::from(false), ArithmeticOperation::Add)
-        );
-        assert!(
-            Value::from(1u8).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
-        assert!(
-            Value::from(1i8).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
+        assert!(Value::from("false")
+            .is_operator_supported(&Value::from(false), ArithmeticOperation::Add));
+        assert!(Value::from(1u8).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
+        assert!(Value::from(1i8).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
         assert!(
             Value::from(1u16).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
@@ -1872,44 +1863,26 @@ mod test {
         assert!(
             Value::from(1u32).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert!(
-            Value::from(I32::new(1))
-                .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
-        assert!(
-            Value::from(I64::new(1))
-                .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
+        assert!(Value::from(I32::new(1))
+            .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
+        assert!(Value::from(I64::new(1))
+            .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
         assert!(
             Value::from(1u64).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
         );
-        assert!(
-            Value::from(1).is_operator_supported(&Value::from(1), ArithmeticOperation::Add)
-        );
-        assert!(
-            Value::from(1.0).is_operator_supported(&Value::from(1.0), ArithmeticOperation::Add)
-        );
-        assert!(
-            Value::from(Fixed::zero())
-                .is_operator_supported(&Value::from(Fixed::zero()), ArithmeticOperation::Add)
-        );
-        assert!(
-            Value::from(CurrencyInner::as_dollars(Fixed::zero()))
-                .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
-        assert!(
-            !Value::from(0..=10)
-                .is_operator_supported(&Value::from(0..=10), ArithmeticOperation::Add)
-        );
-        assert!(
-            Value::from(vec![Value::from(1)])
-                .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
-        assert!(
-            Value::try_from(vec![(Value::from("a"), Value::from(1))])
-                .unwrap()
-                .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
+        assert!(Value::from(1).is_operator_supported(&Value::from(1), ArithmeticOperation::Add));
+        assert!(Value::from(1.0).is_operator_supported(&Value::from(1.0), ArithmeticOperation::Add));
+        assert!(Value::from(Fixed::zero())
+            .is_operator_supported(&Value::from(Fixed::zero()), ArithmeticOperation::Add));
+        assert!(Value::from(CurrencyInner::as_dollars(Fixed::zero()))
+            .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
+        assert!(!Value::from(0..=10)
+            .is_operator_supported(&Value::from(0..=10), ArithmeticOperation::Add));
+        assert!(Value::from(vec![Value::from(1)])
+            .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
+        assert!(Value::try_from(vec![(Value::from("a"), Value::from(1))])
+            .unwrap()
+            .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
     }
 
     #[test]
