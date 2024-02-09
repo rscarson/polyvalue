@@ -489,6 +489,29 @@ impl Value {
         self.try_into()
     }
 
+    /// Resolves a value to the given type, if the type matches a condition
+    /// Use with the types defined in [`crate::types`]
+    /// Returns None if the type does not match
+    ///
+    /// # Example
+    /// ```rust
+    /// use polyvalue::{ValueType, Value};
+    ///
+    /// let value = Value::from(1.0);
+    /// if let Some(value) = value.if_is_a::<i64>(ValueType::Numeric) {
+    ///    println!("Value is a number: {}", value);
+    /// }
+    pub fn if_is_a<T>(&self, type_name: ValueType) -> Option<T>
+    where
+        Self: TryInto<T, Error = Error>,
+    {
+        if self.is_a(type_name) {
+            self.clone().try_into().ok()
+        } else {
+            None
+        }
+    }
+
     /// Returns true if the value is of the given type
     /// Use with the [`ValueType`] enum
     ///
