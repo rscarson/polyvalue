@@ -41,16 +41,31 @@ impl Fixed {
 
     /// Type-same checked exponentiation for fixed-point decimals
     pub fn checked_pow(&self, exp: &Self) -> Option<Self> {
-        // We can use the fact that a**b == e**(b * ln(a))
+        //
+        // First we handle the edge cases of exp <= 0
+        match exp.cmp(&Fixed::zero()) {
+            std::cmp::Ordering::Equal => return Some(Fixed::one()),
+            std::cmp::Ordering::Less => {
+                let exp = Dec!(-1) * *exp.inner().clone();
+                let inverse = self.checked_pow(&exp.into())?;
+                let result = Fixed::one() / inverse;
+                return result.ok();
+            }
+            _ => {}
+        }
+
+        //
+        // To calculate a**b, we can use the fact that a**b == e**(b * ln(a))
         let a = *self.inner().clone();
         let b = *exp.inner().clone();
 
-        // Approximate ln(a) using the taylor series
+        //
+        // Approximate ln(a) using the taylor series for ln(x) = (x-1) - (x-1)**2/2 + (x-1)**3/3 - [...]
         let a_s1 = a.checked_sub(Dec!(1))?;
-        let mut ln_a_mul = a_s1.clone();
-        let mut ln_a = a_s1.clone();
+        let mut ln_a_mul = a_s1;
+        let mut ln_a = a_s1;
         let mut multiplier = Dec!(-1);
-        for i in 2..=10 {
+        for i in 2..=500 {
             ln_a_mul = ln_a_mul.checked_mul(a_s1)?;
             let factor = ln_a_mul.checked_div(Decimal::from(i))?;
             let factor = factor.checked_mul(multiplier)?;
@@ -59,18 +74,29 @@ impl Fixed {
             multiplier = multiplier.checked_mul(Dec!(-1))?;
         }
 
-        // Finally we approximate e**(b * ln(a)) using the taylor series
-        let mut b_ln_a = b.checked_mul(ln_a)?;
+        //
+        // santity check - high precision checked_mul can fail, but if we check scale
+        // we can avoid panics with unchecked multiplication
+        let _ = b.trunc().checked_mul(ln_a.trunc())?;
+
+        //
+        // Now, Finally we approximate e**(b * ln(a)) using the taylor series for e**x = 1 + x + x**2/2! + [...]
+        let b_ln_a = b * ln_a;
+        let mut multiplier = b_ln_a;
         let mut e_b_ln_a = Dec!(1).checked_add(b_ln_a)?;
         let mut divisor = Dec!(1);
-        for i in 2..=10 {
-            divisor = divisor.checked_mul(Decimal::from(i))?;
-            b_ln_a = b_ln_a.checked_mul(b_ln_a)?;
-            let factor = b_ln_a.checked_div(divisor)?;
+        // 34! overflows Decimal so we must stop at 33 rounds
+        for i in 2..=33 {
+            divisor = divisor.checked_mul(Decimal::from(i))?; // i!
+            multiplier *= b_ln_a; // x**i
+            let factor = multiplier.checked_div(divisor)?; // x**i / i!
             e_b_ln_a = e_b_ln_a.checked_add(factor)?;
         }
 
-        Some(Self::new(BoxedDecimal::from(e_b_ln_a)))
+        //
+        // Since this is an approximation, we round to the maximum precision of a and b
+        let result = e_b_ln_a.round(a.n_frac_digits().max(b.n_frac_digits()) as i8);
+        Some(Self::new(BoxedDecimal::from(result)))
     }
 }
 
@@ -601,5 +627,56 @@ mod tests {
         assert_eq!(Fixed::from_str("10.0").unwrap(), fixed!(10.0));
         assert_eq!(Fixed::from_str("10").unwrap(), fixed!(10));
         assert_eq!(Fixed::from_str("-10").unwrap(), fixed!(-10));
+    }
+
+    #[test]
+    fn test_checked_pow() {
+        assert_eq!(
+            Fixed::from_str("2")
+                .unwrap()
+                .checked_pow(&Fixed::from_str("3").unwrap())
+                .unwrap(),
+            fixed!(8)
+        );
+
+        assert_eq!(
+            Fixed::from_str("2")
+                .unwrap()
+                .checked_pow(&Fixed::from_str("0.5").unwrap())
+                .unwrap(),
+            fixed!(1.4)
+        );
+
+        assert_eq!(
+            Fixed::from_str("2")
+                .unwrap()
+                .checked_pow(&Fixed::from_str("0").unwrap())
+                .unwrap(),
+            fixed!(1)
+        );
+
+        assert_eq!(
+            Fixed::from_str("2")
+                .unwrap()
+                .checked_pow(&Fixed::from_str("-1").unwrap())
+                .unwrap(),
+            fixed!(0.5)
+        );
+
+        assert_eq!(
+            Fixed::from_str("2")
+                .unwrap()
+                .checked_pow(&Fixed::from_str("-2").unwrap())
+                .unwrap(),
+            fixed!(0.25)
+        );
+
+        assert_eq!(
+            Fixed::from_str("2")
+                .unwrap()
+                .checked_pow(&Fixed::from_str("-3").unwrap())
+                .unwrap(),
+            fixed!(0.125)
+        );
     }
 }
