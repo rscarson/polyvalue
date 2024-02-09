@@ -5,7 +5,7 @@
 //! Like all subtypes, it is hashable, serializable, and fully comparable
 //! It is represented as a string in the form of `<value>`
 //!
-use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
+use crate::{operations::*, types::*, Error, InnerValue, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -31,72 +31,72 @@ impl_value!(Float, FloatInner, |v: &Self| {
 
 map_value!(
     from = Float,
-    handle_into = Value::Float,
-    handle_from = |v: Value| match v {
-        Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
-        Value::Float(v) => Ok(v),
-        Value::Fixed(v) => {
+    handle_into = Value::float,
+    handle_from = |v: Value| match v.inner() {
+        InnerValue::Range(_) => Self::try_from(v.as_a::<Array>()?),
+        InnerValue::Float(v) => Ok(v.clone()),
+        InnerValue::Fixed(v) => {
             let p = v.inner().clone();
             let p: f64 = p.into();
             Ok(Float::from(p))
         }
-        Value::Currency(v) => {
+        InnerValue::Currency(v) => {
             let p = v.inner().value().inner().clone();
             let p: f64 = p.into();
             Ok(Float::from(p))
         }
 
-        Value::U8(v) => {
+        InnerValue::U8(v) => {
             let p = *v.inner() as f64;
             Ok(Float::from(p))
         }
 
-        Value::U16(v) => {
+        InnerValue::U16(v) => {
             let p = *v.inner() as f64;
             Ok(Float::from(p))
         }
 
-        Value::U32(v) => {
+        InnerValue::U32(v) => {
             let p = *v.inner() as f64;
             Ok(Float::from(p))
         }
 
-        Value::U64(v) => {
+        InnerValue::U64(v) => {
             let p = *v.inner() as f64;
             Ok(Float::from(p))
         }
 
-        Value::I8(v) => {
+        InnerValue::I8(v) => {
             let p = *v.inner() as f64;
             Ok(Float::from(p))
         }
 
-        Value::I16(v) => {
+        InnerValue::I16(v) => {
             let p = *v.inner() as f64;
             Ok(Float::from(p))
         }
 
-        Value::I32(v) => {
+        InnerValue::I32(v) => {
             let p = *v.inner() as f64;
             Ok(Float::from(p))
         }
 
-        Value::I64(v) => {
+        InnerValue::I64(v) => {
             let p = *v.inner() as f64;
             Ok(Float::from(p))
         }
 
-        Value::Bool(v) => {
+        InnerValue::Bool(v) => {
             let p = *v.inner() as i64 as f64;
             Ok(Float::from(p))
         }
-        Value::String(_) => {
+        InnerValue::String(_) => {
             Err(Error::ValueConversion {
                 src_type: ValueType::String,
                 dst_type: ValueType::Float,
             })
         }
-        Value::Array(v) => {
+        InnerValue::Array(v) => {
             if v.inner().len() == 1 {
                 let v = v.inner()[0].clone();
                 Float::try_from(v)
@@ -107,7 +107,7 @@ map_value!(
                 })
             }
         }
-        Value::Object(v) => {
+        InnerValue::Object(v) => {
             if v.inner().len() == 1 {
                 let v = v.inner().values().next().unwrap().clone();
                 Float::try_from(v)
@@ -280,9 +280,11 @@ mod test {
         );
         assert_eq!(Float::arithmetic_neg(&a).unwrap(), Float::from(-1.0));
 
-        assert!(
-            Float::is_operator_supported(&a, &b, ArithmeticOperation::Add)
-        );
+        assert!(Float::is_operator_supported(
+            &a,
+            &b,
+            ArithmeticOperation::Add
+        ));
 
         assert!(Float::arithmetic_op(
             &Float::from(-1.0),

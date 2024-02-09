@@ -40,7 +40,7 @@ pub trait ValueTrait:
 /// This is an enum that can hold any of the supported value types
 #[derive(Clone, Serialize, Deserialize, Eq, Hash, PartialEq)]
 #[serde(untagged)]
-pub enum Value {
+pub enum InnerValue {
     /// A boolean value
     Bool(Bool),
 
@@ -93,13 +93,39 @@ pub enum Value {
     Object(Object),
 }
 
+/// Main value type
+/// This is an enum that can hold any of the supported value types
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub struct Value {
+    inner: InnerValue,
+    flags: u8,
+}
+
+impl Serialize for Value {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.inner.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Value {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        InnerValue::deserialize(deserializer).map(|inner| Value { inner, flags: 0 })
+    }
+}
+
 impl TryFrom<serde_json::Value> for Value {
     type Error = Error;
     fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
         match value {
-            serde_json::Value::Null => Ok(Value::String(Str::from(""))),
-            serde_json::Value::Bool(v) => Ok(Value::Bool(Bool::from(v))),
-            serde_json::Value::String(v) => Ok(Value::String(Str::from(v))),
+            serde_json::Value::Null => Ok(Value::string("")),
+            serde_json::Value::Bool(v) => Ok(Value::bool(v)),
+            serde_json::Value::String(v) => Ok(Value::string(v)),
             serde_json::Value::Array(v) => Ok(v
                 .iter()
                 .map(|v| Value::try_from(v.clone()))
@@ -110,7 +136,7 @@ impl TryFrom<serde_json::Value> for Value {
                 for (key, value) in v {
                     object.insert(Value::from(key), Value::try_from(value)?)?;
                 }
-                Ok(Value::Object(object.into()))
+                Ok(Value::object(object))
             }
             serde_json::Value::Number(v) => {
                 if v.is_f64() {
@@ -123,7 +149,49 @@ impl TryFrom<serde_json::Value> for Value {
     }
 }
 
+impl From<Value> for InnerValue {
+    fn from(value: Value) -> InnerValue {
+        value.inner
+    }
+}
+
+impl From<InnerValue> for Value {
+    fn from(inner: InnerValue) -> Value {
+        Value { inner, flags: 0 }
+    }
+}
+
 impl Value {
+    /// Creates a new value from the given inner value
+    pub fn new(inner: InnerValue) -> Self {
+        Self { inner, flags: 0 }
+    }
+
+    /// Returns a reference to the inner value
+    pub fn inner(&self) -> &InnerValue {
+        &self.inner
+    }
+
+    /// Returns a mutable reference to the inner value
+    pub fn inner_mut(&mut self) -> &mut InnerValue {
+        &mut self.inner
+    }
+
+    /// Set a flag on the value
+    pub fn set_flag(&mut self, flag: u8) {
+        self.flags |= flag;
+    }
+
+    /// Clears the given flag
+    pub fn clear_flag(&mut self, flag: u8) {
+        self.flags &= !flag;
+    }
+
+    /// Returns true if the value has the given flag
+    pub fn has_flag(&self, flag: u8) -> bool {
+        self.flags & flag != 0
+    }
+
     /// Serializes the value to a tagged value
     /// This is useful for serialization, as it will preserve the type of integers
     pub fn serialize_tagged(&self) -> Result<String, serde_json::Error> {
@@ -138,103 +206,103 @@ impl Value {
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn bool(inner: impl Into<Bool>) -> Self {
-        Value::Bool(inner.into())
+        InnerValue::Bool(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn u8(inner: impl Into<U8>) -> Self {
-        Value::U8(inner.into())
+        InnerValue::U8(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn i8(inner: impl Into<I8>) -> Self {
-        Value::I8(inner.into())
+        InnerValue::I8(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn u16(inner: impl Into<U16>) -> Self {
-        Value::U16(inner.into())
+        InnerValue::U16(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn i16(inner: impl Into<I16>) -> Self {
-        Value::I16(inner.into())
+        InnerValue::I16(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn u32(inner: impl Into<U32>) -> Self {
-        Value::U32(inner.into())
+        InnerValue::U32(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn i32(inner: impl Into<I32>) -> Self {
-        Value::I32(inner.into())
+        InnerValue::I32(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn u64(inner: impl Into<U64>) -> Self {
-        Value::U64(inner.into())
+        InnerValue::U64(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn i64(inner: impl Into<I64>) -> Self {
-        Value::I64(inner.into())
+        InnerValue::I64(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn float(inner: impl Into<Float>) -> Self {
-        Value::Float(inner.into())
+        InnerValue::Float(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn fixed(inner: impl Into<Fixed>) -> Self {
-        Value::Fixed(inner.into())
+        InnerValue::Fixed(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn currency(inner: impl Into<Currency>) -> Self {
-        Value::Currency(inner.into())
+        InnerValue::Currency(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn string(inner: impl Into<Str>) -> Self {
-        Value::String(inner.into())
+        InnerValue::String(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn range(inner: impl Into<Range>) -> Self {
-        Value::Range(inner.into())
+        InnerValue::Range(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn array(inner: impl Into<Array>) -> Self {
-        Value::Array(inner.into())
+        InnerValue::Array(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn object(inner: impl Into<Object>) -> Self {
-        Value::Object(inner.into())
+        InnerValue::Object(inner.into()).into()
     }
 
     /// Creates a new value from the given inner value
     /// Use with the types defined in [`crate::types`]
     pub fn int(inner: impl Into<I64>) -> Self {
-        Value::I64(inner.into())
+        InnerValue::I64(inner.into()).into()
     }
 
     /// Resolves the type of two values based on a priority system.
@@ -365,23 +433,23 @@ impl Value {
     /// assert!(value.own_type() == ValueType::Float);
     /// ```
     pub fn own_type(&self) -> ValueType {
-        match self {
-            Value::Bool(_) => ValueType::Bool,
-            Value::Fixed(_) => ValueType::Fixed,
-            Value::Float(_) => ValueType::Float,
-            Value::Currency(_) => ValueType::Currency,
-            Value::U8(_) => ValueType::U8,
-            Value::U16(_) => ValueType::U16,
-            Value::U32(_) => ValueType::U32,
-            Value::U64(_) => ValueType::U64,
-            Value::I8(_) => ValueType::I8,
-            Value::I16(_) => ValueType::I16,
-            Value::I32(_) => ValueType::I32,
-            Value::I64(_) => ValueType::I64,
-            Value::String(_) => ValueType::String,
-            Value::Range(_) => ValueType::Range,
-            Value::Array(_) => ValueType::Array,
-            Value::Object(_) => ValueType::Object,
+        match self.inner() {
+            InnerValue::Bool(_) => ValueType::Bool,
+            InnerValue::Fixed(_) => ValueType::Fixed,
+            InnerValue::Float(_) => ValueType::Float,
+            InnerValue::Currency(_) => ValueType::Currency,
+            InnerValue::U8(_) => ValueType::U8,
+            InnerValue::U16(_) => ValueType::U16,
+            InnerValue::U32(_) => ValueType::U32,
+            InnerValue::U64(_) => ValueType::U64,
+            InnerValue::I8(_) => ValueType::I8,
+            InnerValue::I16(_) => ValueType::I16,
+            InnerValue::I32(_) => ValueType::I32,
+            InnerValue::I64(_) => ValueType::I64,
+            InnerValue::String(_) => ValueType::String,
+            InnerValue::Range(_) => ValueType::Range,
+            InnerValue::Array(_) => ValueType::Array,
+            InnerValue::Object(_) => ValueType::Object,
         }
     }
 
@@ -414,8 +482,11 @@ impl Value {
     /// let value = Value::from(1.0);
     /// let int = value.as_a::<I64>().expect("Value could not be converted to int!");
     /// ```
-    pub fn as_a<T: std::convert::TryFrom<Value, Error = Error>>(&self) -> Result<T, Error> {
-        T::try_from(self.clone())
+    pub fn as_a<T>(self) -> Result<T, Error>
+    where
+        Self: TryInto<T, Error = Error>,
+    {
+        self.try_into()
     }
 
     /// Returns true if the value is of the given type
@@ -604,7 +675,7 @@ impl Value {
     /// Returns true if the value is truthy
     /// This is a convenience method for boolean values
     pub fn is_truthy(&self) -> bool {
-        *self.as_a::<Bool>().unwrap().inner()
+        *self.clone().as_a::<Bool>().unwrap().inner()
     }
 
     /// Compares two values, ignoring type
@@ -665,52 +736,52 @@ impl Value {
 
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::Bool(v) => write!(f, "{}", v),
-            Value::Fixed(v) => write!(f, "{}", v),
-            Value::Float(v) => write!(f, "{}", v),
-            Value::Currency(v) => write!(f, "{}", v),
+        match self.inner() {
+            InnerValue::Bool(v) => write!(f, "{}", v),
+            InnerValue::Fixed(v) => write!(f, "{}", v),
+            InnerValue::Float(v) => write!(f, "{}", v),
+            InnerValue::Currency(v) => write!(f, "{}", v),
 
-            Value::U8(v) => write!(f, "{}", v),
-            Value::U16(v) => write!(f, "{}", v),
-            Value::U32(v) => write!(f, "{}", v),
-            Value::U64(v) => write!(f, "{}", v),
+            InnerValue::U8(v) => write!(f, "{}", v),
+            InnerValue::U16(v) => write!(f, "{}", v),
+            InnerValue::U32(v) => write!(f, "{}", v),
+            InnerValue::U64(v) => write!(f, "{}", v),
 
-            Value::I8(v) => write!(f, "{}", v),
-            Value::I16(v) => write!(f, "{}", v),
-            Value::I32(v) => write!(f, "{}", v),
-            Value::I64(v) => write!(f, "{}", v),
+            InnerValue::I8(v) => write!(f, "{}", v),
+            InnerValue::I16(v) => write!(f, "{}", v),
+            InnerValue::I32(v) => write!(f, "{}", v),
+            InnerValue::I64(v) => write!(f, "{}", v),
 
-            Value::String(v) => write!(f, "{}", v),
-            Value::Range(v) => write!(f, "{}", v),
-            Value::Array(v) => write!(f, "{}", v),
-            Value::Object(v) => write!(f, "{}", v),
+            InnerValue::String(v) => write!(f, "{}", v),
+            InnerValue::Range(v) => write!(f, "{}", v),
+            InnerValue::Array(v) => write!(f, "{}", v),
+            InnerValue::Object(v) => write!(f, "{}", v),
         }
     }
 }
 
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::Bool(v) => write!(f, "{:?}", v),
-            Value::Fixed(v) => write!(f, "{:?}", v),
-            Value::Float(v) => write!(f, "{:?}", v),
-            Value::Currency(v) => write!(f, "{:?}", v),
+        match self.inner() {
+            InnerValue::Bool(v) => write!(f, "{:?}", v),
+            InnerValue::Fixed(v) => write!(f, "{:?}", v),
+            InnerValue::Float(v) => write!(f, "{:?}", v),
+            InnerValue::Currency(v) => write!(f, "{:?}", v),
 
-            Value::U8(v) => write!(f, "{:?}", v),
-            Value::U16(v) => write!(f, "{:?}", v),
-            Value::U32(v) => write!(f, "{:?}", v),
-            Value::U64(v) => write!(f, "{:?}", v),
+            InnerValue::U8(v) => write!(f, "{:?}", v),
+            InnerValue::U16(v) => write!(f, "{:?}", v),
+            InnerValue::U32(v) => write!(f, "{:?}", v),
+            InnerValue::U64(v) => write!(f, "{:?}", v),
 
-            Value::I8(v) => write!(f, "{:?}", v),
-            Value::I16(v) => write!(f, "{:?}", v),
-            Value::I32(v) => write!(f, "{:?}", v),
-            Value::I64(v) => write!(f, "{:?}", v),
+            InnerValue::I8(v) => write!(f, "{:?}", v),
+            InnerValue::I16(v) => write!(f, "{:?}", v),
+            InnerValue::I32(v) => write!(f, "{:?}", v),
+            InnerValue::I64(v) => write!(f, "{:?}", v),
 
-            Value::String(v) => write!(f, "{:?}", v),
-            Value::Range(v) => write!(f, "{:?}", v),
-            Value::Array(v) => write!(f, "{:?}", v),
-            Value::Object(v) => write!(f, "{:?}", v),
+            InnerValue::String(v) => write!(f, "{:?}", v),
+            InnerValue::Range(v) => write!(f, "{:?}", v),
+            InnerValue::Array(v) => write!(f, "{:?}", v),
+            InnerValue::Object(v) => write!(f, "{:?}", v),
         }
     }
 }
@@ -719,51 +790,51 @@ impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         let weak_order = self.weak_ord(other).ok()?;
         if weak_order == std::cmp::Ordering::Equal && self.own_type() != other.own_type() {
-            match (self, other) {
-                (Value::Bool(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::Bool(_)) => Some(std::cmp::Ordering::Greater),
+            match (self.inner(), other.inner()) {
+                (InnerValue::Bool(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::Bool(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::U8(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::U8(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::U8(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::U8(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::I8(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::I8(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::I8(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::I8(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::U16(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::U16(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::U16(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::U16(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::I16(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::I16(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::I16(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::I16(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::U32(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::U32(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::U32(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::U32(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::I32(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::I32(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::I32(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::I32(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::U64(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::U64(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::U64(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::U64(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::I64(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::I64(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::I64(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::I64(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::Float(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::Float(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::Float(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::Float(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::Fixed(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::Fixed(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::Fixed(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::Fixed(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::Currency(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::Currency(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::Currency(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::Currency(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::String(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::String(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::String(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::String(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::Range(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::Range(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::Range(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::Range(_)) => Some(std::cmp::Ordering::Greater),
 
-                (Value::Array(_), _) => Some(std::cmp::Ordering::Less),
-                (_, Value::Array(_)) => Some(std::cmp::Ordering::Greater),
+                (InnerValue::Array(_), _) => Some(std::cmp::Ordering::Less),
+                (_, InnerValue::Array(_)) => Some(std::cmp::Ordering::Greater),
 
                 _ => unreachable!("This covers Object <-> Object, which is not possible here"),
             }
@@ -794,37 +865,55 @@ impl Ord for Value {
 impl BooleanOperationExt for Value {
     fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Self, Error> {
         let (left, right) = left.resolve(right)?;
-        match (left, right) {
-            (Value::Bool(l), Value::Bool(r)) => Bool::boolean_op(&l, &r, operation).map(Into::into),
-            (Value::Fixed(l), Value::Fixed(r)) => {
+        match (left.inner, right.inner) {
+            (InnerValue::Bool(l), InnerValue::Bool(r)) => {
+                Bool::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::Fixed(l), InnerValue::Fixed(r)) => {
                 Fixed::boolean_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Float(l), Value::Float(r)) => {
+            (InnerValue::Float(l), InnerValue::Float(r)) => {
                 Float::boolean_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Currency(l), Value::Currency(r)) => {
+            (InnerValue::Currency(l), InnerValue::Currency(r)) => {
                 Currency::boolean_op(&l, &r, operation).map(Into::into)
             }
 
-            (Value::U8(l), Value::U8(r)) => U8::boolean_op(&l, &r, operation).map(Into::into),
-            (Value::U16(l), Value::U16(r)) => U16::boolean_op(&l, &r, operation).map(Into::into),
-            (Value::U32(l), Value::U32(r)) => U32::boolean_op(&l, &r, operation).map(Into::into),
-            (Value::U64(l), Value::U64(r)) => U64::boolean_op(&l, &r, operation).map(Into::into),
-            (Value::I8(l), Value::I8(r)) => I8::boolean_op(&l, &r, operation).map(Into::into),
-            (Value::I16(l), Value::I16(r)) => I16::boolean_op(&l, &r, operation).map(Into::into),
-            (Value::I32(l), Value::I32(r)) => I32::boolean_op(&l, &r, operation).map(Into::into),
-            (Value::I64(l), Value::I64(r)) => I64::boolean_op(&l, &r, operation).map(Into::into),
+            (InnerValue::U8(l), InnerValue::U8(r)) => {
+                U8::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::U16(l), InnerValue::U16(r)) => {
+                U16::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::U32(l), InnerValue::U32(r)) => {
+                U32::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::U64(l), InnerValue::U64(r)) => {
+                U64::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::I8(l), InnerValue::I8(r)) => {
+                I8::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::I16(l), InnerValue::I16(r)) => {
+                I16::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::I32(l), InnerValue::I32(r)) => {
+                I32::boolean_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::I64(l), InnerValue::I64(r)) => {
+                I64::boolean_op(&l, &r, operation).map(Into::into)
+            }
 
-            (Value::String(l), Value::String(r)) => {
+            (InnerValue::String(l), InnerValue::String(r)) => {
                 Str::boolean_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Array(l), Value::Array(r)) => {
+            (InnerValue::Array(l), InnerValue::Array(r)) => {
                 Array::boolean_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Object(l), Value::Object(r)) => {
+            (InnerValue::Object(l), InnerValue::Object(r)) => {
                 Object::boolean_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Range(l), Value::Range(r)) => {
+            (InnerValue::Range(l), InnerValue::Range(r)) => {
                 Range::boolean_op(&l, &r, operation).map(Into::into)
             }
 
@@ -843,14 +932,28 @@ impl BooleanOperationExt for Value {
 impl BitwiseOperationExt for Value {
     fn bitwise_op(left: &Self, right: &Self, operation: BitwiseOperation) -> Result<Self, Error> {
         let (left, right) = left.resolve(right)?;
-        match (&left, &right) {
-            (Value::U8(l), Value::U8(r)) => U8::bitwise_op(l, r, operation).map(Into::into),
-            (Value::U16(l), Value::U16(r)) => U16::bitwise_op(l, r, operation).map(Into::into),
-            (Value::U32(l), Value::U32(r)) => U32::bitwise_op(l, r, operation).map(Into::into),
-            (Value::U64(l), Value::U64(r)) => U64::bitwise_op(l, r, operation).map(Into::into),
-            (Value::I8(l), Value::I8(r)) => I8::bitwise_op(l, r, operation).map(Into::into),
-            (Value::I16(l), Value::I16(r)) => I16::bitwise_op(l, r, operation).map(Into::into),
-            (Value::I32(l), Value::I32(r)) => I32::bitwise_op(l, r, operation).map(Into::into),
+        match (&left.inner, &right.inner) {
+            (InnerValue::U8(l), InnerValue::U8(r)) => {
+                U8::bitwise_op(l, r, operation).map(Into::into)
+            }
+            (InnerValue::U16(l), InnerValue::U16(r)) => {
+                U16::bitwise_op(l, r, operation).map(Into::into)
+            }
+            (InnerValue::U32(l), InnerValue::U32(r)) => {
+                U32::bitwise_op(l, r, operation).map(Into::into)
+            }
+            (InnerValue::U64(l), InnerValue::U64(r)) => {
+                U64::bitwise_op(l, r, operation).map(Into::into)
+            }
+            (InnerValue::I8(l), InnerValue::I8(r)) => {
+                I8::bitwise_op(l, r, operation).map(Into::into)
+            }
+            (InnerValue::I16(l), InnerValue::I16(r)) => {
+                I16::bitwise_op(l, r, operation).map(Into::into)
+            }
+            (InnerValue::I32(l), InnerValue::I32(r)) => {
+                I32::bitwise_op(l, r, operation).map(Into::into)
+            }
 
             _ => {
                 let left = left.as_a::<I64>()?;
@@ -876,39 +979,55 @@ impl ArithmeticOperationExt for Value {
     ) -> Result<Self, Error> {
         let (left, right) = left.resolve(right)?;
 
-        match (left, right) {
-            (Value::Bool(l), Value::Bool(r)) => {
+        match (left.inner, right.inner) {
+            (InnerValue::Bool(l), InnerValue::Bool(r)) => {
                 Bool::arithmetic_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Fixed(l), Value::Fixed(r)) => {
+            (InnerValue::Fixed(l), InnerValue::Fixed(r)) => {
                 Fixed::arithmetic_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Float(l), Value::Float(r)) => {
+            (InnerValue::Float(l), InnerValue::Float(r)) => {
                 Float::arithmetic_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Currency(l), Value::Currency(r)) => {
+            (InnerValue::Currency(l), InnerValue::Currency(r)) => {
                 Currency::arithmetic_op(&l, &r, operation).map(Into::into)
             }
 
-            (Value::U8(l), Value::U8(r)) => U8::arithmetic_op(&l, &r, operation).map(Into::into),
-            (Value::U16(l), Value::U16(r)) => U16::arithmetic_op(&l, &r, operation).map(Into::into),
-            (Value::U32(l), Value::U32(r)) => U32::arithmetic_op(&l, &r, operation).map(Into::into),
-            (Value::U64(l), Value::U64(r)) => U64::arithmetic_op(&l, &r, operation).map(Into::into),
-            (Value::I8(l), Value::I8(r)) => I8::arithmetic_op(&l, &r, operation).map(Into::into),
-            (Value::I16(l), Value::I16(r)) => I16::arithmetic_op(&l, &r, operation).map(Into::into),
-            (Value::I32(l), Value::I32(r)) => I32::arithmetic_op(&l, &r, operation).map(Into::into),
-            (Value::I64(l), Value::I64(r)) => I64::arithmetic_op(&l, &r, operation).map(Into::into),
+            (InnerValue::U8(l), InnerValue::U8(r)) => {
+                U8::arithmetic_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::U16(l), InnerValue::U16(r)) => {
+                U16::arithmetic_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::U32(l), InnerValue::U32(r)) => {
+                U32::arithmetic_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::U64(l), InnerValue::U64(r)) => {
+                U64::arithmetic_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::I8(l), InnerValue::I8(r)) => {
+                I8::arithmetic_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::I16(l), InnerValue::I16(r)) => {
+                I16::arithmetic_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::I32(l), InnerValue::I32(r)) => {
+                I32::arithmetic_op(&l, &r, operation).map(Into::into)
+            }
+            (InnerValue::I64(l), InnerValue::I64(r)) => {
+                I64::arithmetic_op(&l, &r, operation).map(Into::into)
+            }
 
-            (Value::String(l), Value::String(r)) => {
+            (InnerValue::String(l), InnerValue::String(r)) => {
                 Str::arithmetic_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Array(l), Value::Array(r)) => {
+            (InnerValue::Array(l), InnerValue::Array(r)) => {
                 Array::arithmetic_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Object(l), Value::Object(r)) => {
+            (InnerValue::Object(l), InnerValue::Object(r)) => {
                 Object::arithmetic_op(&l, &r, operation).map(Into::into)
             }
-            (Value::Range(l), Value::Range(r)) => {
+            (InnerValue::Range(l), InnerValue::Range(r)) => {
                 Range::arithmetic_op(&l, &r, operation).map(Into::into)
             }
             _ => unreachable!("Invalid type combination during boolean operation"),
@@ -925,83 +1044,83 @@ impl ArithmeticOperationExt for Value {
     fn is_operator_supported(&self, other: &Self, operation: ArithmeticOperation) -> bool {
         match self.type_for_comparison(other) {
             ValueType::Bool => Bool::is_operator_supported(
-                &self.as_a::<Bool>().unwrap(),
-                &other.as_a::<Bool>().unwrap(),
+                &self.clone().as_a::<Bool>().unwrap(),
+                &other.clone().as_a::<Bool>().unwrap(),
                 operation,
             ),
             ValueType::Fixed => Fixed::is_operator_supported(
-                &self.as_a::<Fixed>().unwrap(),
-                &other.as_a::<Fixed>().unwrap(),
+                &self.clone().as_a::<Fixed>().unwrap(),
+                &other.clone().as_a::<Fixed>().unwrap(),
                 operation,
             ),
             ValueType::Float => Float::is_operator_supported(
-                &self.as_a::<Float>().unwrap(),
-                &other.as_a::<Float>().unwrap(),
+                &self.clone().as_a::<Float>().unwrap(),
+                &other.clone().as_a::<Float>().unwrap(),
                 operation,
             ),
             ValueType::Currency => Currency::is_operator_supported(
-                &self.as_a::<Currency>().unwrap(),
-                &other.as_a::<Currency>().unwrap(),
+                &self.clone().as_a::<Currency>().unwrap(),
+                &other.clone().as_a::<Currency>().unwrap(),
                 operation,
             ),
             ValueType::U8 => U8::is_operator_supported(
-                &self.as_a::<U8>().unwrap(),
-                &other.as_a::<U8>().unwrap(),
+                &self.clone().as_a::<U8>().unwrap(),
+                &other.clone().as_a::<U8>().unwrap(),
                 operation,
             ),
             ValueType::U16 => U16::is_operator_supported(
-                &self.as_a::<U16>().unwrap(),
-                &other.as_a::<U16>().unwrap(),
+                &self.clone().as_a::<U16>().unwrap(),
+                &other.clone().as_a::<U16>().unwrap(),
                 operation,
             ),
             ValueType::U32 => U32::is_operator_supported(
-                &self.as_a::<U32>().unwrap(),
-                &other.as_a::<U32>().unwrap(),
+                &self.clone().as_a::<U32>().unwrap(),
+                &other.clone().as_a::<U32>().unwrap(),
                 operation,
             ),
             ValueType::U64 => U64::is_operator_supported(
-                &self.as_a::<U64>().unwrap(),
-                &other.as_a::<U64>().unwrap(),
+                &self.clone().as_a::<U64>().unwrap(),
+                &other.clone().as_a::<U64>().unwrap(),
                 operation,
             ),
             ValueType::I8 => I8::is_operator_supported(
-                &self.as_a::<I8>().unwrap(),
-                &other.as_a::<I8>().unwrap(),
+                &self.clone().as_a::<I8>().unwrap(),
+                &other.clone().as_a::<I8>().unwrap(),
                 operation,
             ),
             ValueType::I16 => I16::is_operator_supported(
-                &self.as_a::<I16>().unwrap(),
-                &other.as_a::<I16>().unwrap(),
+                &self.clone().as_a::<I16>().unwrap(),
+                &other.clone().as_a::<I16>().unwrap(),
                 operation,
             ),
             ValueType::I32 => I32::is_operator_supported(
-                &self.as_a::<I32>().unwrap(),
-                &other.as_a::<I32>().unwrap(),
+                &self.clone().as_a::<I32>().unwrap(),
+                &other.clone().as_a::<I32>().unwrap(),
                 operation,
             ),
             ValueType::I64 => I64::is_operator_supported(
-                &self.as_a::<I64>().unwrap(),
-                &other.as_a::<I64>().unwrap(),
+                &self.clone().as_a::<I64>().unwrap(),
+                &other.clone().as_a::<I64>().unwrap(),
                 operation,
             ),
             ValueType::String => Str::is_operator_supported(
-                &self.as_a::<Str>().unwrap(),
-                &other.as_a::<Str>().unwrap(),
+                &self.clone().as_a::<Str>().unwrap(),
+                &other.clone().as_a::<Str>().unwrap(),
                 operation,
             ),
             ValueType::Array => Array::is_operator_supported(
-                &self.as_a::<Array>().unwrap(),
-                &other.as_a::<Array>().unwrap(),
+                &self.clone().as_a::<Array>().unwrap(),
+                &other.clone().as_a::<Array>().unwrap(),
                 operation,
             ),
             ValueType::Object => Object::is_operator_supported(
-                &self.as_a::<Object>().unwrap(),
-                &other.as_a::<Object>().unwrap(),
+                &self.clone().as_a::<Object>().unwrap(),
+                &other.clone().as_a::<Object>().unwrap(),
                 operation,
             ),
             ValueType::Range => Range::is_operator_supported(
-                &self.as_a::<Range>().unwrap(),
-                &other.as_a::<Range>().unwrap(),
+                &self.clone().as_a::<Range>().unwrap(),
+                &other.clone().as_a::<Range>().unwrap(),
                 operation,
             ),
 
@@ -1026,25 +1145,25 @@ impl MatchingOperationExt for Value {
     {
         // Special case for type matching
         if operation == MatchingOperation::Is {
-            let type_name = pattern.as_a::<Str>()?;
-            return Ok(Value::Bool(Bool::new(
+            let type_name = pattern.clone().as_a::<Str>()?;
+            return Ok(Value::bool(
                 &container.own_type().to_string() == type_name.inner(),
-            )));
+            ));
         } else {
             match container.own_type() {
                 ValueType::Array => {
-                    Array::matching_op(&container.as_a::<Array>()?, pattern, operation)
+                    Array::matching_op(&container.clone().as_a::<Array>()?, pattern, operation)
                 }
 
                 ValueType::Object => {
-                    Object::matching_op(&container.as_a::<Object>()?, pattern, operation)
+                    Object::matching_op(&container.clone().as_a::<Object>()?, pattern, operation)
                 }
 
                 ValueType::Range => {
-                    Range::matching_op(&container.as_a::<Range>()?, pattern, operation)
+                    Range::matching_op(&container.clone().as_a::<Range>()?, pattern, operation)
                 }
 
-                _ => Str::matching_op(&container.as_a::<Str>()?, pattern, operation),
+                _ => Str::matching_op(&container.clone().as_a::<Str>()?, pattern, operation),
             }
         }
     }
@@ -1052,11 +1171,11 @@ impl MatchingOperationExt for Value {
 
 impl IndexingOperationExt for Value {
     fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
-        match self {
-            Value::Array(v) => v.get_index(index),
-            Value::Object(v) => v.get_index(index),
-            Value::Range(v) => v.get_index(index),
-            Value::String(v) => v.get_index(index),
+        match self.inner() {
+            InnerValue::Array(v) => v.get_index(index),
+            InnerValue::Object(v) => v.get_index(index),
+            InnerValue::Range(v) => v.get_index(index),
+            InnerValue::String(v) => v.get_index(index),
 
             _ => Err(Error::ValueType {
                 actual_type: self.own_type(),
@@ -1066,11 +1185,11 @@ impl IndexingOperationExt for Value {
     }
 
     fn get_indices(&self, index: &Value) -> Result<Value, crate::Error> {
-        match self {
-            Value::Array(v) => v.get_indices(index),
-            Value::Object(v) => v.get_indices(index),
-            Value::Range(v) => v.get_indices(index),
-            Value::String(v) => v.get_indices(index),
+        match self.inner() {
+            InnerValue::Array(v) => v.get_indices(index),
+            InnerValue::Object(v) => v.get_indices(index),
+            InnerValue::Range(v) => v.get_indices(index),
+            InnerValue::String(v) => v.get_indices(index),
 
             _ => Err(Error::ValueType {
                 actual_type: self.own_type(),
@@ -1082,48 +1201,52 @@ impl IndexingOperationExt for Value {
 
 impl IndexingMutationExt for Value {
     fn get_index_mut(&mut self, index: &Value) -> Result<&mut Value, crate::Error> {
-        match self {
-            Value::Array(v) => v.get_index_mut(index),
-            Value::Object(v) => v.get_index_mut(index),
+        let _type = self.own_type();
+        match self.inner_mut() {
+            InnerValue::Array(v) => v.get_index_mut(index),
+            InnerValue::Object(v) => v.get_index_mut(index),
 
             _ => Err(Error::ValueType {
-                actual_type: self.own_type(),
+                actual_type: _type,
                 expected_type: ValueType::Compound,
             })?,
         }
     }
 
     fn get_indices_mut(&mut self, index: &Value) -> Result<Vec<&mut Value>, crate::Error> {
-        match self {
-            Value::Array(v) => v.get_indices_mut(index),
-            Value::Object(v) => v.get_indices_mut(index),
+        let _type = self.own_type();
+        match self.inner_mut() {
+            InnerValue::Array(v) => v.get_indices_mut(index),
+            InnerValue::Object(v) => v.get_indices_mut(index),
 
             _ => Err(Error::ValueType {
-                actual_type: self.own_type(),
+                actual_type: _type,
                 expected_type: ValueType::Compound,
             })?,
         }
     }
 
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
-        match self {
-            Value::Array(v) => v.set_index(index, value),
-            Value::Object(v) => v.set_index(index, value),
+        let _type = self.own_type();
+        match self.inner_mut() {
+            InnerValue::Array(v) => v.set_index(index, value),
+            InnerValue::Object(v) => v.set_index(index, value),
 
             _ => Err(Error::ValueType {
-                actual_type: self.own_type(),
+                actual_type: _type,
                 expected_type: ValueType::Compound,
             })?,
         }
     }
 
     fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error> {
-        match self {
-            Value::Array(v) => v.delete_index(index),
-            Value::Object(v) => v.delete_index(index),
+        let _type = self.own_type();
+        match self.inner_mut() {
+            InnerValue::Array(v) => v.delete_index(index),
+            InnerValue::Object(v) => v.delete_index(index),
 
             _ => Err(Error::ValueType {
-                actual_type: self.own_type(),
+                actual_type: _type,
                 expected_type: ValueType::Compound,
             })?,
         }
@@ -1202,34 +1325,59 @@ mod test {
         let value = Value::try_from(value).unwrap();
         assert_eq!(value.own_type(), ValueType::Object);
         assert_eq!(
-            value.as_a::<Object>().unwrap().get(&Value::from("bool")),
+            value
+                .clone()
+                .as_a::<Object>()
+                .unwrap()
+                .get(&Value::from("bool")),
             Some(&Value::from(true))
         );
         assert_eq!(
-            value.as_a::<Object>().unwrap().get(&Value::from("fixed")),
-            Some(&Value::from(1.0))
-        );
-        assert_eq!(
-            value.as_a::<Object>().unwrap().get(&Value::from("float")),
+            value
+                .clone()
+                .as_a::<Object>()
+                .unwrap()
+                .get(&Value::from("fixed")),
             Some(&Value::from(1.0))
         );
         assert_eq!(
             value
+                .clone()
+                .as_a::<Object>()
+                .unwrap()
+                .get(&Value::from("float")),
+            Some(&Value::from(1.0))
+        );
+        assert_eq!(
+            value
+                .clone()
                 .as_a::<Object>()
                 .unwrap()
                 .get(&Value::from("currency")),
             Some(&Value::from(1.0))
         );
         assert_eq!(
-            value.as_a::<Object>().unwrap().get(&Value::from("int")),
+            value
+                .clone()
+                .as_a::<Object>()
+                .unwrap()
+                .get(&Value::from("int")),
             Some(&Value::from(1i64))
         );
         assert_eq!(
-            value.as_a::<Object>().unwrap().get(&Value::from("string")),
+            value
+                .clone()
+                .as_a::<Object>()
+                .unwrap()
+                .get(&Value::from("string")),
             Some(&Value::from("abc"))
         );
         assert_eq!(
-            value.as_a::<Object>().unwrap().get(&Value::from("array")),
+            value
+                .clone()
+                .as_a::<Object>()
+                .unwrap()
+                .get(&Value::from("array")),
             Some(&Value::from(vec![
                 Value::i64(1),
                 Value::i64(2),
@@ -1237,7 +1385,11 @@ mod test {
             ]))
         );
         assert_eq!(
-            value.as_a::<Object>().unwrap().get(&Value::from("range")),
+            value
+                .clone()
+                .as_a::<Object>()
+                .unwrap()
+                .get(&Value::from("range")),
             Some(&Value::from(vec![
                 Value::i64(1),
                 Value::i64(2),
@@ -1245,7 +1397,11 @@ mod test {
             ]))
         );
         assert_eq!(
-            value.as_a::<Object>().unwrap().get(&Value::from("null")),
+            value
+                .clone()
+                .as_a::<Object>()
+                .unwrap()
+                .get(&Value::from("null")),
             Some(&Value::from(""))
         );
     }
@@ -1378,6 +1534,10 @@ mod test {
 
     #[test]
     fn test_as_a() {
+        let value = Value::from(1.0);
+        assert_eq!(value.clone().as_a::<String>().unwrap(), "1.0".to_string());
+        assert_eq!(value.as_a::<bool>().unwrap(), true);
+
         let value = Value::from(1.0);
         let int = value
             .as_a::<I64>()

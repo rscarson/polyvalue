@@ -5,7 +5,7 @@
 //! Like all subtypes, it is hashable, serializable, and fully comparable
 //! It is represented as a string in the form of `true` or `false`
 //!
-use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
+use crate::{operations::*, types::*, Error, InnerValue, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 use std::{hash::Hash, str::FromStr};
 
@@ -20,59 +20,61 @@ impl_value!(Bool, bool, |v: &Self| if *v.inner() {
 
 map_value!(
     from = Bool,
-    handle_into = Value::Bool,
-    handle_from = |v: Value| match v {
-        Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
-        Value::Bool(v) => Ok(v),
+    handle_into = Value::bool,
+    handle_from = |v: Value| match v.inner() {
+        InnerValue::Range(v) => {
+            Ok(Bool::from(v.inner().start() != v.inner().end()))
+        }
+        InnerValue::Bool(v) => Ok(v.clone()),
 
-        Value::U8(v) => {
+        InnerValue::U8(v) => {
             Ok(Bool::from(*v.inner() != 0))
         }
 
-        Value::U16(v) => {
+        InnerValue::U16(v) => {
             Ok(Bool::from(*v.inner() != 0))
         }
 
-        Value::U32(v) => {
+        InnerValue::U32(v) => {
             Ok(Bool::from(*v.inner() != 0))
         }
 
-        Value::U64(v) => {
+        InnerValue::U64(v) => {
             Ok(Bool::from(*v.inner() != 0))
         }
 
-        Value::I8(v) => {
+        InnerValue::I8(v) => {
             Ok(Bool::from(*v.inner() != 0))
         }
 
-        Value::I16(v) => {
+        InnerValue::I16(v) => {
             Ok(Bool::from(*v.inner() != 0))
         }
 
-        Value::I32(v) => {
+        InnerValue::I32(v) => {
             Ok(Bool::from(*v.inner() != 0))
         }
 
-        Value::I64(v) => {
+        InnerValue::I64(v) => {
             Ok(Bool::from(*v.inner() != 0))
         }
 
-        Value::Float(v) => {
+        InnerValue::Float(v) => {
             Ok(Bool::from(*v.inner() != 0.0))
         }
-        Value::Fixed(v) => {
-            Ok(Bool::from(v != Fixed::zero()))
+        InnerValue::Fixed(v) => {
+            Ok(Bool::from(v != &Fixed::zero()))
         }
-        Value::Currency(v) => {
+        InnerValue::Currency(v) => {
             Ok(Bool::from(v.inner().value() == &Fixed::zero()))
         }
-        Value::String(v) => {
+        InnerValue::String(v) => {
             Ok(Bool::from(!v.inner().is_empty()))
         }
-        Value::Array(v) => {
+        InnerValue::Array(v) => {
             Ok(Bool::from(!v.inner().is_empty()))
         }
-        Value::Object(v) => {
+        InnerValue::Object(v) => {
             Ok(Bool::from(!v.inner().is_empty()))
         }
     }
@@ -277,13 +279,11 @@ mod test {
             Bool::from(false)
         );
 
-        assert!(
-            Bool::is_operator_supported(
-                &Bool::from(true),
-                &Bool::from(true),
-                ArithmeticOperation::Add
-            )
-        );
+        assert!(Bool::is_operator_supported(
+            &Bool::from(true),
+            &Bool::from(true),
+            ArithmeticOperation::Add
+        ));
     }
 
     #[test]
@@ -437,21 +437,15 @@ mod test {
             Bool::from(false)
         );
 
+        assert_eq!(Bool::try_from(Value::i32(1_i32)).unwrap(), Bool::from(true));
         assert_eq!(
-            Bool::try_from(Value::I32(I32::new(1_i32))).unwrap(),
-            Bool::from(true)
-        );
-        assert_eq!(
-            Bool::try_from(Value::I32(I32::new(0_i32))).unwrap(),
+            Bool::try_from(Value::i32(0_i32)).unwrap(),
             Bool::from(false)
         );
 
+        assert_eq!(Bool::try_from(Value::i64(1_i32)).unwrap(), Bool::from(true));
         assert_eq!(
-            Bool::try_from(Value::I64(I64::new(1_i64))).unwrap(),
-            Bool::from(true)
-        );
-        assert_eq!(
-            Bool::try_from(Value::I64(I64::new(0_i64))).unwrap(),
+            Bool::try_from(Value::i64(0_i64)).unwrap(),
             Bool::from(false)
         );
     }

@@ -5,7 +5,7 @@
 //! Like all subtypes, it is hashable, serializable, and fully comparable
 //! It is represented as a string in the form of `<value>`
 //!
-use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
+use crate::{operations::*, types::*, Error, InnerValue, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 use std::ops::{Range, RangeInclusive};
 
@@ -154,11 +154,11 @@ impl Str {
     /// Can fail if the index is not an array of integers, or if the array is empty
     pub fn index_value_to_range(index: &Value) -> Result<std::ops::RangeInclusive<Value>, Error> {
         // Convert index to a range - we will need an array of integers
-        let index = index.as_a::<Array>()?;
+        let index = index.clone().as_a::<Array>()?;
         let indices = index
             .inner()
             .iter()
-            .map(|v| Ok::<<I64 as ValueTrait>::Inner, Error>(*v.as_a::<I64>()?.inner()))
+            .map(|v| Ok::<<I64 as ValueTrait>::Inner, Error>(*v.clone().as_a::<I64>()?.inner()))
             .collect::<Result<Vec<_>, _>>()?;
         if indices.is_empty() {
             Err(Error::Index {
@@ -174,9 +174,9 @@ impl Str {
 
 map_value!(
     from = Str,
-    handle_into = Value::String,
-    handle_from = |v: Value| match v {
-        Value::String(v) => Ok(v),
+    handle_into = Value::string,
+    handle_from = |v: Value| match v.inner() {
+        InnerValue::String(v) => Ok(v.clone()),
         _ => Ok(Str::from(v.to_string())),
     }
 );
@@ -312,12 +312,12 @@ impl IndexingOperationExt for Str {
 
     fn get_indices(&self, index: &Value) -> Result<Value, crate::Error> {
         if index.is_a(ValueType::Range) {
-            let indices = index.as_a::<crate::types::Range>()?.inner().clone();
+            let indices = index.clone().as_a::<crate::types::Range>()?.inner().clone();
             let lower = Value::from(*indices.start());
             let upper = Value::from(*indices.end());
             self.substr(&lower..=&upper).map(Value::from)
         } else {
-            let indices = index.as_a::<Array>()?;
+            let indices = index.clone().as_a::<Array>()?;
             if indices.inner().is_empty() {
                 return Ok(Value::from(""));
             }
@@ -325,7 +325,14 @@ impl IndexingOperationExt for Str {
             let results = indices
                 .inner()
                 .iter()
-                .map(|i| Ok(self.get_index(i)?.as_a::<Str>()?.inner().to_string()))
+                .map(|i| {
+                    Ok(self
+                        .get_index(i)?
+                        .clone()
+                        .as_a::<Str>()?
+                        .inner()
+                        .to_string())
+                })
                 .collect::<Result<Vec<_>, Error>>()?;
             // join into one Str
             Ok(Value::from(results.join("")))

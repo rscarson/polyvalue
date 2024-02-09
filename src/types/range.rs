@@ -11,7 +11,7 @@ use crate::{
         IndexingOperationExt, MatchingOperation, MatchingOperationExt,
     },
     types::*,
-    Error, Value, ValueTrait, ValueType,
+    Error, InnerValue, Value, ValueTrait, ValueType,
 };
 use serde::{Deserialize, Serialize};
 use std::{ops::RangeInclusive, str::FromStr};
@@ -145,7 +145,7 @@ impl ArithmeticOperationExt for Range {
 
 impl IndexingOperationExt for Range {
     fn get_index(&self, index: &Value) -> Result<Value, crate::Error> {
-        let index = *index.as_a::<I64>()?.inner();
+        let index = *index.clone().as_a::<I64>()?.inner();
         let offset = if index < 0 {
             *self.inner().end() + index + 1
         } else {
@@ -163,7 +163,7 @@ impl IndexingOperationExt for Range {
 
     fn get_indices(&self, index: &Value) -> Result<Value, Error> {
         if index.is_a(ValueType::Range) {
-            let indices = index.as_a::<Range>()?;
+            let indices = index.clone().as_a::<Range>()?;
             if self.len() < indices.len() {
                 return Err(Error::Index {
                     key: index.to_string(),
@@ -176,7 +176,7 @@ impl IndexingOperationExt for Range {
             let results = Array::try_from(new_range)?;
             Ok(results.into())
         } else {
-            let indices = index.as_a::<Array>()?;
+            let indices = index.clone().as_a::<Array>()?;
             let mut container = Array::prealloc_range_conversion(indices.len())?;
             for i in indices.inner().iter() {
                 container.push(self.get_index(i)?);
@@ -197,9 +197,9 @@ impl MatchingOperationExt for Range {
     {
         let result = match operation {
             MatchingOperation::Contains => {
-                let pattern = pattern.as_a::<Array>()?;
+                let pattern = pattern.clone().as_a::<Array>()?;
                 for value in pattern.inner().iter() {
-                    let i = *value.as_a::<I64>()?.inner();
+                    let i = *value.clone().as_a::<I64>()?.inner();
                     if !container.inner().contains(&i) {
                         return Ok(false.into());
                     }
@@ -207,15 +207,15 @@ impl MatchingOperationExt for Range {
                 true
             }
             MatchingOperation::StartsWith => {
-                let pattern = pattern.as_a::<Range>()?;
+                let pattern = pattern.clone().as_a::<Range>()?;
                 pattern.start() == container.start() && pattern.end() <= container.end()
             }
             MatchingOperation::EndsWith => {
-                let pattern = pattern.as_a::<Range>()?;
+                let pattern = pattern.clone().as_a::<Range>()?;
                 pattern.end() == container.end() && pattern.start() >= container.start()
             }
             MatchingOperation::Matches => {
-                let pattern = pattern.as_a::<Range>()?;
+                let pattern = pattern.clone().as_a::<Range>()?;
                 pattern == *container
             }
 
@@ -229,14 +229,14 @@ impl MatchingOperationExt for Range {
 
 map_value!(
     from = Range,
-    handle_into = Value::Range,
+    handle_into = Value::range,
     handle_from = |v: Value| {
-        match v {
-            Value::Range(v) => Ok(v),
-            Value::Array(v) => {
+        match v.inner() {
+            InnerValue::Range(v) => Ok(v.clone()),
+            InnerValue::Array(v) => {
                 if v.len() == 2 {
-                    let start = v.get_index(&0.into())?.as_a::<I64>()?;
-                    let end = v.get_index(&1.into())?.as_a::<I64>()?;
+                    let start = v.get_index(&0.into())?.clone().as_a::<I64>()?;
+                    let end = v.get_index(&1.into())?.clone().as_a::<I64>()?;
                     Ok(Range::new(*start.inner()..=*end.inner()))
                 } else {
                     Err(Error::ValueConversion {

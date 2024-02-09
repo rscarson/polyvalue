@@ -5,7 +5,7 @@
 //! Like all subtypes, it is hashable, serializable, and fully comparable
 //! It is represented as a string in the form of `<symbol><value>`
 //!
-use crate::{operations::*, types::*, Error, Value, ValueTrait};
+use crate::{operations::*, types::*, Error, InnerValue, Value, ValueTrait};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -38,10 +38,10 @@ impl From<fpdec::Decimal> for Currency {
 
 map_value!(
     from = Currency,
-    handle_into = Value::Currency,
+    handle_into = Value::currency,
     handle_from = |v: Value| {
-        match v {
-            Value::Currency(v) => Ok(v),
+        match v.inner() {
+            InnerValue::Currency(v) => Ok(v.clone()),
             _ => {
                 let value = Fixed::try_from(v)?;
                 let value = CurrencyInner::from_fixed(value);
@@ -167,13 +167,11 @@ mod test {
         let result = Currency::arithmetic_neg(&Currency::from_str("$10.00").unwrap()).unwrap();
         assert_eq!(result.to_string(), "$-10.00".to_string());
 
-        assert!(
-            Currency::is_operator_supported(
-                &Currency::from_str("$10.00").unwrap(),
-                &Currency::from_str("$10.00").unwrap(),
-                ArithmeticOperation::Add
-            )
-        );
+        assert!(Currency::is_operator_supported(
+            &Currency::from_str("$10.00").unwrap(),
+            &Currency::from_str("$10.00").unwrap(),
+            ArithmeticOperation::Add
+        ));
     }
 
     #[test]
@@ -257,11 +255,7 @@ mod test {
         let value = Currency::from_str("¥10").unwrap();
         assert_eq!(value.to_string(), "¥10".to_string());
 
-        let value = Currency::new(CurrencyInner::new(
-            None,
-            5,
-            fixed!(10.123456789),
-        ));
+        let value = Currency::new(CurrencyInner::new(None, 5, fixed!(10.123456789)));
         assert_eq!(value.to_string(), "10.12346".to_string());
     }
 

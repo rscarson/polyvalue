@@ -1,8 +1,8 @@
 //! This module defines a tagged variant of Value, for use in serialization
 //!
 use crate::types::*;
+use crate::InnerValue;
 use crate::Value;
-use crate::ValueTrait;
 use serde::{Deserialize, Serialize};
 
 pub type TaggedArray = Vec<TaggedValue>;
@@ -87,20 +87,20 @@ impl TaggedValue {
 impl From<TaggedValue> for Value {
     fn from(val: TaggedValue) -> Self {
         match val {
-            TaggedValue::Bool(v) => Value::Bool(v),
-            TaggedValue::U8(v) => Value::U8(v),
-            TaggedValue::I8(v) => Value::I8(v),
-            TaggedValue::U16(v) => Value::U16(v),
-            TaggedValue::I16(v) => Value::I16(v),
-            TaggedValue::U32(v) => Value::U32(v),
-            TaggedValue::I32(v) => Value::I32(v),
-            TaggedValue::U64(v) => Value::U64(v),
-            TaggedValue::I64(v) => Value::I64(v),
-            TaggedValue::Float(v) => Value::Float(v),
-            TaggedValue::Fixed(v) => Value::Fixed(v),
-            TaggedValue::Currency(v) => Value::Currency(v),
-            TaggedValue::String(v) => Value::String(v),
-            TaggedValue::Range(v) => Value::Range(v),
+            TaggedValue::Bool(v) => Value::bool(v),
+            TaggedValue::U8(v) => Value::u8(v),
+            TaggedValue::I8(v) => Value::i8(v),
+            TaggedValue::U16(v) => Value::u16(v),
+            TaggedValue::I16(v) => Value::i16(v),
+            TaggedValue::U32(v) => Value::u32(v),
+            TaggedValue::I32(v) => Value::i32(v),
+            TaggedValue::U64(v) => Value::u64(v),
+            TaggedValue::I64(v) => Value::i64(v),
+            TaggedValue::Float(v) => Value::float(v),
+            TaggedValue::Fixed(v) => Value::fixed(v),
+            TaggedValue::Currency(v) => Value::currency(v),
+            TaggedValue::String(v) => Value::string(v),
+            TaggedValue::Range(v) => Value::range(v),
             TaggedValue::Array(v) => {
                 let array = v.into_iter().map(|v| v.into()).collect::<Vec<_>>();
                 Value::array(array)
@@ -110,11 +110,11 @@ impl From<TaggedValue> for Value {
                     v.0.iter()
                         .map(|(k, v)| (k.clone().into(), v.clone().into()))
                         .collect::<Vec<(_, _)>>();
-                let mut obj = Object::new(ObjectInner::new());
+                let mut obj = ObjectInner::new();
                 for (k, v) in object {
                     obj.insert(k, v).ok();
                 }
-                Value::Object(obj)
+                Value::object(obj)
             }
         }
     }
@@ -122,32 +122,34 @@ impl From<TaggedValue> for Value {
 
 impl From<Value> for TaggedValue {
     fn from(value: Value) -> Self {
-        match value {
-            Value::Bool(v) => TaggedValue::Bool(v),
-            Value::U8(v) => TaggedValue::U8(v),
-            Value::I8(v) => TaggedValue::I8(v),
-            Value::U16(v) => TaggedValue::U16(v),
-            Value::I16(v) => TaggedValue::I16(v),
-            Value::U32(v) => TaggedValue::U32(v),
-            Value::I32(v) => TaggedValue::I32(v),
-            Value::U64(v) => TaggedValue::U64(v),
-            Value::I64(v) => TaggedValue::I64(v),
-            Value::Float(v) => TaggedValue::Float(v),
-            Value::Fixed(v) => TaggedValue::Fixed(v),
-            Value::Currency(v) => TaggedValue::Currency(v),
-            Value::String(v) => TaggedValue::String(v),
-            Value::Range(v) => TaggedValue::Range(v),
-            Value::Array(v) => {
+        match value.inner().clone() {
+            InnerValue::Bool(v) => TaggedValue::Bool(v),
+            InnerValue::U8(v) => TaggedValue::U8(v),
+            InnerValue::I8(v) => TaggedValue::I8(v),
+            InnerValue::U16(v) => TaggedValue::U16(v),
+            InnerValue::I16(v) => TaggedValue::I16(v),
+            InnerValue::U32(v) => TaggedValue::U32(v),
+            InnerValue::I32(v) => TaggedValue::I32(v),
+            InnerValue::U64(v) => TaggedValue::U64(v),
+            InnerValue::I64(v) => TaggedValue::I64(v),
+            InnerValue::Float(v) => TaggedValue::Float(v),
+            InnerValue::Fixed(v) => TaggedValue::Fixed(v),
+            InnerValue::Currency(v) => TaggedValue::Currency(v),
+            InnerValue::String(v) => TaggedValue::String(v),
+            InnerValue::Range(v) => TaggedValue::Range(v),
+            InnerValue::Array(v) => {
                 let tagged_array = v.iter().map(|v| v.clone().into()).collect();
                 TaggedValue::Array(tagged_array)
             }
-            Value::Object(v) => TaggedValue::Object(v.into()),
+            InnerValue::Object(v) => TaggedValue::Object(v.into()),
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::ValueTrait;
+
     use super::*;
 
     #[test]
@@ -157,9 +159,10 @@ mod test {
         let deserialized = TaggedValue::deserialize(&serialized).unwrap();
         assert_eq!(value, deserialized);
 
-        let value = TaggedValue::Array(
-            vec![TaggedValue::U8(1u8.into()), TaggedValue::U8(2u8.into())],
-        );
+        let value = TaggedValue::Array(vec![
+            TaggedValue::U8(1u8.into()),
+            TaggedValue::U8(2u8.into()),
+        ]);
         let serialized = value.serialize().unwrap();
         let deserialized = TaggedValue::deserialize(&serialized).unwrap();
         assert_eq!(serialized.to_string(), r#"{"Array":[{"U8":1},{"U8":2}]}"#);
@@ -217,8 +220,8 @@ mod test {
         macro_rules! assert_into_value {
             ($primitive:expr, $variant:ident) => {
                 assert!(matches!(
-                    TaggedValue::$variant($primitive.into()).into(),
-                    Value::$variant(_)
+                    Value::from(TaggedValue::$variant($primitive.into())).inner(),
+                    InnerValue::$variant(_)
                 ));
             };
         }

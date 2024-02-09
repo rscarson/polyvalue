@@ -8,9 +8,10 @@
 use std::str::FromStr;
 
 use crate::{
-    inner_fixed::BoxedDecimal, operations::*, types::*, Error, Value, ValueTrait, ValueType,
+    inner_fixed::BoxedDecimal, operations::*, types::*, Error, InnerValue, Value, ValueTrait,
+    ValueType,
 };
-use fpdec::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Decimal, Round};
+use fpdec::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Dec, Decimal, Round};
 use serde::{Deserialize, Serialize};
 
 /// Inner type of `Fixed`
@@ -37,57 +38,91 @@ impl Fixed {
     pub fn one() -> Self {
         Self::new(BoxedDecimal::from(Decimal::ONE))
     }
+
+    /// Type-same checked exponentiation for fixed-point decimals
+    pub fn checked_pow(&self, exp: &Self) -> Option<Self> {
+        // We can use the fact that a**b == e**(b * ln(a))
+        let a = *self.inner().clone();
+        let b = *exp.inner().clone();
+
+        // Approximate ln(a) using the taylor series
+        let a_s1 = a.checked_sub(Dec!(1))?;
+        let mut ln_a_mul = a_s1.clone();
+        let mut ln_a = a_s1.clone();
+        let mut multiplier = Dec!(-1);
+        for i in 2..=10 {
+            ln_a_mul = ln_a_mul.checked_mul(a_s1)?;
+            let factor = ln_a_mul.checked_div(Decimal::from(i))?;
+            let factor = factor.checked_mul(multiplier)?;
+
+            ln_a = ln_a.checked_add(factor)?;
+            multiplier = multiplier.checked_mul(Dec!(-1))?;
+        }
+
+        // Finally we approximate e**(b * ln(a)) using the taylor series
+        let mut b_ln_a = b.checked_mul(ln_a)?;
+        let mut e_b_ln_a = Dec!(1).checked_add(b_ln_a)?;
+        let mut divisor = Dec!(1);
+        for i in 2..=10 {
+            divisor = divisor.checked_mul(Decimal::from(i))?;
+            b_ln_a = b_ln_a.checked_mul(b_ln_a)?;
+            let factor = b_ln_a.checked_div(divisor)?;
+            e_b_ln_a = e_b_ln_a.checked_add(factor)?;
+        }
+
+        Some(Self::new(BoxedDecimal::from(e_b_ln_a)))
+    }
 }
 
 map_value!(
     from = Fixed,
-    handle_into = Value::Fixed,
-    handle_from = |v: Value| match v {
-        Value::Range(_) => Self::try_from(v.as_a::<Array>()?),
-        Value::Fixed(v) => Ok(v),
+    handle_into = Value::fixed,
+    handle_from = |v: Value| match v.inner() {
+        InnerValue::Range(_) => Self::try_from(v.as_a::<Array>()?),
+        InnerValue::Fixed(v) => Ok(v.clone()),
 
-        Value::U8(v) => {
+        InnerValue::U8(v) => {
             let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
-        Value::U16(v) => {
+        InnerValue::U16(v) => {
             let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
-        Value::U32(v) => {
+        InnerValue::U32(v) => {
             let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
-        Value::U64(v) => {
+        InnerValue::U64(v) => {
             let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
-        Value::I8(v) => {
+        InnerValue::I8(v) => {
             let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
-        Value::I16(v) => {
+        InnerValue::I16(v) => {
             let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
-        Value::I32(v) => {
+        InnerValue::I32(v) => {
             let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
-        Value::I64(v) => {
+        InnerValue::I64(v) => {
             let p = *v.inner();
             let p: Decimal = p.into();
             Ok(Fixed::from(p))
         }
 
-        Value::Float(v) => {
+        InnerValue::Float(v) => {
             let p = *v.inner();
             let p = Decimal::try_from(p)?;
 
@@ -107,23 +142,23 @@ map_value!(
 
             Ok(Fixed::from(p))
         }
-        Value::Currency(v) => {
+        InnerValue::Currency(v) => {
             Ok(v.inner().value().clone())
         }
-        Value::Bool(v) => {
+        InnerValue::Bool(v) => {
             if *v.inner() {
                 Ok(Fixed::one())
             } else {
                 Ok(Fixed::zero())
             }
         }
-        Value::String(_) => {
+        InnerValue::String(_) => {
             Err(Error::ValueConversion {
                 src_type: ValueType::String,
                 dst_type: ValueType::Fixed,
             })
         }
-        Value::Array(v) => {
+        InnerValue::Array(v) => {
             if v.inner().len() == 1 {
                 let v = v.inner()[0].clone();
                 Fixed::try_from(v)
@@ -134,7 +169,7 @@ map_value!(
                 })
             }
         }
-        Value::Object(v) => {
+        InnerValue::Object(v) => {
             if v.inner().len() == 1 {
                 let v = v.inner().values().next().unwrap().clone();
                 Fixed::try_from(v)
@@ -335,21 +370,17 @@ mod tests {
             Fixed::from_str("-10").unwrap()
         );
 
-        assert!(
-            Currency::is_operator_supported(
-                &Currency::from_str("$10.00").unwrap(),
-                &Currency::from_str("$10.00").unwrap(),
-                ArithmeticOperation::Add
-            )
-        );
+        assert!(Currency::is_operator_supported(
+            &Currency::from_str("$10.00").unwrap(),
+            &Currency::from_str("$10.00").unwrap(),
+            ArithmeticOperation::Add
+        ));
 
-        assert!(
-            Currency::is_operator_supported(
-                &Currency::from_str("$10.00").unwrap(),
-                &Currency::from_str("$10.00").unwrap(),
-                ArithmeticOperation::Subtract
-            )
-        );
+        assert!(Currency::is_operator_supported(
+            &Currency::from_str("$10.00").unwrap(),
+            &Currency::from_str("$10.00").unwrap(),
+            ArithmeticOperation::Subtract
+        ));
     }
 
     #[test]
@@ -461,7 +492,7 @@ mod tests {
     fn test_from() {
         assert_eq!(
             Value::from(Fixed::from_str("10.0").unwrap()),
-            Value::Fixed(Fixed::from_str("10.0").unwrap())
+            Value::fixed(Fixed::from_str("10.0").unwrap())
         );
 
         assert_eq!(

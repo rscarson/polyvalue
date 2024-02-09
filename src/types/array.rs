@@ -6,7 +6,7 @@
 //! It will resolve to false when empty, and is represented as a string in
 //! the form of `[<value>, <value>, ...]`
 //!
-use crate::{operations::*, types::*, Error, Value, ValueTrait, ValueType};
+use crate::{operations::*, types::*, Error, InnerValue, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
@@ -108,10 +108,10 @@ impl Array {
 
 map_value!(
     from = Array,
-    handle_into = Value::Array,
-    handle_from = |v: Value| match v {
-        Value::Array(v) => Ok(v),
-        Value::Range(v) => {
+    handle_into = Value::array,
+    handle_from = |v: Value| match v.inner() {
+        InnerValue::Array(v) => Ok(v.clone()),
+        InnerValue::Range(v) => {
             let length = (v.inner().end() - v.inner().start()) as usize;
             let mut container = Array::prealloc_range_conversion(length)?;
             for i in v.inner().clone() {
@@ -120,22 +120,22 @@ map_value!(
             Ok(container)
         }
 
-        Value::Bool(_)
-        | Value::Float(_)
-        | Value::Fixed(_)
-        | Value::Currency(_)
-        | Value::U8(_)
-        | Value::U16(_)
-        | Value::U32(_)
-        | Value::U64(_)
-        | Value::I8(_)
-        | Value::I16(_)
-        | Value::I32(_)
-        | Value::I64(_) => {
+        InnerValue::Bool(_)
+        | InnerValue::Float(_)
+        | InnerValue::Fixed(_)
+        | InnerValue::Currency(_)
+        | InnerValue::U8(_)
+        | InnerValue::U16(_)
+        | InnerValue::U32(_)
+        | InnerValue::U64(_)
+        | InnerValue::I8(_)
+        | InnerValue::I16(_)
+        | InnerValue::I32(_)
+        | InnerValue::I64(_) => {
             Ok(vec![v].into())
         }
 
-        Value::String(s) => {
+        InnerValue::String(s) => {
             let inner = s
                 .inner()
                 .chars()
@@ -144,7 +144,7 @@ map_value!(
             Ok(inner.into())
         }
 
-        Value::Object(v) => {
+        InnerValue::Object(v) => {
             Ok(v.inner().values().cloned().collect::<ArrayInner>().into())
         }
     }
@@ -175,22 +175,22 @@ impl MatchingOperationExt for Array {
     {
         let result = match operation {
             MatchingOperation::Contains => {
-                let pattern = pattern.as_a::<Array>()?;
+                let pattern = pattern.clone().as_a::<Array>()?;
                 container
                     .inner()
                     .iter()
                     .any(|v| pattern.inner().contains(v))
             }
             MatchingOperation::StartsWith => {
-                let pattern = pattern.as_a::<Array>()?;
+                let pattern = pattern.clone().as_a::<Array>()?;
                 container.inner().starts_with(pattern.inner())
             }
             MatchingOperation::EndsWith => {
-                let pattern = pattern.as_a::<Array>()?;
+                let pattern = pattern.clone().as_a::<Array>()?;
                 container.inner().ends_with(pattern.inner())
             }
             MatchingOperation::Matches => {
-                let pattern = pattern.as_a::<Array>()?;
+                let pattern = pattern.clone().as_a::<Array>()?;
                 container.inner().iter().eq(pattern.inner().iter())
             }
 
@@ -293,7 +293,7 @@ impl IndexingOperationExt for Array {
 
     fn get_indices(&self, index: &Value) -> Result<Value, crate::Error> {
         if index.is_a(ValueType::Range) {
-            let indices = index.as_a::<Range>()?;
+            let indices = index.clone().as_a::<Range>()?;
             let values = indices
                 .inner()
                 .clone()
@@ -301,7 +301,7 @@ impl IndexingOperationExt for Array {
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(Value::from(values))
         } else {
-            let indices = index.as_a::<Array>()?;
+            let indices = index.clone().as_a::<Array>()?;
             let values = indices
                 .inner()
                 .iter()
@@ -327,10 +327,11 @@ impl IndexingMutationExt for Array {
 
     fn get_indices_mut(&mut self, index: &Value) -> Result<Vec<&mut Value>, crate::Error> {
         let indices = index
+            .clone()
             .as_a::<Array>()?
             .inner()
             .iter()
-            .map(|v| Ok(*v.as_a::<I64>()?.inner() as usize))
+            .map(|v| Ok(*v.clone().as_a::<I64>()?.inner() as usize))
             .collect::<Result<Vec<_>, Error>>()?;
         self.inner_mut()
             .iter_mut()
