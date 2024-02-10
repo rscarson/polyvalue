@@ -301,7 +301,6 @@ mod macros {
                     right: &Self,
                     operation: BitwiseOperation,
                 ) -> Result<Self, Error> {
-                    let operation = operation;
                     let left = *left.inner();
                     let right = *right.inner();
 
