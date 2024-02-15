@@ -701,6 +701,21 @@ impl Value {
         *self.clone().as_a::<Bool>().unwrap().inner()
     }
 
+    /// Returns the length of the value
+    /// For strings, this is the length of the string in characters
+    /// For compound types, this is the number of elements
+    /// For everything else, this is 1 (the length of the array it would resolve to)
+    pub fn len(&self) -> usize {
+        match self.inner() {
+            InnerValue::String(v) => v.len(),
+            InnerValue::Range(v) => v.len() as usize,
+            InnerValue::Array(v) => v.len(),
+            InnerValue::Object(v) => v.len(),
+
+            _ => 1,
+        }
+    }
+
     /// Compares two values, ignoring type
     pub fn weak_equality(&self, other: &Self) -> Result<bool, Error> {
         let (l, r) = self.resolve(other)?;
