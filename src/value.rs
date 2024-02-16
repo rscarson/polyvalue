@@ -1183,10 +1183,9 @@ impl MatchingOperationExt for Value {
     {
         // Special case for type matching
         if operation == MatchingOperation::Is {
-            let type_name = pattern.clone().as_a::<Str>()?;
-            return Ok(Value::bool(
-                &container.own_type().to_string() == type_name.inner(),
-            ));
+            let type_name = pattern.clone().as_a::<String>()?;
+            let value_type = ValueType::try_from(type_name.as_str())?;
+            Ok(container.is_a(value_type).into())
         } else {
             match container.own_type() {
                 ValueType::Array => {
