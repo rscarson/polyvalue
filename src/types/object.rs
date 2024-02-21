@@ -290,6 +290,11 @@ impl IndexingMutationExt for Object {
         Ok(())
     }
 
+    fn insert_at(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
+        self.inner_mut().insert(index.clone(), value)?;
+        Ok(())
+    }
+
     fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error> {
         self.inner_mut().remove(index).ok_or(Error::Index {
             key: index.to_string(),

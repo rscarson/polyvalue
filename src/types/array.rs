@@ -361,6 +361,23 @@ impl IndexingMutationExt for Array {
         Ok(())
     }
 
+    fn insert_at(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
+        let mut index = *I64::try_from(index.clone())?.inner();
+        if index < 0 {
+            index += self.inner().len() as ArrayIndex
+        }
+        let index = index as usize;
+
+        if index <= self.inner().len() {
+            self.inner_mut().insert(index, value);
+            Ok(())
+        } else {
+            Err(Error::Index {
+                key: index.to_string(),
+            })?
+        }
+    }
+
     fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error> {
         let mut index = *I64::try_from(index.clone())?.inner();
         if index < 0 {

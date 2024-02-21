@@ -1276,6 +1276,19 @@ impl IndexingMutationExt for Value {
         }
     }
 
+    fn insert_at(&mut self, index: &Value, value: Value) -> Result<(), crate::Error> {
+        let _type = self.own_type();
+        match self.inner_mut() {
+            InnerValue::Array(v) => v.insert_at(index, value),
+            InnerValue::Object(v) => v.insert_at(index, value),
+
+            _ => Err(Error::ValueType {
+                actual_type: _type,
+                expected_type: ValueType::Compound,
+            })?,
+        }
+    }
+
     fn delete_index(&mut self, index: &Value) -> Result<Value, crate::Error> {
         let _type = self.own_type();
         match self.inner_mut() {

@@ -317,6 +317,21 @@ pub trait IndexingMutationExt {
     /// ```
     fn set_index(&mut self, index: &Value, value: Value) -> Result<(), crate::Error>;
 
+    /// Insert a value at an index
+    /// Returns an `Error::Index` if the index is out of bounds
+    ///
+    /// # Examples
+    /// ```
+    /// use polyvalue::{Value};
+    /// use polyvalue::operations::{IndexingOperationExt, IndexingMutationExt};
+    ///
+    /// let mut a = Value::from(vec![Value::from(1), Value::from(2), Value::from(3)]);
+    /// let index = Value::from(1);
+    /// a.insert_at(&index, Value::from(4)).unwrap();
+    /// assert_eq!(a.get_index(&index).unwrap(), Value::from(4));
+    /// ```
+    fn insert_at(&mut self, index: &Value, value: Value) -> Result<(), crate::Error>;
+
     /// Delete a value at an index
     /// Returns an `Error::Index` if the index is not found
     ///
