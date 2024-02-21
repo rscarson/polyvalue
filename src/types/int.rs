@@ -137,21 +137,37 @@ mod macros {
                 /// The string must be in the form of `0b<binary>`, `0o<octal>`, `0x<hex>`, or `0<octal>`
                 /// ```
                 pub fn from_str_radix(s: &str) -> Result<Self, Error> {
-                    let s = s.trim().replace("_", "");
-                    if let Some(s) = s.strip_prefix("0b") {
-                        Ok(Self::new($subtype::from_str_radix(s, 2)? as $subtype))
-                    } else if let Some(s) = s.strip_prefix("0o") {
-                        Ok(Self::new($subtype::from_str_radix(s, 8)? as $subtype))
-                    } else if let Some(s) = s.strip_prefix("0x") {
-                        Ok(Self::new($subtype::from_str_radix(s, 16)? as $subtype))
-                    } else if let Some(s) = s.strip_prefix("0") {
-                        if s.is_empty() {
-                            Ok(Self::new(0))
-                        } else {
-                            Ok(Self::new($subtype::from_str_radix(s, 8)? as $subtype))
+                    let s = s.trim().into_iter();
+                    match s.next() {
+                        // Base n
+                        Some('0') => {
+                            let base = match s.next() {
+                                Some('b') => 2,
+                                Some('o') => 8,
+                                Some('x') => 16,
+                                Some(_) => 8,
+                                None => Ok(Self::new(0)),
+                            };
+                            let remainder = s.collect::<String>().replace('_', "");
+                            if remainder.is_empty() {
+                                Ok(Self::new(0));
+                            } else {
+                                let large_ures = u64::from_str_radix(&remainder, base)?;
+                                if large_ures > $subtype::MAX as u64 {
+                                    Err(Error::Overflow);
+                                } else {
+                                    Ok(Self::new(large_ures as $subtype))
+                                }
+                            }
                         }
-                    } else {
-                        Ok($name::new(s.replace('_', "").parse::<$subtype>()?))
+
+                        // Base 10
+                        Some(_) => {
+                            Ok(Self::new(s.collect::<String>().parse::<$subtype>()?))
+                        }
+
+                        // Empty string
+                        None => Ok(Self::new(0)),
                     }
                 }
             }
