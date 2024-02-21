@@ -45,8 +45,13 @@ mod macros {
                 }
 
                 /// Shift that always ignores the msb
-                pub fn logical_lshift(&self, right: u32) -> Result<Self, Error> {
+                pub fn logical_lshift(&self, right: i32) -> Result<Self, Error> {
                     let left = *self.inner();
+                    let right = if right < 0 {
+                        return self.logical_rshift(-right);
+                    } else {
+                        right as u32
+                    };
 
                     // Get the bit adjacent to the msb
                     let mask = 1 << ($subtype::BITS - 2);
@@ -58,8 +63,13 @@ mod macros {
                 }
 
                 /// Shift that always ignores the msb
-                pub fn logical_rshift(&self, right: u32) -> Result<Self, Error> {
+                pub fn logical_rshift(&self, right: i32) -> Result<Self, Error> {
                     let left = *self.inner();
+                    let right = if right < 0 {
+                        return self.logical_lshift(-right);
+                    } else {
+                        right as u32
+                    };
 
                     // mask off the msb of left
                     let mask = 1 << ($subtype::BITS - 1);
@@ -77,8 +87,13 @@ mod macros {
                 }
 
                 /// Shift that always preserves the msb
-                pub fn arithmetic_lshift(&self, right: u32) -> Result<Self, Error> {
+                pub fn arithmetic_lshift(&self, right: i32) -> Result<Self, Error> {
                     let left = *self.inner();
+                    let right = if right < 0 {
+                        return self.arithmetic_rshift(-right);
+                    } else {
+                        right as u32
+                    };
 
                     // mask off the msb of left
                     let mask = 1 << ($subtype::BITS - 1);
@@ -95,8 +110,13 @@ mod macros {
                 }
 
                 /// Shift that always preserves the msb
-                pub fn arithmetic_rshift(&self, right: u32) -> Result<Self, Error> {
+                pub fn arithmetic_rshift(&self, right: i32) -> Result<Self, Error> {
                     let left = *self.inner();
+                    let right = if right < 0 {
+                        return self.arithmetic_lshift(-right);
+                    } else {
+                        right as u32
+                    };
 
                     // mask off the msb of left
                     let mask = 1 << ($subtype::BITS - 1);
