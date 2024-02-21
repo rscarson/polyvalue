@@ -150,7 +150,7 @@ mod macros {
                                 Some(_) => {
                                     should_advance = false;
                                     8
-                                },
+                                }
                                 None => return Ok(Self::new(0)),
                             };
                             if should_advance {
@@ -161,10 +161,15 @@ mod macros {
                                 Ok(Self::new(0))
                             } else {
                                 let large_ures = u64::from_str_radix(&remainder, base)?;
-                                if large_ures > $subtype::MAX as u64 {
-                                    Err(Error::Overflow)
-                                } else {
+                                if ($subtype::MAX as u64) < u64::MAX
+                                    && large_ures == ($subtype::MAX as u64) + 1
+                                    && ($subtype::MIN as i64) < 0
+                                {
+                                    Ok(Self::new($subtype::MIN))
+                                } else if large_ures <= $subtype::MAX as u64 {
                                     Ok(Self::new(large_ures as $subtype))
+                                } else {
+                                    Err(Error::Overflow)
                                 }
                             }
                         }
@@ -743,6 +748,8 @@ mod test {
         I8::from_str_radix("0b10000000000000").unwrap_err();
         U8::from_str_radix("0b-1").unwrap_err();
         assert_eq!(I8::from_str_radix("03").unwrap(), I8::new(3));
+        U8::from_str_radix("256").unwrap_err();
+        assert_eq!(I8::from_str_radix("0b1000_0000").unwrap(), I8::new(-128));
 
         assert_eq!(I16::from_str_radix("0b1010").unwrap(), I16::new(10));
         I16::from_str_radix("0b10000000000000000").unwrap_err();
