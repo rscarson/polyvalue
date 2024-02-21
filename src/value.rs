@@ -411,7 +411,7 @@ impl Value {
                 Range::try_from(other.clone())?.into(),
             ),
 
-            ValueType::Int | ValueType::Numeric | ValueType::Compound | ValueType::Any => {
+            ValueType::Int | ValueType::Numeric | ValueType::Collection | ValueType::Any => {
                 unreachable!(
                     "Non-concrete type encountered in resolve: {:?}",
                     self.own_type()
@@ -529,7 +529,7 @@ impl Value {
 
             (
                 ValueType::Array | ValueType::Object | ValueType::Range | ValueType::String,
-                ValueType::Compound,
+                ValueType::Collection,
             ) => true,
 
             (
@@ -569,7 +569,7 @@ impl Value {
     /// For virtual types, the highest-priority match will be used
     /// For any, the input value will be returned
     /// For numeric, the value will be converted to fixed
-    /// For compound, the value will be converted to object
+    /// For collection, the value will be converted to object
     ///
     /// Similar to [`Value::as_a`], but for type names in the [`ValueType`] enum
     /// intead of types in the [`crate::types`] module
@@ -618,7 +618,7 @@ impl Value {
                 }
             }
 
-            ValueType::Compound => {
+            ValueType::Collection => {
                 if self.own_type() == ValueType::Array {
                     self.clone()
                 } else {
@@ -684,7 +684,7 @@ impl Value {
                 (ValueType::Bool, _)
                 | (ValueType::Int, _)
                 | (ValueType::Numeric, _)
-                | (ValueType::Compound, _)
+                | (ValueType::Collection, _)
                 | (ValueType::Any, _) => {
                     unreachable!(
                         "Non-concrete type encountered in resolve: {:?}",
@@ -703,7 +703,7 @@ impl Value {
 
     /// Returns the length of the value
     /// For strings, this is the length of the string in characters
-    /// For compound types, this is the number of elements
+    /// For collection types, this is the number of elements
     /// For everything else, this is 1 (the length of the array it would resolve to)
     pub fn len(&self) -> usize {
         match self.inner() {
@@ -760,7 +760,7 @@ impl Value {
                 Object::cmp(&l.as_a::<Object>().unwrap(), &r.as_a::<Object>().unwrap())
             }
 
-            ValueType::Int | ValueType::Numeric | ValueType::Compound | ValueType::Any => {
+            ValueType::Int | ValueType::Numeric | ValueType::Collection | ValueType::Any => {
                 unreachable!(
                     "Non-concrete type encountered in weak_ord: {:?}",
                     self.own_type()
@@ -1162,7 +1162,7 @@ impl ArithmeticOperationExt for Value {
                 operation,
             ),
 
-            ValueType::Int | ValueType::Numeric | ValueType::Compound | ValueType::Any => {
+            ValueType::Int | ValueType::Numeric | ValueType::Collection | ValueType::Any => {
                 unreachable!(
                     "Non-concrete type encountered in is_operator_supported: {:?}",
                     self.own_type()
@@ -1216,7 +1216,7 @@ impl IndexingOperationExt for Value {
 
             _ => Err(Error::ValueType {
                 actual_type: self.own_type(),
-                expected_type: ValueType::Compound,
+                expected_type: ValueType::Collection,
             })?,
         }
     }
@@ -1230,7 +1230,7 @@ impl IndexingOperationExt for Value {
 
             _ => Err(Error::ValueType {
                 actual_type: self.own_type(),
-                expected_type: ValueType::Compound,
+                expected_type: ValueType::Collection,
             })?,
         }
     }
@@ -1245,7 +1245,7 @@ impl IndexingMutationExt for Value {
 
             _ => Err(Error::ValueType {
                 actual_type: _type,
-                expected_type: ValueType::Compound,
+                expected_type: ValueType::Collection,
             })?,
         }
     }
@@ -1258,7 +1258,7 @@ impl IndexingMutationExt for Value {
 
             _ => Err(Error::ValueType {
                 actual_type: _type,
-                expected_type: ValueType::Compound,
+                expected_type: ValueType::Collection,
             })?,
         }
     }
@@ -1271,7 +1271,7 @@ impl IndexingMutationExt for Value {
 
             _ => Err(Error::ValueType {
                 actual_type: _type,
-                expected_type: ValueType::Compound,
+                expected_type: ValueType::Collection,
             })?,
         }
     }
@@ -1284,7 +1284,7 @@ impl IndexingMutationExt for Value {
 
             _ => Err(Error::ValueType {
                 actual_type: _type,
-                expected_type: ValueType::Compound,
+                expected_type: ValueType::Collection,
             })?,
         }
     }
@@ -1297,7 +1297,7 @@ impl IndexingMutationExt for Value {
 
             _ => Err(Error::ValueType {
                 actual_type: _type,
-                expected_type: ValueType::Compound,
+                expected_type: ValueType::Collection,
             })?,
         }
     }
@@ -1579,7 +1579,7 @@ mod test {
 
         let a = Value::from(vec![Value::from(1)]);
         let b = Value::from(2);
-        assert!(a.either_type(&b, ValueType::Compound));
+        assert!(a.either_type(&b, ValueType::Collection));
     }
 
     #[test]
@@ -1628,7 +1628,7 @@ mod test {
 
         let value = Value::from(vec![Value::from(1)]);
         assert!(value.is_a(ValueType::Array));
-        assert!(value.is_a(ValueType::Compound));
+        assert!(value.is_a(ValueType::Collection));
         assert!(!value.is_a(ValueType::Object));
 
         assert!(Value::from(1).is_a(ValueType::Numeric));
@@ -1678,8 +1678,8 @@ mod test {
 
         let value = Value::from(1.0);
         let value = value
-            .as_type(ValueType::Compound)
-            .expect("Value could not be converted to compound!");
+            .as_type(ValueType::Collection)
+            .expect("Value could not be converted to collection!");
         assert_eq!(
             value,
             Value::try_from(vec![(Value::u64(0), Value::from(1.0))]).unwrap()
@@ -1774,7 +1774,7 @@ mod test {
         );
 
         Value::from(vec![Value::from(1)])
-            .as_type(ValueType::Compound)
+            .as_type(ValueType::Collection)
             .unwrap();
 
         Value::from(1).as_type(ValueType::Range).unwrap_err();

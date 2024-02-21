@@ -20,7 +20,7 @@ impl ObjectInner {
         Self(InnerObjectMeta::new())
     }
 
-    /// Insert a key-value pair into the object, if the key is not a compound type
+    /// Insert a key-value pair into the object, if the key is not a collection type
     pub fn insert(&mut self, key: Value, value: Value) -> Result<Option<Value>, Error> {
         if key.is_a(ValueType::Array) || key.is_a(ValueType::Object) || key.is_a(ValueType::Range) {
             return Err(Error::InvalidTypeForKey(key.own_type()));

@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 
 /// The set of types that can be used as values
 /// Bool, Fixed, Float, Currency, Int, String, Array, Object represent real types
-/// whereas Numeric, Compound, and Any are virtual types representing a set of types
+/// whereas Numeric, Collection, and Any are virtual types representing a set of types
 ///
 /// Numeric is a set of Fixed, Float, Currency, and Int
-/// Compound is a set of Array and Object
+/// Collection is a set of Array and Object
 /// Any is a set of all types
 ///
 /// When operations are performed on values, the type of the result is determined
@@ -76,8 +76,8 @@ pub enum ValueType {
     /// A numeric value (fixed, float, currency, or int)
     Numeric,
 
-    /// A compound value (array, range or object)
-    Compound,
+    /// A collection value (array, range or object)
+    Collection,
 
     /// Any value
     Any,
@@ -117,7 +117,7 @@ impl std::fmt::Display for ValueType {
             ValueType::Array => write!(f, "array"),
             ValueType::Object => write!(f, "object"),
             ValueType::Numeric => write!(f, "numeric"),
-            ValueType::Compound => write!(f, "compound"),
+            ValueType::Collection => write!(f, "collection"),
             ValueType::Any => write!(f, "any"),
         }
     }
@@ -145,7 +145,7 @@ impl TryFrom<&str> for ValueType {
             "array" => Ok(ValueType::Array),
             "object" => Ok(ValueType::Object),
             "numeric" => Ok(ValueType::Numeric),
-            "compound" => Ok(ValueType::Compound),
+            "collection" => Ok(ValueType::Collection),
             "any" => Ok(ValueType::Any),
             _ => Err(Error::UnrecognizedType(s.to_string())),
         }
@@ -177,7 +177,7 @@ mod test {
         assert_eq!(format!("{}", ValueType::Array), "array");
         assert_eq!(format!("{}", ValueType::Object), "object");
         assert_eq!(format!("{}", ValueType::Range), "range");
-        assert_eq!(format!("{}", ValueType::Compound), "compound");
+        assert_eq!(format!("{}", ValueType::Collection), "collection");
         assert_eq!(format!("{}", ValueType::Numeric), "numeric");
         assert_eq!(format!("{}", ValueType::Any), "any");
         assert_eq!(format!("{}", ValueType::U8), "u8");
@@ -204,8 +204,8 @@ mod test {
         assert_eq!(ValueType::try_from("object").unwrap(), ValueType::Object);
         assert_eq!(ValueType::try_from("range").unwrap(), ValueType::Range);
         assert_eq!(
-            ValueType::try_from("compound").unwrap(),
-            ValueType::Compound
+            ValueType::try_from("collection").unwrap(),
+            ValueType::Collection
         );
         assert_eq!(ValueType::try_from("numeric").unwrap(), ValueType::Numeric);
         assert_eq!(ValueType::try_from("any").unwrap(), ValueType::Any);
