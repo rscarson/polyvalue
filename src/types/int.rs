@@ -44,6 +44,75 @@ mod macros {
                     }
                 }
 
+                /// Shift that always ignores the msb
+                pub fn logical_lshift(&self, right: u32) -> Result<Self, Error> {
+                    let left = *self.inner();
+
+                    // Get the bit adjacent to the msb
+                    let mask = 1 << ($subtype::BITS - 2);
+                    let new_msb = (left & mask) << 1;
+
+                    // Shift as usual, then place the new msb
+                    let result = left.checked_shl(right).ok_or(Error::Overflow)?;
+                    Ok(Self::new(result | new_msb))
+                }
+
+                /// Shift that always ignores the msb
+                pub fn logical_rshift(&self, right: u32) -> Result<Self, Error> {
+                    let left = *self.inner();
+
+                    // mask off the msb of left
+                    let mask = 1 << ($subtype::BITS - 1);
+                    let has_msb = left & mask == mask;
+
+                    // now shift the version with a cleared msb
+                    let result = (left & !mask).checked_shr(right).ok_or(Error::Overflow)?;
+
+                    // if the msb was set, set it back, one bit to the right
+                    Ok(Self::new(if has_msb {
+                        result | (mask >> 1) & !mask
+                    } else {
+                        result & !mask
+                    }))
+                }
+
+                /// Shift that always preserves the msb
+                pub fn arithmetic_lshift(&self, right: u32) -> Result<Self, Error> {
+                    let left = *self.inner();
+
+                    // mask off the msb of left
+                    let mask = 1 << ($subtype::BITS - 1);
+                    let has_msb = (left & mask) == mask;
+
+                    // Shift as usual, then replace the msb
+                    let result = left.checked_shl(right).ok_or(Error::Overflow)?;
+
+                    if has_msb {
+                        Ok(Self::new(result | mask))
+                    } else {
+                        Ok(Self::new(result & !mask))
+                    }
+                }
+
+                /// Shift that always preserves the msb
+                pub fn arithmetic_rshift(&self, right: u32) -> Result<Self, Error> {
+                    let left = *self.inner();
+
+                    // mask off the msb of left
+                    let mask = 1 << ($subtype::BITS - 1);
+                    let has_msb = (left & mask) == mask;
+
+                    // Shift as usual, zero adjascent bit, then replace the msb
+                    let result = left.checked_shr(right).ok_or(Error::Overflow)?;
+                    let result = result & !(mask >> 1);
+
+                    if has_msb {
+                        Ok(Self::new(result | mask))
+                    } else {
+                        Ok(Self::new(result))
+                    }
+                }
+
                 /// Creates a new integer from a string representation of a base-n number
                 /// The string must be in the form of `0b<binary>`, `0o<octal>`, `0x<hex>`, or `0<octal>`
                 /// ```
@@ -680,5 +749,90 @@ mod test {
         assert_eq!(U16::new(10).to_string(), "10");
         assert_eq!(U32::new(10).to_string(), "10");
         assert_eq!(U64::new(10).to_string(), "10");
+    }
+
+    #[test]
+    #[allow(overflowing_literals)]
+    fn test_special_shifting() {
+        macro_rules! test_shift {
+            (LL: $input:expr, $expected:expr) => {
+                assert_eq!(
+                    U8::new($input).logical_lshift(1).unwrap(),
+                    U8::new($expected),
+                    "\n{:0b}u8 << 1: {:0b} != {:0b}",
+                    $input,
+                    U8::new($input).logical_lshift(1).unwrap().inner(),
+                    $expected
+                );
+                assert_eq!(
+                    I8::new($input).logical_lshift(1).unwrap(),
+                    I8::new($expected),
+                    "\n{:0b}i8 << 1: {:0b} != {:0b}",
+                    $input,
+                    I8::new($input).logical_lshift(1).unwrap().inner(),
+                    $expected
+                );
+            };
+            (LR: $input:expr, $expected:expr) => {
+                assert_eq!(
+                    U8::new($input).logical_rshift(1).unwrap(),
+                    U8::new($expected),
+                    "\n{:0b}u8 >> 1: {:0b} != {:0b}",
+                    $input,
+                    U8::new($input).logical_rshift(1).unwrap().inner(),
+                    $expected
+                );
+                assert_eq!(
+                    I8::new($input).logical_rshift(1).unwrap(),
+                    I8::new($expected),
+                    "\n{:0b}i8 >> 1: {:0b} != {:0b}",
+                    $input,
+                    I8::new($input).logical_rshift(1).unwrap().inner(),
+                    $expected
+                );
+            };
+            (AL: $input:expr, $expected:expr) => {
+                assert_eq!(
+                    U8::new($input).arithmetic_lshift(1).unwrap(),
+                    U8::new($expected),
+                    "\n{:0b}u8 <<< 1: {:0b} != {:0b}",
+                    $input,
+                    U8::new($input).arithmetic_lshift(1).unwrap().inner(),
+                    $expected
+                );
+                assert_eq!(
+                    I8::new($input).arithmetic_lshift(1).unwrap(),
+                    I8::new($expected),
+                    "\n{:0b}i8 <<< 1: {:0b} != {:0b}",
+                    $input,
+                    I8::new($input).arithmetic_lshift(1).unwrap().inner(),
+                    $expected
+                );
+            };
+            (AR: $input:expr, $expected:expr) => {
+                assert_eq!(
+                    U8::new($input).arithmetic_rshift(1).unwrap(),
+                    U8::new($expected),
+                    "\n{:0b}u8 >>> 1: {:0b} != {:0b}",
+                    $input,
+                    U8::new($input).arithmetic_rshift(1).unwrap().inner(),
+                    $expected
+                );
+                assert_eq!(
+                    I8::new($input).arithmetic_rshift(1).unwrap(),
+                    I8::new($expected),
+                    "\n{:0b}i8 >>> 1: {:0b} != {:0b}",
+                    $input,
+                    I8::new($input).arithmetic_rshift(1).unwrap().inner(),
+                    $expected
+                );
+            };
+        }
+
+        test_shift!(AL: 0b1000_0000, 0b1000_0000);
+        test_shift!(AL: 0b0100_0000, 0b0000_0000);
+        test_shift!(AR: 0b1001_0000, 0b1000_1000);
+        test_shift!(LL: 0b0100_0000, 0b1000_0000);
+        test_shift!(LR: 0b1000_0000, 0b0100_0000);
     }
 }
