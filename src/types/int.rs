@@ -48,6 +48,7 @@ mod macros {
                 /// The string must be in the form of `0b<binary>`, `0o<octal>`, `0x<hex>`, or `0<octal>`
                 /// ```
                 pub fn from_str_radix(s: &str) -> Result<Self, Error> {
+                    let s = s.trim().replace("_", "");
                     if let Some(s) = s.strip_prefix("0b") {
                         Ok(Self::new($subtype::from_str_radix(s, 2)? as $subtype))
                     } else if let Some(s) = s.strip_prefix("0o") {
