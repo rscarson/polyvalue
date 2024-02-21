@@ -14,7 +14,7 @@ use crate::{
     Error, InnerValue, Value, ValueTrait, ValueType,
 };
 use serde::{Deserialize, Serialize};
-use std::{ops::RangeInclusive, str::FromStr};
+use std::ops::RangeInclusive;
 
 type RangeIndex = <int::I64 as ValueTrait>::Inner;
 
@@ -40,25 +40,6 @@ impl Range {
 //
 // Trait implementations
 //
-
-impl FromStr for Range {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parts = s.split("..");
-        let start = parts.next().ok_or(Error::InvalidRange)?;
-        let end = parts.next().ok_or(Error::InvalidRange)?;
-
-        let start = start.parse::<I64>()?;
-        let end = end.parse::<I64>()?;
-
-        if start > end {
-            return Err(Error::InvalidRange);
-        }
-
-        Ok(Range::new(*start.inner()..=*end.inner()))
-    }
-}
 
 impl PartialOrd for Range {
     fn partial_cmp(&self, other: &Range) -> Option<std::cmp::Ordering> {
@@ -348,13 +329,6 @@ mod test {
     fn test_str() {
         assert_eq!(Range::new(0..=10).to_string(), "0..10");
         assert_eq!(Range::new(0..=0).to_string(), "0..0");
-
-        assert_eq!(Range::from_str("0..10").unwrap(), Range::new(0..=10));
-        assert!(Range::from_str("0..").is_err());
-        assert!(Range::from_str("..10").is_err());
-        assert!(Range::from_str("..").is_err());
-        assert!(Range::from_str("-1..-2").is_err());
-        assert!(Range::from_str("-2..-1").is_ok());
     }
 
     #[test]

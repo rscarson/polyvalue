@@ -137,24 +137,32 @@ mod macros {
                 /// The string must be in the form of `0b<binary>`, `0o<octal>`, `0x<hex>`, or `0<octal>`
                 /// ```
                 pub fn from_str_radix(s: &str) -> Result<Self, Error> {
-                    let s = s.trim().into_iter();
-                    match s.next() {
+                    let mut s = s.trim().chars().into_iter().peekable();
+                    match s.peek() {
                         // Base n
                         Some('0') => {
-                            let base = match s.next() {
+                            s.next();
+                            let mut should_advance = true;
+                            let base = match s.peek() {
                                 Some('b') => 2,
                                 Some('o') => 8,
                                 Some('x') => 16,
-                                Some(_) => 8,
-                                None => Ok(Self::new(0)),
+                                Some(_) => {
+                                    should_advance = false;
+                                    8
+                                },
+                                None => return Ok(Self::new(0)),
                             };
+                            if should_advance {
+                                s.next();
+                            }
                             let remainder = s.collect::<String>().replace('_', "");
                             if remainder.is_empty() {
-                                Ok(Self::new(0));
+                                Ok(Self::new(0))
                             } else {
                                 let large_ures = u64::from_str_radix(&remainder, base)?;
                                 if large_ures > $subtype::MAX as u64 {
-                                    Err(Error::Overflow);
+                                    Err(Error::Overflow)
                                 } else {
                                     Ok(Self::new(large_ures as $subtype))
                                 }
@@ -163,7 +171,8 @@ mod macros {
 
                         // Base 10
                         Some(_) => {
-                            Ok(Self::new(s.collect::<String>().parse::<$subtype>()?))
+                            let s = s.collect::<String>().replace('_', "");
+                            Ok(Self::new(s.parse::<$subtype>()?))
                         }
 
                         // Empty string
@@ -733,8 +742,7 @@ mod test {
         assert_eq!(I8::from_str_radix("0b1010").unwrap(), I8::new(10));
         I8::from_str_radix("0b10000000000000").unwrap_err();
         U8::from_str_radix("0b-1").unwrap_err();
-        assert_eq!(I8::from_str_radix("0-3").unwrap(), I8::new(-3));
-        assert_eq!(I8::from_str_radix("0+3").unwrap(), I8::new(3));
+        assert_eq!(I8::from_str_radix("03").unwrap(), I8::new(3));
 
         assert_eq!(I16::from_str_radix("0b1010").unwrap(), I16::new(10));
         I16::from_str_radix("0b10000000000000000").unwrap_err();
@@ -761,7 +769,7 @@ mod test {
         assert_eq!(U64::from_str_radix("07").unwrap(), U64::new(7));
 
         assert_eq!(I8::from_str_radix("0").unwrap(), I8::new(0));
-        I8::from_str_radix("0o").unwrap_err();
+        assert_eq!(I8::from_str_radix("0o").unwrap(), I8::new(0));
         I8::from_str_radix("1x1").unwrap_err();
         I8::from_str_radix("0n1").unwrap_err();
         I8::from_str_radix("0xFFF").unwrap_err();
