@@ -163,7 +163,7 @@ mod macros {
                             } else {
                                 let large_ures = u64::from_str_radix(&remainder, base)?;
                                 if large_ures > $subtype::MAX as u64 && $subtype::MIN < 0 {
-                                    let offset = (large_ures - $subtype::MAX as u64);
+                                    let offset = (large_ures - $subtype::MAX as u64) - 1;
                                     if offset > $subtype::MAX as u64 {
                                         return Err(Error::Overflow);
                                     } else {
@@ -759,6 +759,10 @@ mod test {
 
         assert_eq!(I32::from_str_radix("0b1010").unwrap(), I32::new(10));
         assert_eq!(I32::from_str_radix("0b1").unwrap(), I32::new(1));
+
+        assert_eq!(I8::from_str_radix("0b1000_0000").unwrap(), I8::new(-128));
+        assert_eq!(I8::from_str_radix("0b1000_0001").unwrap(), I8::new(-127));
+        assert_eq!(I8::from_str_radix("0b1000_0010").unwrap(), I8::new(-126));
 
         assert_eq!(I64::from_str_radix("0b1010").unwrap(), I64::new(10));
         assert_eq!(I64::from_str_radix("0b11111").unwrap(), I64::new(31));
