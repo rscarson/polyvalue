@@ -136,6 +136,7 @@ mod macros {
                 /// Creates a new integer from a string representation of a base-n number
                 /// The string must be in the form of `0b<binary>`, `0o<octal>`, `0x<hex>`, or `0<octal>`
                 /// ```
+                #[allow(unused_comparisons)]
                 pub fn from_str_radix(s: &str) -> Result<Self, Error> {
                     let mut s = s.trim().chars().into_iter().peekable();
                     match s.peek() {
@@ -161,11 +162,13 @@ mod macros {
                                 Ok(Self::new(0))
                             } else {
                                 let large_ures = u64::from_str_radix(&remainder, base)?;
-                                if ($subtype::MAX as u64) < u64::MAX
-                                    && large_ures == ($subtype::MAX as u64) + 1
-                                    && ($subtype::MIN as i64) < 0
-                                {
-                                    Ok(Self::new($subtype::MIN))
+                                if large_ures > $subtype::MAX as u64 && $subtype::MIN < 0 {
+                                    let offset = (large_ures - $subtype::MAX as u64);
+                                    if offset > $subtype::MAX as u64 {
+                                        return Err(Error::Overflow);
+                                    } else {
+                                        Ok(Self::new($subtype::MIN + offset as $subtype))
+                                    }
                                 } else if large_ures <= $subtype::MAX as u64 {
                                     Ok(Self::new(large_ures as $subtype))
                                 } else {
