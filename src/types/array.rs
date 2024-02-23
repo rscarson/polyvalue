@@ -175,11 +175,9 @@ impl MatchingOperationExt for Array {
     {
         let result = match operation {
             MatchingOperation::Contains => {
-                let pattern = pattern.clone().as_a::<Array>()?;
                 container
                     .inner()
-                    .iter()
-                    .any(|v| pattern.inner().contains(v))
+                    .contains(pattern)
             }
             MatchingOperation::StartsWith => {
                 let pattern = pattern.clone().as_a::<Array>()?;
@@ -449,7 +447,7 @@ mod test {
                 MatchingOperation::Contains
             )
             .unwrap(),
-            true.into()
+            false.into()
         );
         assert_eq!(
             Array::matching_op(
