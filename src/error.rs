@@ -5,7 +5,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     /// An error caused by attempting to use a value of the wrong type in a calculation
-    #[error("Cannot not perform {operation} on {actual_type}")]
+    #[error("Cannot perform {operation} on {actual_type}")]
     UnsupportedOperation {
         /// Operation that caused the error
         operation: String,
