@@ -48,7 +48,7 @@ impl CurrencyInner {
 
     /// Create a new yen currency
     pub fn as_yen(value: Fixed) -> Self {
-        Self::new(Some("¥".to_string()), 2, value)
+        Self::new(Some("¥".to_string()), 0, value)
     }
 
     /// Create a new rupee currency
@@ -63,7 +63,7 @@ impl CurrencyInner {
 
     /// Create a new yuan currency
     pub fn as_yuan(value: Fixed) -> Self {
-        Self::new(Some("元".to_string()), 2, value)
+        Self::new(Some("¥".to_string()), 2, value)
     }
 
     /// Create a new won currency
@@ -269,10 +269,10 @@ mod test {
         );
         assert_eq!(CurrencyInner::as_euros(fixed.clone()).to_string(), "€1.00");
         assert_eq!(CurrencyInner::as_pounds(fixed.clone()).to_string(), "£1.00");
-        assert_eq!(CurrencyInner::as_yen(fixed.clone()).to_string(), "¥1.00");
+        assert_eq!(CurrencyInner::as_yen(fixed.clone()).to_string(), "¥1");
         assert_eq!(CurrencyInner::as_rupees(fixed.clone()).to_string(), "₹1.00");
         assert_eq!(CurrencyInner::as_rubles(fixed.clone()).to_string(), "₽1.00");
-        assert_eq!(CurrencyInner::as_yuan(fixed.clone()).to_string(), "元1.00");
+        assert_eq!(CurrencyInner::as_yuan(fixed.clone()).to_string(), "¥1.00");
         assert_eq!(CurrencyInner::as_won(fixed.clone()).to_string(), "₩1.00");
         assert_eq!(CurrencyInner::as_krona(fixed.clone()).to_string(), "kr1.00");
     }
