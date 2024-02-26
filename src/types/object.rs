@@ -23,7 +23,21 @@ impl_value!(
         format!(
             "{{{}}}",
             v.iter()
-                .map(|(k, v)| format!("{k}: {v}"))
+                .map(|(k, v)| {
+                    let k = if k.is_a(ValueType::String) {
+                        k.to_json_string()
+                    } else {
+                        k.to_string()
+                    };
+
+                    let v = if v.is_a(ValueType::String) {
+                        v.to_json_string()
+                    } else {
+                        v.to_string()
+                    };
+
+                    format!("{k}: {v}")
+                })
                 .collect::<Vec<String>>()
                 .join(", ")
         )

@@ -716,6 +716,35 @@ impl Value {
         }
     }
 
+    /// Returns the value as a JSON string
+    /// Returned value should be valid JSON
+    pub fn to_json_string(&self) -> String {
+        match self.inner() {
+            InnerValue::Currency(v) => format!("\"{}\"", v.to_string()),
+            InnerValue::String(v) => v.to_escaped_string(),
+            InnerValue::Array(v) => {
+                format!(
+                    "[{}]",
+                    v.iter()
+                        .map(|x| x.to_json_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+            }
+            InnerValue::Object(v) => {
+                format!(
+                    "{{{}}}",
+                    v.iter()
+                        .map(|(k, v)| format!("{}:{}", k.to_json_string(), v.to_json_string()))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+            }
+
+            _ => self.to_string(),
+        }
+    }
+
     /// Compares two values, ignoring type
     pub fn weak_equality(&self, other: &Self) -> Result<bool, Error> {
         let (l, r) = self.resolve(other)?;
@@ -1314,6 +1343,25 @@ mod test {
     use std::{cmp::Ordering, vec};
 
     #[test]
+    fn test_to_json_string() {
+        let value = Value::from(1.0);
+        assert_eq!(value.to_json_string(), "1.0");
+
+        let value = Value::from("abc");
+        assert_eq!(value.to_json_string(), r#""abc""#);
+
+        let value = Value::from(vec![Value::from(1.0), Value::from(2.0)]);
+        assert_eq!(value.to_json_string(), r#"[1.0,2.0]"#);
+
+        let value = Value::try_from(vec![(Value::from("a"), Value::from(1.0))]).unwrap();
+        println!("{}", value.to_json_string());
+        assert_eq!(value.to_json_string(), r#"{"a":1.0}"#);
+
+        let value = Value::from(1..=2);
+        assert_eq!(value.to_json_string(), r#"1..2"#);
+    }
+
+    #[test]
     fn test_tagged_serialization() {
         let value = Value::from(1.0);
         let serialized = serde_json::to_string(&value).unwrap();
@@ -1843,7 +1891,7 @@ mod test {
             Value::try_from(vec![(Value::from("a"), Value::from(1))])
                 .unwrap()
                 .to_string(),
-            "{a: 1}"
+            "{\"a\": 1}"
         );
 
         assert_eq!(Value::from(true).to_string(), "true");

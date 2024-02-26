@@ -25,7 +25,13 @@ impl_value!(
             "[{}]",
             v.inner()
                 .iter()
-                .map(|v| v.to_string())
+                .map(|v| {
+                    if v.is_a(ValueType::String) {
+                        v.to_json_string()
+                    } else {
+                        v.to_string()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(", ")
         )
@@ -174,11 +180,7 @@ impl MatchingOperationExt for Array {
         Self: Sized,
     {
         let result = match operation {
-            MatchingOperation::Contains => {
-                container
-                    .inner()
-                    .contains(pattern)
-            }
+            MatchingOperation::Contains => container.inner().contains(pattern),
             MatchingOperation::StartsWith => {
                 let pattern = pattern.clone().as_a::<Array>()?;
                 container.inner().starts_with(pattern.inner())

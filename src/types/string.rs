@@ -16,7 +16,7 @@ impl_value!(
     Str,
     String,
     |v: &Self| v.inner().clone(),
-    |v: &Self, f: &mut std::fmt::Formatter<'_>| { write!(f, "'{}'", v.inner()) }
+    |v: &Self, f: &mut std::fmt::Formatter<'_>| { write!(f, "{}", v.to_escaped_string()) }
 );
 
 impl From<&str> for Str {
@@ -169,6 +169,19 @@ impl Str {
         let start = Value::from(*indices.iter().min().unwrap());
         let end = Value::from(*indices.iter().max().unwrap());
         Ok(start..=end)
+    }
+
+    /// Returns a quoted string, with \, \n, \r, \t and " escaped
+    pub fn to_escaped_string(&self) -> String {
+        format!(
+            "\"{}\"",
+            self.inner()
+                .replace("\\", "\\\\")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t")
+                .replace("\"", "\\\"")
+        )
     }
 }
 
@@ -386,6 +399,24 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_to_escaped_string() {
+        let s = Str::from("Hello, world!");
+        assert_eq!(s.to_escaped_string(), "\"Hello, world!\"");
+
+        let s = Str::from("Hello, \nworld!");
+        assert_eq!(s.to_escaped_string(), "\"Hello, \\nworld!\"");
+
+        let s = Str::from("Hello, \rworld!");
+        assert_eq!(s.to_escaped_string(), "\"Hello, \\rworld!\"");
+
+        let s = Str::from("Hello, \tworld!");
+        assert_eq!(s.to_escaped_string(), "\"Hello, \\tworld!\"");
+
+        let s = Str::from("Hello, \"world!\"");
+        assert_eq!(s.to_escaped_string(), "\"Hello, \\\"world!\\\"\"");
+    }
 
     #[test]
     fn test_matching() {
