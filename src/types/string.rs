@@ -187,10 +187,12 @@ impl Str {
 
 map_value!(
     from = Str,
-    handle_into = Value::string,
-    handle_from = |v: Value| match v.inner() {
-        InnerValue::String(v) => Ok(v.clone()),
-        _ => Ok(Str::from(v.to_string())),
+    handle_into = (v) { Value::string(v) },
+    handle_from = (v) {
+        match v.inner() {
+            InnerValue::String(v) => Ok(v.clone()),
+            _ => Ok(Str::from(v.to_string())),
+        }
     }
 );
 

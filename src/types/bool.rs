@@ -20,62 +20,64 @@ impl_value!(Bool, bool, |v: &Self| if *v.inner() {
 
 map_value!(
     from = Bool,
-    handle_into = Value::bool,
-    handle_from = |v: Value| match v.inner() {
-        InnerValue::Range(v) => {
-            Ok(Bool::from(v.inner().start() != v.inner().end()))
-        }
-        InnerValue::Bool(v) => Ok(v.clone()),
+    handle_into = (v) { Value::bool(v) },
+    handle_from = (v) {
+        match v.inner() {
+            InnerValue::Range(v) => {
+                Ok(Bool::from(v.inner().start() != v.inner().end()))
+            }
+            InnerValue::Bool(v) => Ok(v.clone()),
 
-        InnerValue::U8(v) => {
-            Ok(Bool::from(*v.inner() != 0))
-        }
+            InnerValue::U8(v) => {
+                Ok(Bool::from(*v.inner() != 0))
+            }
 
-        InnerValue::U16(v) => {
-            Ok(Bool::from(*v.inner() != 0))
-        }
+            InnerValue::U16(v) => {
+                Ok(Bool::from(*v.inner() != 0))
+            }
 
-        InnerValue::U32(v) => {
-            Ok(Bool::from(*v.inner() != 0))
-        }
+            InnerValue::U32(v) => {
+                Ok(Bool::from(*v.inner() != 0))
+            }
 
-        InnerValue::U64(v) => {
-            Ok(Bool::from(*v.inner() != 0))
-        }
+            InnerValue::U64(v) => {
+                Ok(Bool::from(*v.inner() != 0))
+            }
 
-        InnerValue::I8(v) => {
-            Ok(Bool::from(*v.inner() != 0))
-        }
+            InnerValue::I8(v) => {
+                Ok(Bool::from(*v.inner() != 0))
+            }
 
-        InnerValue::I16(v) => {
-            Ok(Bool::from(*v.inner() != 0))
-        }
+            InnerValue::I16(v) => {
+                Ok(Bool::from(*v.inner() != 0))
+            }
 
-        InnerValue::I32(v) => {
-            Ok(Bool::from(*v.inner() != 0))
-        }
+            InnerValue::I32(v) => {
+                Ok(Bool::from(*v.inner() != 0))
+            }
 
-        InnerValue::I64(v) => {
-            Ok(Bool::from(*v.inner() != 0))
-        }
+            InnerValue::I64(v) => {
+                Ok(Bool::from(*v.inner() != 0))
+            }
 
-        InnerValue::Float(v) => {
-            Ok(Bool::from(*v.inner() != 0.0))
-        }
-        InnerValue::Fixed(v) => {
-            Ok(Bool::from(v != &Fixed::zero()))
-        }
-        InnerValue::Currency(v) => {
-            Ok(Bool::from(v.inner().value() == &Fixed::zero()))
-        }
-        InnerValue::String(v) => {
-            Ok(Bool::from(!v.inner().is_empty()))
-        }
-        InnerValue::Array(v) => {
-            Ok(Bool::from(!v.inner().is_empty()))
-        }
-        InnerValue::Object(v) => {
-            Ok(Bool::from(!v.inner().is_empty()))
+            InnerValue::Float(v) => {
+                Ok(Bool::from(*v.inner() != 0.0))
+            }
+            InnerValue::Fixed(v) => {
+                Ok(Bool::from(v != &Fixed::zero()))
+            }
+            InnerValue::Currency(v) => {
+                Ok(Bool::from(v.inner().value() == &Fixed::zero()))
+            }
+            InnerValue::String(v) => {
+                Ok(Bool::from(!v.inner().is_empty()))
+            }
+            InnerValue::Array(v) => {
+                Ok(Bool::from(!v.inner().is_empty()))
+            }
+            InnerValue::Object(v) => {
+                Ok(Bool::from(!v.inner().is_empty()))
+            }
         }
     }
 );

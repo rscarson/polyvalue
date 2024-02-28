@@ -24,7 +24,7 @@ mod macros {
             impl_value!(
                 $name,
                 $subtype,
-                |v: &Self| v.inner().to_string(),
+                |v: &Self| { v.inner().to_string() },
                 |v: &Self, f: &mut std::fmt::Formatter<'_>| {
                     write!(f, "{}{}", v.inner(), stringify!($subtype))
                 }
@@ -190,115 +190,117 @@ mod macros {
             }
             map_value!(
                 from = $name,
-                handle_into = Value::$subtype,
-                handle_from = |v: Value| match v.inner() {
-                    InnerValue::Range(_) => Self::try_from(v.as_a::<Array>()?),
+                handle_into = (v) { Value::$subtype(v) },
+                handle_from = (v) {
+                    match v.inner() {
+                        InnerValue::Range(_) => Self::try_from(v.as_a::<Array>()?),
 
-                    InnerValue::U8(v) => {
-                        let v = *v.inner() as u8;
-                        $subtype::try_from(v)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
+                        InnerValue::U8(v) => {
+                            let v = *v.inner() as u8;
+                            $subtype::try_from(v)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
 
-                    InnerValue::U16(v) => {
-                        let v = *v.inner() as u16;
-                        $subtype::try_from(v)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
+                        InnerValue::U16(v) => {
+                            let v = *v.inner() as u16;
+                            $subtype::try_from(v)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
 
-                    InnerValue::U32(v) => {
-                        let v = *v.inner() as u32;
-                        $subtype::try_from(v)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
+                        InnerValue::U32(v) => {
+                            let v = *v.inner() as u32;
+                            $subtype::try_from(v)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
 
-                    InnerValue::U64(v) => {
-                        let v = *v.inner() as u64;
-                        $subtype::try_from(v)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
+                        InnerValue::U64(v) => {
+                            let v = *v.inner() as u64;
+                            $subtype::try_from(v)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
 
-                    InnerValue::I8(v) => {
-                        let v = *v.inner() as i8;
-                        $subtype::try_from(v)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
+                        InnerValue::I8(v) => {
+                            let v = *v.inner() as i8;
+                            $subtype::try_from(v)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
 
-                    InnerValue::I16(v) => {
-                        let v = *v.inner() as i16;
-                        $subtype::try_from(v)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
+                        InnerValue::I16(v) => {
+                            let v = *v.inner() as i16;
+                            $subtype::try_from(v)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
 
-                    InnerValue::I32(v) => {
-                        let v = *v.inner() as i32;
-                        $subtype::try_from(v)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
+                        InnerValue::I32(v) => {
+                            let v = *v.inner() as i32;
+                            $subtype::try_from(v)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
 
-                    InnerValue::I64(v) => {
-                        let v = *v.inner();
-                        $subtype::try_from(v)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
+                        InnerValue::I64(v) => {
+                            let v = *v.inner();
+                            $subtype::try_from(v)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
 
-                    InnerValue::Fixed(v) => {
-                        let p = v.inner().trunc().coefficient();
-                        $subtype::try_from(p)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
-                    InnerValue::Float(v) => {
-                        let p = *v.inner();
-                        let p = p.trunc() as i64;
-                        $subtype::try_from(p)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
-                    InnerValue::Currency(v) => {
-                        let p = v.inner().value().inner().trunc().coefficient();
-                        $subtype::try_from(p)
-                            .map_err(|_| Error::Overflow)
-                            .and_then(|v| Ok($name::new(v)))
-                    }
-                    InnerValue::Bool(v) => {
-                        let p = *v.inner() as i64;
-                        Ok($name::new(p as $subtype))
-                    }
-                    InnerValue::String(_) => {
-                        Err(Error::ValueConversion {
-                            src_type: ValueType::String,
-                            dst_type: ValueType::$name,
-                        })
-                    }
-                    InnerValue::Array(v) => {
-                        if v.inner().len() == 1 {
-                            let v = v.inner()[0].clone();
-                            $name::try_from(v)
-                        } else {
+                        InnerValue::Fixed(v) => {
+                            let p = v.inner().trunc().coefficient();
+                            $subtype::try_from(p)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
+                        InnerValue::Float(v) => {
+                            let p = *v.inner();
+                            let p = p.trunc() as i64;
+                            $subtype::try_from(p)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
+                        InnerValue::Currency(v) => {
+                            let p = v.inner().value().inner().trunc().coefficient();
+                            $subtype::try_from(p)
+                                .map_err(|_| Error::Overflow)
+                                .and_then(|v| Ok($name::new(v)))
+                        }
+                        InnerValue::Bool(v) => {
+                            let p = *v.inner() as i64;
+                            Ok($name::new(p as $subtype))
+                        }
+                        InnerValue::String(_) => {
                             Err(Error::ValueConversion {
-                                src_type: ValueType::Array,
+                                src_type: ValueType::String,
                                 dst_type: ValueType::$name,
                             })
                         }
-                    }
-                    InnerValue::Object(v) => {
-                        if v.inner().len() == 1 {
-                            let v = v.inner().values().next().unwrap().clone();
-                            $name::try_from(v)
-                        } else {
-                            Err(Error::ValueConversion {
-                                src_type: ValueType::Object,
-                                dst_type: ValueType::$name,
-                            })
+                        InnerValue::Array(v) => {
+                            if v.inner().len() == 1 {
+                                let v = v.inner()[0].clone();
+                                $name::try_from(v)
+                            } else {
+                                Err(Error::ValueConversion {
+                                    src_type: ValueType::Array,
+                                    dst_type: ValueType::$name,
+                                })
+                            }
+                        }
+                        InnerValue::Object(v) => {
+                            if v.inner().len() == 1 {
+                                let v = v.inner().values().next().unwrap().clone();
+                                $name::try_from(v)
+                            } else {
+                                Err(Error::ValueConversion {
+                                    src_type: ValueType::Object,
+                                    dst_type: ValueType::$name,
+                                })
+                            }
                         }
                     }
                 }

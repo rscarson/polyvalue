@@ -111,35 +111,37 @@ impl Object {
 
 map_value!(
     from = Object,
-    handle_into = Value::object,
-    handle_from = |v: Value| match v.inner() {
-        InnerValue::Range(_) => Self::try_from(v.clone().as_a::<Array>()?),
-        InnerValue::Object(v) => Ok(v.clone()),
+    handle_into = (v) { Value::object(v) },
+    handle_from = (v) {
+        match v.inner() {
+            InnerValue::Range(_) => Self::try_from(v.clone().as_a::<Array>()?),
+            InnerValue::Object(v) => Ok(v.clone()),
 
-        InnerValue::String(_)
-        | InnerValue::Bool(_)
-        | InnerValue::Float(_)
-        | InnerValue::Fixed(_)
-        | InnerValue::Currency(_)
-        | InnerValue::U8(_)
-        | InnerValue::U16(_)
-        | InnerValue::U32(_)
-        | InnerValue::U64(_)
-        | InnerValue::I8(_)
-        | InnerValue::I16(_)
-        | InnerValue::I32(_)
-        | InnerValue::I64(_) => {
-            let mut map = ObjectInner::new();
-            map.insert(Value::from(0_usize), v).ok();
-            Ok(Object(map))
-        }
-
-        InnerValue::Array(v) => {
-            let mut map = ObjectInner::new();
-            for (i, v) in v.inner().iter().enumerate() {
-                map.insert(Value::i64(i as i64), v.clone()).ok();
+            InnerValue::String(_)
+            | InnerValue::Bool(_)
+            | InnerValue::Float(_)
+            | InnerValue::Fixed(_)
+            | InnerValue::Currency(_)
+            | InnerValue::U8(_)
+            | InnerValue::U16(_)
+            | InnerValue::U32(_)
+            | InnerValue::U64(_)
+            | InnerValue::I8(_)
+            | InnerValue::I16(_)
+            | InnerValue::I32(_)
+            | InnerValue::I64(_) => {
+                let mut map = ObjectInner::new();
+                map.insert(Value::from(0_usize), v).ok();
+                Ok(Object(map))
             }
-            Ok(Object(map))
+
+            InnerValue::Array(v) => {
+                let mut map = ObjectInner::new();
+                for (i, v) in v.inner().iter().enumerate() {
+                    map.insert(Value::i64(i as i64), v.clone()).ok();
+                }
+                Ok(Object(map))
+            }
         }
     }
 );

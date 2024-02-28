@@ -210,8 +210,8 @@ impl MatchingOperationExt for Range {
 
 map_value!(
     from = Range,
-    handle_into = Value::range,
-    handle_from = |v: Value| {
+    handle_into = (v) { Value::range(v) },
+    handle_from = (v) {
         match v.inner() {
             InnerValue::Range(v) => Ok(v.clone()),
             InnerValue::Array(v) => {

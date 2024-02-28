@@ -38,8 +38,8 @@ impl From<fpdec::Decimal> for Currency {
 
 map_value!(
     from = Currency,
-    handle_into = Value::currency,
-    handle_from = |v: Value| {
+    handle_into = (v) { Value::currency(v) },
+    handle_from = (v) {
         match v.inner() {
             InnerValue::Currency(v) => Ok(v.clone()),
             _ => {

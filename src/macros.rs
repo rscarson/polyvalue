@@ -5,35 +5,15 @@
 /// - `into`: A closure that takes in a `Source` and returns a `Value`
 /// - `from`: A closure that takes in a `Value` and returns a `Result<Source, Error>`
 macro_rules! map_value {
-    (from = $target:ty, handle_into = $into:expr, handle_from = $from:expr) => {
+    (from = $target:ty, handle_into = ($ival:ident) $into:block, handle_from = ($fval:ident) $from:block) => {
         impl TryFrom<$crate::Value> for $target {
             type Error = crate::Error;
-            #[allow(clippy::redundant_closure_call)]
-            fn try_from(value: $crate::Value) -> Result<Self, Self::Error> {
-                $from(value)
-            }
-        }
 
-        impl TryFrom<&$crate::Value> for $target {
-            type Error = crate::Error;
-            #[allow(clippy::redundant_closure_call)]
-            fn try_from(value: &$crate::Value) -> Result<Self, Self::Error> {
-                $from(value.clone())
-            }
+            fn try_from($fval: $crate::Value) -> Result<Self, Self::Error> $from
         }
 
         impl From<$target> for $crate::Value {
-            #[allow(clippy::redundant_closure_call)]
-            fn from(value: $target) -> Self {
-                $into(value)
-            }
-        }
-
-        impl From<&$target> for $crate::Value {
-            #[allow(clippy::redundant_closure_call)]
-            fn from(value: &$target) -> Self {
-                $into(value.clone())
-            }
+            fn from($ival: $target) -> Self $into
         }
     };
 }
@@ -132,14 +112,12 @@ macro_rules! impl_value {
         map_primitive!(from = $own_type, primitive = $inner_type);
 
         impl std::fmt::Display for $own_type {
-            #[allow(clippy::redundant_closure_call)]
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", $to_string(self))
             }
         }
 
         impl std::fmt::Debug for $own_type {
-            #[allow(clippy::redundant_closure_call)]
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 $debug(self, f)
             }

@@ -102,108 +102,110 @@ impl Fixed {
 
 map_value!(
     from = Fixed,
-    handle_into = Value::fixed,
-    handle_from = |v: Value| match v.inner() {
-        InnerValue::Range(_) => Self::try_from(v.as_a::<Array>()?),
-        InnerValue::Fixed(v) => Ok(v.clone()),
+    handle_into = (v) { Value::fixed(v) },
+    handle_from = (v) {
+        match v.inner() {
+            InnerValue::Range(_) => Self::try_from(v.as_a::<Array>()?),
+            InnerValue::Fixed(v) => Ok(v.clone()),
 
-        InnerValue::U8(v) => {
-            let p = *v.inner();
-            let p: Decimal = p.into();
-            Ok(Fixed::from(p))
-        }
-        InnerValue::U16(v) => {
-            let p = *v.inner();
-            let p: Decimal = p.into();
-            Ok(Fixed::from(p))
-        }
-        InnerValue::U32(v) => {
-            let p = *v.inner();
-            let p: Decimal = p.into();
-            Ok(Fixed::from(p))
-        }
-        InnerValue::U64(v) => {
-            let p = *v.inner();
-            let p: Decimal = p.into();
-            Ok(Fixed::from(p))
-        }
-        InnerValue::I8(v) => {
-            let p = *v.inner();
-            let p: Decimal = p.into();
-            Ok(Fixed::from(p))
-        }
-        InnerValue::I16(v) => {
-            let p = *v.inner();
-            let p: Decimal = p.into();
-            Ok(Fixed::from(p))
-        }
-        InnerValue::I32(v) => {
-            let p = *v.inner();
-            let p: Decimal = p.into();
-            Ok(Fixed::from(p))
-        }
-        InnerValue::I64(v) => {
-            let p = *v.inner();
-            let p: Decimal = p.into();
-            Ok(Fixed::from(p))
-        }
-
-        InnerValue::Float(v) => {
-            let p = *v.inner();
-            let p = Decimal::try_from(p)?;
-
-            // Ok this is an ugly hack. A bad bad hack.
-            // It is slow and inefficient, BUT it works.
-            // It is intended to fix floating point errors by leveraging the fact that
-            // f64 strings somehow have the correct precision.
-
-            // Todo: find a better way to do this
-            let intended_precision = v
-                .to_string()
-                .split('.')
-                .last()
-                .map(|s| s.len())
-                .unwrap_or(0);
-            let p = p.round(intended_precision as i8);
-
-            Ok(Fixed::from(p))
-        }
-        InnerValue::Currency(v) => {
-            Ok(v.inner().value().clone())
-        }
-        InnerValue::Bool(v) => {
-            if *v.inner() {
-                Ok(Fixed::one())
-            } else {
-                Ok(Fixed::zero())
+            InnerValue::U8(v) => {
+                let p = *v.inner();
+                let p: Decimal = p.into();
+                Ok(Fixed::from(p))
             }
-        }
-        InnerValue::String(_) => {
-            Err(Error::ValueConversion {
-                src_type: ValueType::String,
-                dst_type: ValueType::Fixed,
-            })
-        }
-        InnerValue::Array(v) => {
-            if v.inner().len() == 1 {
-                let v = v.inner()[0].clone();
-                Fixed::try_from(v)
-            } else {
+            InnerValue::U16(v) => {
+                let p = *v.inner();
+                let p: Decimal = p.into();
+                Ok(Fixed::from(p))
+            }
+            InnerValue::U32(v) => {
+                let p = *v.inner();
+                let p: Decimal = p.into();
+                Ok(Fixed::from(p))
+            }
+            InnerValue::U64(v) => {
+                let p = *v.inner();
+                let p: Decimal = p.into();
+                Ok(Fixed::from(p))
+            }
+            InnerValue::I8(v) => {
+                let p = *v.inner();
+                let p: Decimal = p.into();
+                Ok(Fixed::from(p))
+            }
+            InnerValue::I16(v) => {
+                let p = *v.inner();
+                let p: Decimal = p.into();
+                Ok(Fixed::from(p))
+            }
+            InnerValue::I32(v) => {
+                let p = *v.inner();
+                let p: Decimal = p.into();
+                Ok(Fixed::from(p))
+            }
+            InnerValue::I64(v) => {
+                let p = *v.inner();
+                let p: Decimal = p.into();
+                Ok(Fixed::from(p))
+            }
+
+            InnerValue::Float(v) => {
+                let p = *v.inner();
+                let p = Decimal::try_from(p)?;
+
+                // Ok this is an ugly hack. A bad bad hack.
+                // It is slow and inefficient, BUT it works.
+                // It is intended to fix floating point errors by leveraging the fact that
+                // f64 strings somehow have the correct precision.
+
+                // Todo: find a better way to do this
+                let intended_precision = v
+                    .to_string()
+                    .split('.')
+                    .last()
+                    .map(|s| s.len())
+                    .unwrap_or(0);
+                let p = p.round(intended_precision as i8);
+
+                Ok(Fixed::from(p))
+            }
+            InnerValue::Currency(v) => {
+                Ok(v.inner().value().clone())
+            }
+            InnerValue::Bool(v) => {
+                if *v.inner() {
+                    Ok(Fixed::one())
+                } else {
+                    Ok(Fixed::zero())
+                }
+            }
+            InnerValue::String(_) => {
                 Err(Error::ValueConversion {
-                    src_type: ValueType::Array,
+                    src_type: ValueType::String,
                     dst_type: ValueType::Fixed,
                 })
             }
-        }
-        InnerValue::Object(v) => {
-            if v.inner().len() == 1 {
-                let v = v.inner().values().next().unwrap().clone();
-                Fixed::try_from(v)
-            } else {
-                Err(Error::ValueConversion {
-                    src_type: ValueType::Object,
-                    dst_type: ValueType::Fixed,
-                })
+            InnerValue::Array(v) => {
+                if v.inner().len() == 1 {
+                    let v = v.inner()[0].clone();
+                    Fixed::try_from(v)
+                } else {
+                    Err(Error::ValueConversion {
+                        src_type: ValueType::Array,
+                        dst_type: ValueType::Fixed,
+                    })
+                }
+            }
+            InnerValue::Object(v) => {
+                if v.inner().len() == 1 {
+                    let v = v.inner().values().next().unwrap().clone();
+                    Fixed::try_from(v)
+                } else {
+                    Err(Error::ValueConversion {
+                        src_type: ValueType::Object,
+                        dst_type: ValueType::Fixed,
+                    })
+                }
             }
         }
     }

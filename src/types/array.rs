@@ -114,36 +114,38 @@ impl Array {
 
 map_value!(
     from = Array,
-    handle_into = Value::array,
-    handle_from = |v: Value| match v.inner() {
-        InnerValue::Array(v) => Ok(v.clone()),
-        InnerValue::Range(v) => {
-            let length = (v.inner().end() - v.inner().start()) as usize;
-            let mut container = Array::prealloc_range_conversion(length)?;
-            for i in v.inner().clone() {
-                container.push(Value::from(i));
+    handle_into = (v) { Value::array(v) },
+    handle_from = (v) {
+        match v.inner() {
+            InnerValue::Array(v) => Ok(v.clone()),
+            InnerValue::Range(v) => {
+                let length = (v.inner().end() - v.inner().start()) as usize;
+                let mut container = Array::prealloc_range_conversion(length)?;
+                for i in v.inner().clone() {
+                    container.push(Value::from(i));
+                }
+                Ok(container)
             }
-            Ok(container)
-        }
 
-        InnerValue::Bool(_)
-        | InnerValue::Float(_)
-        | InnerValue::Fixed(_)
-        | InnerValue::Currency(_)
-        | InnerValue::U8(_)
-        | InnerValue::U16(_)
-        | InnerValue::U32(_)
-        | InnerValue::U64(_)
-        | InnerValue::I8(_)
-        | InnerValue::I16(_)
-        | InnerValue::I32(_)
-        | InnerValue::I64(_)
-        | InnerValue::String(_) => {
-            Ok(vec![v].into())
-        }
+            InnerValue::Bool(_)
+            | InnerValue::Float(_)
+            | InnerValue::Fixed(_)
+            | InnerValue::Currency(_)
+            | InnerValue::U8(_)
+            | InnerValue::U16(_)
+            | InnerValue::U32(_)
+            | InnerValue::U64(_)
+            | InnerValue::I8(_)
+            | InnerValue::I16(_)
+            | InnerValue::I32(_)
+            | InnerValue::I64(_)
+            | InnerValue::String(_) => {
+                Ok(vec![v].into())
+            }
 
-        InnerValue::Object(v) => {
-            Ok(v.inner().values().cloned().collect::<ArrayInner>().into())
+            InnerValue::Object(v) => {
+                Ok(v.inner().values().cloned().collect::<ArrayInner>().into())
+            }
         }
     }
 );
