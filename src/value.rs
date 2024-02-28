@@ -127,8 +127,8 @@ impl TryFrom<serde_json::Value> for Value {
             serde_json::Value::Bool(v) => Ok(Value::bool(v)),
             serde_json::Value::String(v) => Ok(Value::string(v)),
             serde_json::Value::Array(v) => Ok(v
-                .iter()
-                .map(|v| Value::try_from(v.clone()))
+                .into_iter()
+                .map(|v| Value::try_from(v))
                 .collect::<Result<Vec<_>, _>>()?
                 .into()),
             serde_json::Value::Object(v) => {
@@ -194,8 +194,8 @@ impl Value {
 
     /// Serializes the value to a tagged value
     /// This is useful for serialization, as it will preserve the type of integers
-    pub fn serialize_tagged(&self) -> Result<String, serde_json::Error> {
-        Ok(TaggedValue::from(self.clone()).serialize()?.to_string())
+    pub fn serialize_tagged(self) -> Result<String, serde_json::Error> {
+        Ok(TaggedValue::from(self).serialize()?.to_string())
     }
 
     /// Deserializes a tagged value
@@ -309,6 +309,8 @@ impl Value {
     /// If successful, both returned values are guaranteed to be of
     /// the same type
     ///
+    /// Consumes both values
+    ///
     /// For details on type resolution, see [`Value::type_for_comparison`]
     ///
     /// # Example
@@ -318,12 +320,12 @@ impl Value {
     ///
     /// let a = Value::from(1.0);
     /// let b = Value::from(2);
-    /// let (a, b) = a.resolve(&b).expect("Could not resolve types");
+    /// let (a, b) = a.resolve(b).expect("Could not resolve types");
     /// assert!(a.own_type() == ValueType::Float);
     /// assert!(b.own_type() == ValueType::Float);
     /// ```
     pub fn resolve(&self, other: &Self) -> Result<(Value, Value), Error> {
-        let values = match self.type_for_comparison(other) {
+        let values = match self.type_for_comparison(&other) {
             ValueType::Bool => (
                 Bool::try_from(self.clone())?.into(),
                 Bool::try_from(other.clone())?.into(),
@@ -747,7 +749,7 @@ impl Value {
 
     /// Compares two values, ignoring type
     pub fn weak_equality(&self, other: &Self) -> Result<bool, Error> {
-        let (l, r) = self.resolve(other)?;
+        let (l, r) = self.clone().resolve(other)?;
         Ok(l == r)
     }
 
@@ -855,6 +857,72 @@ impl std::fmt::Debug for Value {
 
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self.inner(), other.inner()) {
+            (InnerValue::Bool(v), InnerValue::Bool(v2)) => Some(v.cmp(v2)),
+            (InnerValue::U8(v), InnerValue::U8(v2)) => Some(v.cmp(v2)),
+            (InnerValue::I8(v), InnerValue::I8(v2)) => Some(v.cmp(v2)),
+            (InnerValue::U16(v), InnerValue::U16(v2)) => Some(v.cmp(v2)),
+            (InnerValue::I16(v), InnerValue::I16(v2)) => Some(v.cmp(v2)),
+            (InnerValue::U32(v), InnerValue::U32(v2)) => Some(v.cmp(v2)),
+            (InnerValue::I32(v), InnerValue::I32(v2)) => Some(v.cmp(v2)),
+            (InnerValue::U64(v), InnerValue::U64(v2)) => Some(v.cmp(v2)),
+            (InnerValue::I64(v), InnerValue::I64(v2)) => Some(v.cmp(v2)),
+            (InnerValue::Fixed(v), InnerValue::Fixed(v2)) => v.partial_cmp(v2),
+            (InnerValue::Float(v), InnerValue::Float(v2)) => v.partial_cmp(v2),
+            (InnerValue::Currency(v), InnerValue::Currency(v2)) => v.partial_cmp(v2),
+            (InnerValue::String(v), InnerValue::String(v2)) => v.partial_cmp(v2),
+            (InnerValue::Range(v), InnerValue::Range(v2)) => v.partial_cmp(v2),
+            (InnerValue::Array(v), InnerValue::Array(v2)) => v.partial_cmp(v2),
+            (InnerValue::Object(v), InnerValue::Object(v2)) => v.partial_cmp(v2),
+
+            (InnerValue::Bool(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::Bool(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::U8(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::U8(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::I8(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::I8(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::U16(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::U16(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::I16(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::I16(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::U32(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::U32(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::I32(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::I32(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::U64(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::U64(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::I64(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::I64(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::Float(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::Float(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::Fixed(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::Fixed(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::Currency(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::Currency(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::String(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::String(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::Range(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::Range(_)) => Some(std::cmp::Ordering::Greater),
+
+            (InnerValue::Array(_), _) => Some(std::cmp::Ordering::Less),
+            (_, InnerValue::Array(_)) => Some(std::cmp::Ordering::Greater),
+        }
+
+        /*
+
         let weak_order = self.weak_ord(other).ok()?;
         if weak_order == std::cmp::Ordering::Equal && self.own_type() != other.own_type() {
             match (self.inner(), other.inner()) {
@@ -907,7 +975,7 @@ impl PartialOrd for Value {
             }
         } else {
             Some(weak_order)
-        }
+        } */
     }
 }
 
@@ -1369,7 +1437,7 @@ mod test {
         let deserialized: Value = serde_json::from_str(&serialized).unwrap();
         assert_eq!(value, deserialized);
 
-        let serialized = value.serialize_tagged().unwrap();
+        let serialized = value.clone().serialize_tagged().unwrap();
         assert_eq!(serialized, r#"{"Float":1.0}"#);
         let deserialized: Value = Value::deserialize_tagged(&serialized).unwrap();
         assert_eq!(value, deserialized);

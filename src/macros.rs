@@ -61,7 +61,7 @@ macro_rules! map_primitive {
         #[allow(clippy::from_over_into)]
         impl Into<$primitive> for $source {
             fn into(self) -> $primitive {
-                self.inner().clone()
+                self.0
             }
         }
 
