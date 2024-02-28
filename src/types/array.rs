@@ -137,17 +137,9 @@ map_value!(
         | InnerValue::I8(_)
         | InnerValue::I16(_)
         | InnerValue::I32(_)
-        | InnerValue::I64(_) => {
+        | InnerValue::I64(_)
+        | InnerValue::String(_) => {
             Ok(vec![v].into())
-        }
-
-        InnerValue::String(s) => {
-            let inner = s
-                .inner()
-                .chars()
-                .map(|c| Value::from(c.to_string()))
-                .collect::<Vec<_>>();
-            Ok(inner.into())
         }
 
         InnerValue::Object(v) => {
