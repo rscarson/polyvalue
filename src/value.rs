@@ -167,6 +167,11 @@ impl Value {
         Self { inner, flags: 0 }
     }
 
+    /// Consumes the value and returns the inner value
+    pub fn into_inner(self) -> InnerValue {
+        self.inner
+    }
+
     /// Returns a reference to the inner value
     pub fn inner(&self) -> &InnerValue {
         &self.inner
@@ -585,25 +590,25 @@ impl Value {
     /// let value = Value::from(1.0);
     /// let int = value.as_type(ValueType::Int).expect("Value could not be converted to int!");
     /// ```
-    pub fn as_type(&self, type_name: ValueType) -> Result<Value, Error> {
+    pub fn as_type(self, type_name: ValueType) -> Result<Value, Error> {
         let value = match type_name {
-            ValueType::Bool => Bool::try_from(self.clone())?.into(),
-            ValueType::Fixed => Fixed::try_from(self.clone())?.into(),
-            ValueType::Float => Float::try_from(self.clone())?.into(),
-            ValueType::Currency => Currency::try_from(self.clone())?.into(),
+            ValueType::Bool => Bool::try_from(self)?.into(),
+            ValueType::Fixed => Fixed::try_from(self)?.into(),
+            ValueType::Float => Float::try_from(self)?.into(),
+            ValueType::Currency => Currency::try_from(self)?.into(),
 
-            ValueType::U8 => U8::try_from(self.clone())?.into(),
-            ValueType::U16 => U16::try_from(self.clone())?.into(),
-            ValueType::U32 => U32::try_from(self.clone())?.into(),
-            ValueType::U64 => U64::try_from(self.clone())?.into(),
-            ValueType::I8 => I8::try_from(self.clone())?.into(),
-            ValueType::I16 => I16::try_from(self.clone())?.into(),
-            ValueType::I32 => I32::try_from(self.clone())?.into(),
-            ValueType::I64 => I64::try_from(self.clone())?.into(),
+            ValueType::U8 => U8::try_from(self)?.into(),
+            ValueType::U16 => U16::try_from(self)?.into(),
+            ValueType::U32 => U32::try_from(self)?.into(),
+            ValueType::U64 => U64::try_from(self)?.into(),
+            ValueType::I8 => I8::try_from(self)?.into(),
+            ValueType::I16 => I16::try_from(self)?.into(),
+            ValueType::I32 => I32::try_from(self)?.into(),
+            ValueType::I64 => I64::try_from(self)?.into(),
 
-            ValueType::String => Str::try_from(self.clone())?.into(),
-            ValueType::Array => Array::try_from(self.clone())?.into(),
-            ValueType::Object => Object::try_from(self.clone())?.into(),
+            ValueType::String => Str::try_from(self)?.into(),
+            ValueType::Array => Array::try_from(self)?.into(),
+            ValueType::Object => Object::try_from(self)?.into(),
 
             // Cannot convert to range
             ValueType::Range => {
