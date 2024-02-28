@@ -330,7 +330,6 @@ impl Value {
     /// assert!(b.own_type() == ValueType::Float);
     /// ```
     pub fn resolve(&self, other: &Self) -> Result<(Value, Value), Error> {
-        println!("Resolving: {:?} and {:?}", self, other);
         let values = match self.type_for_comparison(&other) {
             ValueType::Bool => (
                 Bool::try_from(self.clone())?.into(),
@@ -1428,7 +1427,6 @@ mod test {
         assert_eq!(value.to_json_string(), r#"[1.0,2.0]"#);
 
         let value = Value::try_from(vec![(Value::from("a"), Value::from(1.0))]).unwrap();
-        println!("{}", value.to_json_string());
         assert_eq!(value.to_json_string(), r#"{"a":1.0}"#);
 
         let value = Value::from(1..=2);
