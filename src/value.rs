@@ -325,6 +325,7 @@ impl Value {
     /// assert!(b.own_type() == ValueType::Float);
     /// ```
     pub fn resolve(&self, other: &Self) -> Result<(Value, Value), Error> {
+        println!("Resolving: {:?} and {:?}", self, other);
         let values = match self.type_for_comparison(&other) {
             ValueType::Bool => (
                 Bool::try_from(self.clone())?.into(),
