@@ -391,11 +391,6 @@ impl Value {
                 I64::try_from(other.clone())?.into(),
             ),
 
-            ValueType::String => (
-                Str::try_from(self.clone())?.into(),
-                Str::try_from(other.clone())?.into(),
-            ),
-
             ValueType::Array => (
                 Array::try_from(self.clone())?.into(),
                 Array::try_from(other.clone())?.into(),
@@ -404,6 +399,11 @@ impl Value {
             ValueType::Object => (
                 Object::try_from(self.clone())?.into(),
                 Object::try_from(other.clone())?.into(),
+            ),
+
+            ValueType::String => (
+                Str::try_from(self.clone())?.into(),
+                Str::try_from(other.clone())?.into(),
             ),
 
             ValueType::Range => (
@@ -663,9 +663,9 @@ impl Value {
             self.own_type()
         } else {
             match (self.own_type(), other.own_type()) {
-                (ValueType::String, _) | (_, ValueType::String) => ValueType::String,
                 (ValueType::Object, _) | (_, ValueType::Object) => ValueType::Object,
                 (ValueType::Array, _) | (_, ValueType::Array) => ValueType::Array,
+                (ValueType::String, _) | (_, ValueType::String) => ValueType::String,
                 (ValueType::Range, _) | (_, ValueType::Range) => ValueType::Range,
 
                 (ValueType::Currency, _) | (_, ValueType::Currency) => ValueType::Currency,
