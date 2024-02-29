@@ -8,11 +8,12 @@ use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use std::collections::{BTreeMap, HashMap};
+use std::hash::BuildHasher;
 
-type InnerObjectMeta = BTreeMap<Value, Value>;
+type InnerObjectMeta = HashMap<Value, Value>;
 
 /// Inner type used for object storage
-#[derive(PartialEq, Eq, Clone, Default, Hash, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct ObjectInner(InnerObjectMeta);
 impl ObjectInner {
     /// Create a new `ObjectInner`
@@ -94,7 +95,6 @@ impl ObjectInner {
     }
 }
 
-/*
 impl std::hash::Hash for ObjectInner {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let hasher = self.0.hasher();
@@ -122,7 +122,7 @@ impl Ord for ObjectInner {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap()
     }
-} */
+}
 
 impl TryFrom<Vec<(Value, Value)>> for ObjectInner {
     type Error = Error;
