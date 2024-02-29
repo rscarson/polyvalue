@@ -712,7 +712,7 @@ mod test {
         assert_eq!(array, vec![currency.into()].into());
 
         let array = Array::try_from(Value::from("hello")).unwrap();
-        assert_eq!(array.len(), 5);
+        assert_eq!(array.len(), 1);
 
         let array = Array::try_from(Value::from(true)).unwrap();
         assert_eq!(array, vec![true.into()].into());

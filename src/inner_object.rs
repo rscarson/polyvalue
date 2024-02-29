@@ -8,11 +8,12 @@ use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use std::collections::{BTreeMap, HashMap};
+use std::hash::BuildHasher;
 
-type InnerObjectMeta = BTreeMap<Value, Value>;
+type InnerObjectMeta = HashMap<Value, Value>;
 
 /// Inner type used for object storage
-#[derive(PartialEq, Eq, Clone, Default, PartialOrd, Ord, Hash)]
+#[derive(PartialEq, Eq, Clone, Default)]
 pub struct ObjectInner(InnerObjectMeta);
 impl ObjectInner {
     /// Create a new `ObjectInner`
@@ -91,6 +92,35 @@ impl ObjectInner {
     /// Retain only the key-value pairs that satisfy the predicate
     pub fn retain(&mut self, f: impl FnMut(&Value, &mut Value) -> bool) {
         self.0.retain(f)
+    }
+}
+
+impl std::hash::Hash for ObjectInner {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let hasher = self.0.hasher();
+        let mut hash: u64 = 0;
+        for pair in self.iter() {
+            hash ^= hasher.hash_one(pair);
+        }
+        state.write_u64(hash)
+    }
+}
+
+impl PartialOrd for ObjectInner {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.eq(other) == true {
+            Some(std::cmp::Ordering::Equal)
+        } else {
+            let tree_a = self.0.iter().collect::<BTreeMap<_, _>>();
+            let tree_b = other.0.iter().collect::<BTreeMap<_, _>>();
+            Some(tree_a.cmp(&tree_b))
+        }
+    }
+}
+
+impl Ord for ObjectInner {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
     }
 }
 
@@ -307,20 +337,9 @@ mod test {
         assert_eq!(obj.get(&Value::from(false)), Some(&Value::from(0)));
         assert_eq!(obj.get_mut(&Value::from(false)), Some(&mut Value::from(0)));
 
-        assert_eq!(
-            obj.values().collect::<Vec<_>>(),
-            vec![&Value::from(0), &Value::from(1)]
-        );
-
-        assert_eq!(
-            obj.values_mut().collect::<Vec<_>>(),
-            vec![&mut Value::from(0), &mut Value::from(1)]
-        );
-
-        assert_eq!(
-            obj.keys().collect::<Vec<_>>(),
-            vec![&Value::from(false), &Value::from(0)]
-        );
+        assert_eq!(obj.values().count(), 2);
+        assert_eq!(obj.values_mut().count(), 2);
+        assert_eq!(obj.keys().count(), 2);
 
         obj.retain(|k, v| {
             if k == &Value::from(false) {
