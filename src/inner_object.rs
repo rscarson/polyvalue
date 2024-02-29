@@ -8,12 +8,11 @@ use serde::{Deserialize, Serialize};
 
 #[allow(unused_imports)]
 use std::collections::{BTreeMap, HashMap};
-use std::hash::BuildHasher;
 
-type InnerObjectMeta = HashMap<Value, Value>;
+type InnerObjectMeta = BTreeMap<Value, Value>;
 
 /// Inner type used for object storage
-#[derive(PartialEq, Eq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default, Hash, PartialOrd, Ord)]
 pub struct ObjectInner(InnerObjectMeta);
 impl ObjectInner {
     /// Create a new `ObjectInner`
@@ -95,6 +94,7 @@ impl ObjectInner {
     }
 }
 
+/*
 impl std::hash::Hash for ObjectInner {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let hasher = self.0.hasher();
@@ -122,7 +122,7 @@ impl Ord for ObjectInner {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other).unwrap()
     }
-}
+} */
 
 impl TryFrom<Vec<(Value, Value)>> for ObjectInner {
     type Error = Error;
@@ -337,9 +337,20 @@ mod test {
         assert_eq!(obj.get(&Value::from(false)), Some(&Value::from(0)));
         assert_eq!(obj.get_mut(&Value::from(false)), Some(&mut Value::from(0)));
 
-        assert_eq!(obj.values().count(), 2);
-        assert_eq!(obj.values_mut().count(), 2);
-        assert_eq!(obj.keys().count(), 2);
+        assert_eq!(
+            obj.values().collect::<Vec<_>>(),
+            vec![&Value::from(0), &Value::from(1)]
+        );
+
+        assert_eq!(
+            obj.values_mut().collect::<Vec<_>>(),
+            vec![&mut Value::from(0), &mut Value::from(1)]
+        );
+
+        assert_eq!(
+            obj.keys().collect::<Vec<_>>(),
+            vec![&Value::from(false), &Value::from(0)]
+        );
 
         obj.retain(|k, v| {
             if k == &Value::from(false) {
