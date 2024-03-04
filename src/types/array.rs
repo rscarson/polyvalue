@@ -198,29 +198,22 @@ impl MatchingOperationExt for Array {
 
 impl ArithmeticOperationExt for Array {
     fn arithmetic_op(
-        left: &Self,
-        right: &Self,
+        mut self,
+        right: Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
         match operation {
             ArithmeticOperation::Add => {
-                let mut result = left.clone();
-                result.inner_mut().extend(right.inner().clone());
-                Ok(result)
+                for v in right.into_inner() {
+                    self.inner_mut().push(v);
+                }
+                Ok(self)
             }
 
             ArithmeticOperation::Subtract => {
-                let mut result = left.clone();
                 let rset = std::collections::HashSet::<&Value>::from_iter(right.inner().iter());
-                result.inner_mut().retain(|v| !rset.contains(v));
-                Ok(result)
-            }
-
-            // reverse
-            ArithmeticOperation::Negate => {
-                let mut result = left.clone();
-                result.inner_mut().reverse();
-                Ok(result)
+                self.inner_mut().retain(|v| !rset.contains(v));
+                Ok(self)
             }
 
             _ => Err(Error::UnsupportedOperation {
@@ -230,43 +223,37 @@ impl ArithmeticOperationExt for Array {
         }
     }
 
-    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    fn arithmetic_neg(mut self) -> Result<Self, crate::Error>
     where
         Self: Sized,
     {
-        Array::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
-    }
-
-    fn is_operator_supported(&self, _other: &Self, operation: ArithmeticOperation) -> bool {
-        matches!(
-            operation,
-            ArithmeticOperation::Add | ArithmeticOperation::Subtract | ArithmeticOperation::Negate
-        )
+        self.inner_mut().reverse();
+        Ok(self)
     }
 }
 
 impl BooleanOperationExt for Array {
-    fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
+    fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Value, Error> {
+        let (left, right) = (self.into_inner(), right.into_inner());
         let result = match operation {
-            BooleanOperation::And => !left.inner().is_empty() && !right.inner().is_empty(),
-            BooleanOperation::Or => !left.inner().is_empty() || !right.inner().is_empty(),
-            BooleanOperation::LT => *left.inner() < *right.inner(),
-            BooleanOperation::GT => *left.inner() > *right.inner(),
-            BooleanOperation::LTE => *left.inner() <= *right.inner(),
-            BooleanOperation::GTE => *left.inner() >= *right.inner(),
-            BooleanOperation::EQ => *left.inner() == *right.inner(),
-            BooleanOperation::NEQ => *left.inner() != *right.inner(),
-            BooleanOperation::Not => right.inner().is_empty(),
+            BooleanOperation::And => !left.is_empty() && !right.is_empty(),
+            BooleanOperation::Or => !left.is_empty() || !right.is_empty(),
+            BooleanOperation::LT => left < right,
+            BooleanOperation::GT => left > right,
+            BooleanOperation::LTE => left <= right,
+            BooleanOperation::GTE => left >= right,
+            BooleanOperation::EQ => left == right,
+            BooleanOperation::NEQ => left != right,
         };
 
         Ok(result.into())
     }
 
-    fn boolean_not(&self) -> Result<Value, crate::Error>
+    fn boolean_not(self) -> Result<Value, crate::Error>
     where
         Self: Sized,
     {
-        Array::boolean_op(self, &self.clone(), BooleanOperation::Not)
+        Ok(self.inner().is_empty().into())
     }
 }
 
@@ -566,8 +553,8 @@ mod test {
 
         assert_eq!(
             Array::arithmetic_op(
-                &array,
-                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                array.clone(),
+                Array::from(vec![1.into(), 2.into(), 3.into()]),
                 ArithmeticOperation::Add
             )
             .unwrap(),
@@ -583,8 +570,8 @@ mod test {
 
         assert_eq!(
             Array::arithmetic_op(
-                &array,
-                &Array::from(vec![1.into(), 2.into()]),
+                array.clone(),
+                Array::from(vec![1.into(), 2.into()]),
                 ArithmeticOperation::Subtract
             )
             .unwrap(),
@@ -592,39 +579,32 @@ mod test {
         );
 
         assert_eq!(
-            Array::arithmetic_neg(&array).unwrap(),
+            Array::arithmetic_neg(array.clone()).unwrap(),
             Array::from(vec![3.into(), 2.into(), 1.into()])
         );
-
-        assert!(Array::is_operator_supported(
-            &array,
-            &array,
-            ArithmeticOperation::Add
-        ));
-
-        assert!(!Array::is_operator_supported(
-            &array,
-            &array,
+        assert!(Array::arithmetic_op(
+            array.clone(),
+            array.clone(),
             ArithmeticOperation::Exponentiate
-        ));
-        assert!(Array::arithmetic_op(&array, &array, ArithmeticOperation::Exponentiate).is_err())
+        )
+        .is_err())
     }
 
     #[test]
     fn test_boolean_logic() {
         let array = Array::from(vec![1.into(), 2.into(), 3.into()]);
         assert_eq!(
-            Array::boolean_op(&array, &Array::from(vec![]), BooleanOperation::And).unwrap(),
+            Array::boolean_op(array.clone(), Array::from(vec![]), BooleanOperation::And).unwrap(),
             false.into()
         );
         assert_eq!(
-            Array::boolean_op(&array, &Array::from(vec![]), BooleanOperation::Or).unwrap(),
+            Array::boolean_op(array.clone(), Array::from(vec![]), BooleanOperation::Or).unwrap(),
             true.into()
         );
         assert_eq!(
             Array::boolean_op(
-                &array,
-                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                array.clone(),
+                Array::from(vec![1.into(), 2.into(), 3.into()]),
                 BooleanOperation::LT
             )
             .unwrap(),
@@ -632,8 +612,8 @@ mod test {
         );
         assert_eq!(
             Array::boolean_op(
-                &array,
-                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                array.clone(),
+                Array::from(vec![1.into(), 2.into(), 3.into()]),
                 BooleanOperation::GT
             )
             .unwrap(),
@@ -641,8 +621,8 @@ mod test {
         );
         assert_eq!(
             Array::boolean_op(
-                &array,
-                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                array.clone(),
+                Array::from(vec![1.into(), 2.into(), 3.into()]),
                 BooleanOperation::LTE
             )
             .unwrap(),
@@ -650,8 +630,8 @@ mod test {
         );
         assert_eq!(
             Array::boolean_op(
-                &array,
-                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                array.clone(),
+                Array::from(vec![1.into(), 2.into(), 3.into()]),
                 BooleanOperation::GTE
             )
             .unwrap(),
@@ -659,8 +639,8 @@ mod test {
         );
         assert_eq!(
             Array::boolean_op(
-                &array,
-                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                array.clone(),
+                Array::from(vec![1.into(), 2.into(), 3.into()]),
                 BooleanOperation::EQ
             )
             .unwrap(),
@@ -668,23 +648,15 @@ mod test {
         );
         assert_eq!(
             Array::boolean_op(
-                &array,
-                &Array::from(vec![1.into(), 2.into(), 3.into()]),
+                array.clone(),
+                Array::from(vec![1.into(), 2.into(), 3.into()]),
                 BooleanOperation::NEQ
             )
             .unwrap(),
             false.into()
         );
-        assert_eq!(
-            Array::boolean_op(&array, &Array::from(vec![]), BooleanOperation::Not).unwrap(),
-            true.into()
-        );
-        assert_eq!(
-            Array::boolean_op(&array, &Array::from(vec![1.into()]), BooleanOperation::Not).unwrap(),
-            false.into()
-        );
 
-        assert_eq!(Array::boolean_not(&array).unwrap(), false.into());
+        assert_eq!(Array::boolean_not(array.clone()).unwrap(), false.into());
     }
 
     #[test]

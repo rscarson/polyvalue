@@ -330,12 +330,12 @@ mod macros {
             #[allow(unused_comparisons)]
             impl ArithmeticOperationExt for $name {
                 fn arithmetic_op(
-                    left: &Self,
-                    right: &Self,
+                    self,
+                    right: Self,
                     operation: ArithmeticOperation,
                 ) -> Result<Self, crate::Error> {
-                    let left = *left.inner();
-                    let right = *right.inner();
+                    let left = self.into_inner();
+                    let right = right.into_inner();
 
                     let result = match operation {
                         ArithmeticOperation::Add => left.checked_add(right),
@@ -350,84 +350,67 @@ mod macros {
                                 None
                             }
                         }
-                        ArithmeticOperation::Negate => {
-                            if $subtype::MIN < 0 {
-                                Some(-(left as i64) as $subtype)
-                            } else {
-                                return Err(Error::UnsupportedOperation {
-                                    operation: operation.to_string(),
-                                    actual_type: ValueType::$name,
-                                });
-                            }
-                        }
                     }
                     .ok_or(Error::Overflow)?;
                     Ok(Self::new(result))
                 }
 
-                fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+                fn arithmetic_neg(self) -> Result<Self, crate::Error>
                 where
                     Self: Sized,
                 {
-                    Self::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
-                }
-
-                fn is_operator_supported(
-                    &self,
-                    _other: &Self,
-                    operation: ArithmeticOperation,
-                ) -> bool {
-                    match operation {
-                        ArithmeticOperation::Add
-                        | ArithmeticOperation::Subtract
-                        | ArithmeticOperation::Multiply
-                        | ArithmeticOperation::Divide
-                        | ArithmeticOperation::Modulo
-                        | ArithmeticOperation::Exponentiate => true,
-                        ArithmeticOperation::Negate => $subtype::MIN < 0,
+                    if $subtype::MIN < 0 {
+                        Ok(Self(-(self.into_inner() as i64) as $subtype))
+                    } else {
+                        return Err(Error::UnsupportedOperation {
+                            operation: "negation".to_string(),
+                            actual_type: ValueType::$name,
+                        });
                     }
                 }
             }
 
             impl BooleanOperationExt for $name {
                 fn boolean_op(
-                    left: &Self,
-                    right: &Self,
+                    self,
+                    right: Self,
                     operation: BooleanOperation,
                 ) -> Result<Value, Error> {
-                    let result = match operation {
-                        BooleanOperation::And => *left.inner() != 0 && *right.inner() != 0,
-                        BooleanOperation::Or => *left.inner() != 0 || *right.inner() != 0,
+                    let left = self.into_inner();
+                    let right = right.into_inner();
 
-                        BooleanOperation::LT => *left.inner() < *right.inner(),
-                        BooleanOperation::GT => *left.inner() > *right.inner(),
-                        BooleanOperation::LTE => *left.inner() <= *right.inner(),
-                        BooleanOperation::GTE => *left.inner() >= *right.inner(),
-                        BooleanOperation::EQ => *left.inner() == *right.inner(),
-                        BooleanOperation::NEQ => *left.inner() != *right.inner(),
-                        BooleanOperation::Not => *left.inner() == 0,
+                    let result = match operation {
+                        BooleanOperation::And => left != 0 && right != 0,
+                        BooleanOperation::Or => left != 0 || right != 0,
+
+                        BooleanOperation::LT => left < right,
+                        BooleanOperation::GT => left > right,
+                        BooleanOperation::LTE => left <= right,
+                        BooleanOperation::GTE => left >= right,
+                        BooleanOperation::EQ => left == right,
+                        BooleanOperation::NEQ => left != right,
                     };
 
                     Ok(result.into())
                 }
 
-                fn boolean_not(&self) -> Result<Value, crate::Error>
+                fn boolean_not(self) -> Result<Value, crate::Error>
                 where
                     Self: Sized,
                 {
-                    Self::boolean_op(self, &self.clone(), BooleanOperation::Not)
+                    Ok((self.into_inner() == 0).into())
                 }
             }
 
             #[allow(unused_comparisons)]
             impl BitwiseOperationExt for $name {
                 fn bitwise_op(
-                    left: &Self,
-                    right: &Self,
+                    self,
+                    right: Self,
                     operation: BitwiseOperation,
                 ) -> Result<Self, Error> {
-                    let left = *left.inner();
-                    let right = *right.inner();
+                    let left = self.into_inner();
+                    let right = right.into_inner();
 
                     let result = match operation {
                         BitwiseOperation::And => Some(left & right),
@@ -447,18 +430,17 @@ mod macros {
                         BitwiseOperation::RightShift => {
                             left.checked_shr((right % $subtype::BITS as $subtype) as u32)
                         }
-                        BitwiseOperation::Not => Some(!left),
                     }
                     .ok_or(Error::Overflow)?;
 
                     Ok(Self::new(result))
                 }
 
-                fn bitwise_not(&self) -> Result<Self, Error>
+                fn bitwise_not(self) -> Result<Self, Error>
                 where
                     Self: Sized,
                 {
-                    Self::bitwise_op(self, &self.clone(), BitwiseOperation::Not)
+                    Ok(Self(!self.into_inner()))
                 }
             }
         };
@@ -603,148 +585,105 @@ mod test {
     #[test]
     fn test_boolean() {
         assert_eq!(
-            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::And).unwrap(),
+            I8::boolean_op(I8::new(10), I8::new(5), BooleanOperation::And).unwrap(),
             Value::from(true)
         );
         assert_eq!(
-            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::Or).unwrap(),
+            I8::boolean_op(I8::new(10), I8::new(5), BooleanOperation::Or).unwrap(),
             Value::from(true)
         );
         assert_eq!(
-            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::LT).unwrap(),
+            I8::boolean_op(I8::new(10), I8::new(5), BooleanOperation::LT).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::GT).unwrap(),
+            I8::boolean_op(I8::new(10), I8::new(5), BooleanOperation::GT).unwrap(),
             Value::from(true)
         );
         assert_eq!(
-            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::LTE).unwrap(),
+            I8::boolean_op(I8::new(10), I8::new(5), BooleanOperation::LTE).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::GTE).unwrap(),
+            I8::boolean_op(I8::new(10), I8::new(5), BooleanOperation::GTE).unwrap(),
             Value::from(true)
         );
         assert_eq!(
-            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::EQ).unwrap(),
+            I8::boolean_op(I8::new(10), I8::new(5), BooleanOperation::EQ).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::NEQ).unwrap(),
+            I8::boolean_op(I8::new(10), I8::new(5), BooleanOperation::NEQ).unwrap(),
             Value::from(true)
         );
-        assert_eq!(
-            I8::boolean_op(&I8::new(10), &I8::new(5), BooleanOperation::Not).unwrap(),
-            Value::from(false)
-        );
-        assert_eq!(
-            I8::boolean_op(&I8::new(0), &I8::new(5), BooleanOperation::Not).unwrap(),
-            Value::from(true)
-        );
-        assert_eq!(
-            I8::boolean_op(&I8::new(10), &I8::new(0), BooleanOperation::Not).unwrap(),
-            Value::from(false)
-        );
-        assert_eq!(
-            I8::boolean_op(&I8::new(0), &I8::new(0), BooleanOperation::Not).unwrap(),
-            Value::from(true)
-        );
-        assert_eq!(I8::boolean_not(&I8::new(10)).unwrap(), Value::from(false));
+        assert_eq!(I8::boolean_not(I8::new(10)).unwrap(), Value::from(false));
     }
 
     #[test]
     fn test_bitwise() {
         assert_eq!(
-            I8::bitwise_op(&I8::new(10), &I8::new(5), BitwiseOperation::And).unwrap(),
+            I8::bitwise_op(I8::new(10), I8::new(5), BitwiseOperation::And).unwrap(),
             I8::new(0)
         );
         assert_eq!(
-            I8::bitwise_op(&I8::new(10), &I8::new(5), BitwiseOperation::Or).unwrap(),
+            I8::bitwise_op(I8::new(10), I8::new(5), BitwiseOperation::Or).unwrap(),
             I8::new(15)
         );
         assert_eq!(
-            I8::bitwise_op(&I8::new(10), &I8::new(5), BitwiseOperation::Xor).unwrap(),
+            I8::bitwise_op(I8::new(10), I8::new(5), BitwiseOperation::Xor).unwrap(),
             I8::new(15)
         );
         assert_eq!(
-            I8::bitwise_op(&I8::new(10), &I8::new(1), BitwiseOperation::LeftShift).unwrap(),
+            I8::bitwise_op(I8::new(10), I8::new(1), BitwiseOperation::LeftShift).unwrap(),
             I8::new(20)
         );
         assert_eq!(
-            I8::bitwise_op(&I8::new(10), &I8::new(5), BitwiseOperation::RightShift).unwrap(),
+            I8::bitwise_op(I8::new(10), I8::new(5), BitwiseOperation::RightShift).unwrap(),
             I8::new(0)
         );
         assert_eq!(
-            I8::bitwise_op(&I8::new(10), &I8::new(-5), BitwiseOperation::LeftShift).unwrap(),
+            I8::bitwise_op(I8::new(10), I8::new(-5), BitwiseOperation::LeftShift).unwrap(),
             I8::new(0)
         );
         assert_eq!(
-            I8::bitwise_op(&I8::new(10), &I8::new(-1), BitwiseOperation::RightShift).unwrap(),
+            I8::bitwise_op(I8::new(10), I8::new(-1), BitwiseOperation::RightShift).unwrap(),
             I8::new(20)
         );
-        assert_eq!(
-            I8::bitwise_op(&I8::new(10), &I8::new(10), BitwiseOperation::Not).unwrap(),
-            I8::new(-11)
-        );
-        assert_eq!(
-            I8::bitwise_op(&I8::new(10), &I8::new(-5), BitwiseOperation::Not).unwrap(),
-            I8::new(-11)
-        );
-        assert_eq!(
-            I8::bitwise_op(&I8::new(-10), &I8::new(5), BitwiseOperation::Not).unwrap(),
-            I8::new(9)
-        );
-        assert_eq!(I8::bitwise_not(&I8::new(-10)).unwrap(), I8::new(9));
+        assert_eq!(I8::bitwise_not(I8::new(-10)).unwrap(), I8::new(9));
     }
 
     #[test]
     fn test_arithmetic() {
         assert_eq!(
-            I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Add).unwrap(),
+            I8::arithmetic_op(I8::new(10), I8::new(5), ArithmeticOperation::Add).unwrap(),
             I8::new(15)
         );
         assert_eq!(
-            I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Subtract).unwrap(),
+            I8::arithmetic_op(I8::new(10), I8::new(5), ArithmeticOperation::Subtract).unwrap(),
             I8::new(5)
         );
         assert_eq!(
-            I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Multiply).unwrap(),
+            I8::arithmetic_op(I8::new(10), I8::new(5), ArithmeticOperation::Multiply).unwrap(),
             I8::new(50)
         );
         assert_eq!(
-            I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Divide).unwrap(),
+            I8::arithmetic_op(I8::new(10), I8::new(5), ArithmeticOperation::Divide).unwrap(),
             I8::new(2)
         );
         assert_eq!(
-            I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Modulo).unwrap(),
+            I8::arithmetic_op(I8::new(10), I8::new(5), ArithmeticOperation::Modulo).unwrap(),
             I8::new(0)
         );
-        I8::arithmetic_op(&I8::new(10), &I8::new(5), ArithmeticOperation::Exponentiate)
-            .unwrap_err();
+        I8::arithmetic_op(I8::new(10), I8::new(5), ArithmeticOperation::Exponentiate).unwrap_err();
         I64::arithmetic_op(
-            &I64::new(10),
-            &I64::new(i64::MAX),
+            I64::new(10),
+            I64::new(i64::MAX),
             ArithmeticOperation::Exponentiate,
         )
         .unwrap_err();
 
-        U8::arithmetic_neg(&U8::new(10)).unwrap_err();
-        assert_eq!(I8::arithmetic_neg(&I8::new(10)).unwrap(), I8::new(-10));
-
-        let i = I8::new(10);
-        let u = U8::new(10);
-        assert!(U8::is_operator_supported(&u, &u, ArithmeticOperation::Add));
-        assert!(!U8::is_operator_supported(
-            &u,
-            &u,
-            ArithmeticOperation::Negate
-        ));
-        assert!(I8::is_operator_supported(
-            &i,
-            &i,
-            ArithmeticOperation::Negate
-        ));
+        U8::arithmetic_neg(U8::new(10)).unwrap_err();
+        assert_eq!(I8::arithmetic_neg(I8::new(10)).unwrap(), I8::new(-10));
     }
 
     #[test]

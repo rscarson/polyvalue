@@ -9,7 +9,7 @@
 use crate::{operations::*, types::*, Error, InnerValue, Value, ValueTrait, ValueType};
 use serde::{Deserialize, Serialize};
 
-pub use crate::inner_object::ObjectInner;
+pub use crate::inner_types::object::ObjectInner;
 
 /// Subtype of `Value` that represents an object
 #[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default, Hash, PartialOrd, Ord)]
@@ -200,15 +200,14 @@ impl MatchingOperationExt for Object {
 
 impl ArithmeticOperationExt for Object {
     fn arithmetic_op(
-        left: &Self,
-        right: &Self,
+        mut self,
+        right: Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
         match operation {
             ArithmeticOperation::Add => {
-                let mut result = left.clone();
-                result.inner_mut().extend(right.inner().clone());
-                Ok(result)
+                self.inner_mut().extend(right.into_inner());
+                Ok(self)
             }
 
             _ => Err(Error::UnsupportedOperation {
@@ -218,41 +217,42 @@ impl ArithmeticOperationExt for Object {
         }
     }
 
-    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    fn arithmetic_neg(self) -> Result<Self, crate::Error>
     where
         Self: Sized,
     {
-        Object::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
-    }
-
-    fn is_operator_supported(&self, _: &Self, operation: ArithmeticOperation) -> bool {
-        matches!(operation, ArithmeticOperation::Add)
+        Err(Error::UnsupportedOperation {
+            operation: "negation".to_string(),
+            actual_type: ValueType::Object,
+        })
     }
 }
 
 impl BooleanOperationExt for Object {
-    fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
-        let result = match operation {
-            BooleanOperation::And => !left.inner().is_empty() && !right.inner().is_empty(),
-            BooleanOperation::Or => !left.inner().is_empty() || !right.inner().is_empty(),
+    fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Value, Error> {
+        let left = self.into_inner();
+        let right = right.into_inner();
 
-            BooleanOperation::LT => *left.inner() < *right.inner(),
-            BooleanOperation::GT => *left.inner() > *right.inner(),
-            BooleanOperation::LTE => *left.inner() <= *right.inner(),
-            BooleanOperation::GTE => *left.inner() >= *right.inner(),
-            BooleanOperation::EQ => *left.inner() == *right.inner(),
-            BooleanOperation::NEQ => *left.inner() != *right.inner(),
-            BooleanOperation::Not => left.inner().is_empty(),
+        let result = match operation {
+            BooleanOperation::And => !left.is_empty() && !right.is_empty(),
+            BooleanOperation::Or => !left.is_empty() || !right.is_empty(),
+
+            BooleanOperation::LT => left < right,
+            BooleanOperation::GT => left > right,
+            BooleanOperation::LTE => left <= right,
+            BooleanOperation::GTE => left >= right,
+            BooleanOperation::EQ => left == right,
+            BooleanOperation::NEQ => left != right,
         };
 
         Ok(result.into())
     }
 
-    fn boolean_not(&self) -> Result<Value, crate::Error>
+    fn boolean_not(self) -> Result<Value, crate::Error>
     where
         Self: Sized,
     {
-        Object::boolean_op(self, &self.clone(), BooleanOperation::Not)
+        Ok(self.into_inner().is_empty().into())
     }
 }
 
@@ -417,12 +417,12 @@ mod test {
     #[test]
     fn test_arithmetic() {
         let result = Object::arithmetic_op(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
             ])
             .unwrap(),
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(3)),
                 (Value::i64(1), Value::i64(4)),
             ])
@@ -442,7 +442,7 @@ mod test {
         );
 
         assert!(Object::arithmetic_neg(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
             ])
@@ -450,41 +450,13 @@ mod test {
         )
         .is_err());
 
-        assert!(Object::is_operator_supported(
-            &Object::try_from(vec![
-                (Value::i64(0), Value::i64(1)),
-                (Value::i64(1), Value::i64(2)),
-            ])
-            .unwrap(),
-            &Object::try_from(vec![
-                (Value::i64(0), Value::i64(3)),
-                (Value::i64(1), Value::i64(4)),
-            ])
-            .unwrap(),
-            ArithmeticOperation::Add
-        ));
-
-        assert!(!Object::is_operator_supported(
-            &Object::try_from(vec![
-                (Value::i64(0), Value::i64(1)),
-                (Value::i64(1), Value::i64(2)),
-            ])
-            .unwrap(),
-            &Object::try_from(vec![
-                (Value::i64(0), Value::i64(3)),
-                (Value::i64(1), Value::i64(4)),
-            ])
-            .unwrap(),
-            ArithmeticOperation::Subtract
-        ));
-
         let result = Object::arithmetic_op(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
             ])
             .unwrap(),
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(3)),
                 (Value::i64(1), Value::i64(4)),
             ])
@@ -497,12 +469,12 @@ mod test {
     #[test]
     fn test_boolean_logic() {
         let result = Object::boolean_op(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
             ])
             .unwrap(),
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(3)),
                 (Value::i64(1), Value::i64(4)),
             ])
@@ -513,12 +485,12 @@ mod test {
         assert_eq!(result, Value::from(true));
 
         let result = Object::boolean_op(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
             ])
             .unwrap(),
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(3)),
                 (Value::i64(1), Value::i64(4)),
             ])
@@ -529,12 +501,12 @@ mod test {
         assert_eq!(result, Value::from(true));
 
         let result = Object::boolean_op(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
             ])
             .unwrap(),
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(3)),
                 (Value::i64(1), Value::i64(4)),
             ])
@@ -545,13 +517,13 @@ mod test {
         assert_eq!(result, Value::from(true));
 
         let result = Object::boolean_op(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
                 (Value::i64(2), Value::i64(2)),
             ])
             .unwrap(),
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(3)),
                 (Value::i64(1), Value::i64(4)),
             ])
@@ -562,12 +534,12 @@ mod test {
         assert_eq!(result, Value::from(false));
 
         let result = Object::boolean_op(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
             ])
             .unwrap(),
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(3)),
                 (Value::i64(1), Value::i64(4)),
             ])
@@ -578,12 +550,12 @@ mod test {
         assert_eq!(result, Value::from(true));
 
         let result = Object::boolean_op(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
             ])
             .unwrap(),
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(3)),
                 (Value::i64(1), Value::i64(4)),
             ])
@@ -594,12 +566,12 @@ mod test {
         assert_eq!(result, Value::from(false));
 
         let result = Object::boolean_op(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
             ])
             .unwrap(),
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(3)),
                 (Value::i64(1), Value::i64(4)),
             ])
@@ -610,12 +582,12 @@ mod test {
         assert_eq!(result, Value::from(false));
 
         let result = Object::boolean_op(
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(1)),
                 (Value::i64(1), Value::i64(2)),
             ])
             .unwrap(),
-            &Object::try_from(vec![
+            Object::try_from(vec![
                 (Value::i64(0), Value::i64(3)),
                 (Value::i64(1), Value::i64(4)),
             ])
@@ -625,16 +597,8 @@ mod test {
         .unwrap();
         assert_eq!(result, Value::from(true));
 
-        let result = Object::boolean_op(
-            &Object::try_from(vec![]).unwrap(),
-            &Object::try_from(vec![]).unwrap(),
-            BooleanOperation::Not,
-        )
-        .unwrap();
-        assert_eq!(result, Value::from(true));
-
         assert_eq!(
-            Object::boolean_not(&Object::try_from(vec![]).unwrap()).unwrap(),
+            Object::boolean_not(Object::try_from(vec![]).unwrap()).unwrap(),
             Value::from(true)
         );
     }

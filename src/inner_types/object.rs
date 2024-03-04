@@ -337,20 +337,13 @@ mod test {
         assert_eq!(obj.get(&Value::from(false)), Some(&Value::from(0)));
         assert_eq!(obj.get_mut(&Value::from(false)), Some(&mut Value::from(0)));
 
-        assert_eq!(
-            obj.values().collect::<Vec<_>>(),
-            vec![&Value::from(0), &Value::from(1)]
-        );
-
-        assert_eq!(
-            obj.values_mut().collect::<Vec<_>>(),
-            vec![&mut Value::from(0), &mut Value::from(1)]
-        );
-
-        assert_eq!(
-            obj.keys().collect::<Vec<_>>(),
-            vec![&Value::from(false), &Value::from(0)]
-        );
+        assert!(obj.contains_key(&Value::from(false)));
+        assert!(obj.contains_key(&Value::from(0)));
+        assert!(obj.values().collect::<Vec<_>>().contains(&&Value::from(0)));
+        assert!(obj
+            .values_mut()
+            .collect::<Vec<_>>()
+            .contains(&&mut Value::from(1)));
 
         obj.retain(|k, v| {
             if k == &Value::from(false) {

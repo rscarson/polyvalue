@@ -8,30 +8,32 @@
 use polyvalue::{operations::*, Value};
 
 fn main() {
-    let value1 = Value::from(42);
-
     // When operation on a pair of values of different types, the opeerands are coerced to the
     // same type. In this case, the integer is coerced to a float.
+    let value1 = Value::from(42);
     let value2 = Value::from(43.2);
     assert_eq!(
-        Value::arithmetic_op(&value1, &value2, ArithmeticOperation::Add).unwrap(),
+        value1
+            .arithmetic_op(value2, ArithmeticOperation::Add)
+            .unwrap(),
         Value::from(85.2)
     );
 
     // The same principle applies to non-numeric types. In this case, the integer is coerced to a
     // string, and the the subtraction operation will remove the string representation of the
     // integer from the string.
-    let string_value = Value::from("Hello 42");
+    let value1 = Value::from(42);
+    let string_value = Value::from("Hello42");
     assert_eq!(
-        Value::arithmetic_op(&string_value, &value1, ArithmeticOperation::Subtract).unwrap(),
-        Value::from("Hello ")
+        Value::arithmetic_op(string_value, value1, ArithmeticOperation::Subtract).unwrap(),
+        Value::from("Hello")
     );
 
     // There are also bitwise operations, which will always coerce to integers.
     let value1 = Value::from(0b1010);
     let value2 = Value::from(0b1100);
     assert_eq!(
-        Value::bitwise_op(&value1, &value2, BitwiseOperation::And).unwrap(),
+        Value::bitwise_op(value1, value2, BitwiseOperation::And).unwrap(),
         Value::from(0b1000)
     );
 
@@ -39,7 +41,7 @@ fn main() {
     let value1 = Value::from(42);
     let value2 = Value::from(false);
     assert_eq!(
-        Value::boolean_op(&value1, &value2, BooleanOperation::And).unwrap(),
+        Value::boolean_op(value1, value2, BooleanOperation::And).unwrap(),
         Value::from(false)
     );
 }

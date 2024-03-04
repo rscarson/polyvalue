@@ -27,9 +27,6 @@ pub enum ArithmeticOperation {
 
     /// Exponentiate two values
     Exponentiate,
-
-    /// Negate a value
-    Negate,
 }
 
 impl std::fmt::Display for ArithmeticOperation {
@@ -41,7 +38,6 @@ impl std::fmt::Display for ArithmeticOperation {
             ArithmeticOperation::Divide => write!(f, "div"),
             ArithmeticOperation::Modulo => write!(f, "mod"),
             ArithmeticOperation::Exponentiate => write!(f, "exp"),
-            ArithmeticOperation::Negate => write!(f, "neg"),
         }
     }
 }
@@ -64,8 +60,8 @@ pub trait ArithmeticOperationExt {
     /// assert_eq!(result, Value::from(3));
     /// ```
     fn arithmetic_op(
-        left: &Self,
-        right: &Self,
+        self,
+        right: Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error>
     where
@@ -84,24 +80,9 @@ pub trait ArithmeticOperationExt {
     /// let result = a.arithmetic_neg().unwrap();
     /// assert_eq!(result, Value::from(-1));
     /// ```
-    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    fn arithmetic_neg(self) -> Result<Self, crate::Error>
     where
         Self: Sized;
-
-    /// Check if an operation is supported on a given type
-    /// This is useful for checking if a given operation is supported
-    /// before attempting to perform it
-    ///
-    /// # Examples
-    /// ```
-    /// use polyvalue::{Value, operations::{ArithmeticOperationExt, ArithmeticOperation}};
-    ///
-    /// let a = Value::from(1);
-    /// let b = Value::from(2);
-    ///
-    /// assert!(Value::is_operator_supported(&a, &b, ArithmeticOperation::Add));
-    /// ````
-    fn is_operator_supported(&self, other: &Self, operation: ArithmeticOperation) -> bool;
 }
 
 /// Available bitwise operations
@@ -121,9 +102,6 @@ pub enum BitwiseOperation {
 
     /// Perform a right shift
     RightShift,
-
-    /// Perform a bitwise not
-    Not,
 }
 
 impl std::fmt::Display for BitwiseOperation {
@@ -134,7 +112,6 @@ impl std::fmt::Display for BitwiseOperation {
             BitwiseOperation::Xor => write!(f, "xor"),
             BitwiseOperation::LeftShift => write!(f, "lshift"),
             BitwiseOperation::RightShift => write!(f, "rshift"),
-            BitwiseOperation::Not => write!(f, "not"),
         }
     }
 }
@@ -156,11 +133,7 @@ pub trait BitwiseOperationExt {
     /// let result = Value::bitwise_op(&a, &b, BitwiseOperation::And).unwrap();
     /// assert_eq!(result, Value::from(0x00));
     /// ```
-    fn bitwise_op(
-        left: &Self,
-        right: &Self,
-        operation: BitwiseOperation,
-    ) -> Result<Self, crate::Error>
+    fn bitwise_op(self, right: Self, operation: BitwiseOperation) -> Result<Self, crate::Error>
     where
         Self: Sized;
 
@@ -181,7 +154,7 @@ pub trait BitwiseOperationExt {
     ///
     /// let result = a.bitwise_not().unwrap();
     /// assert_eq!(result, Value::u8(0x00));
-    fn bitwise_not(&self) -> Result<Self, crate::Error>
+    fn bitwise_not(self) -> Result<Self, crate::Error>
     where
         Self: Sized;
 }
@@ -212,9 +185,6 @@ pub enum BooleanOperation {
 
     /// Perform a not equal to comparison
     NEQ,
-
-    /// Perform a boolean not
-    Not,
 }
 impl std::fmt::Display for BooleanOperation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -227,7 +197,6 @@ impl std::fmt::Display for BooleanOperation {
             BooleanOperation::GTE => write!(f, "gte"),
             BooleanOperation::EQ => write!(f, "eq"),
             BooleanOperation::NEQ => write!(f, "neq"),
-            BooleanOperation::Not => write!(f, "not"),
         }
     }
 }
@@ -250,11 +219,7 @@ pub trait BooleanOperationExt {
     ///
     /// let result = Value::boolean_op(&a, &b, BooleanOperation::LT).unwrap();
     /// assert_eq!(result, Value::from(true));
-    fn boolean_op(
-        left: &Self,
-        right: &Self,
-        operation: BooleanOperation,
-    ) -> Result<Value, crate::Error>
+    fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Value, crate::Error>
     where
         Self: Sized;
 
@@ -271,7 +236,7 @@ pub trait BooleanOperationExt {
     /// let result = a.boolean_not().unwrap();
     /// assert_eq!(result, Value::from(false));
     /// ```
-    fn boolean_not(&self) -> Result<Value, crate::Error>
+    fn boolean_not(self) -> Result<Value, crate::Error>
     where
         Self: Sized;
 }
@@ -446,7 +411,6 @@ mod test {
         assert_eq!(BitwiseOperation::Xor.to_string(), "xor");
         assert_eq!(BitwiseOperation::LeftShift.to_string(), "lshift");
         assert_eq!(BitwiseOperation::RightShift.to_string(), "rshift");
-        assert_eq!(BitwiseOperation::Not.to_string(), "not");
     }
 
     #[test]
@@ -459,7 +423,6 @@ mod test {
         assert_eq!(BooleanOperation::GTE.to_string(), "gte");
         assert_eq!(BooleanOperation::EQ.to_string(), "eq");
         assert_eq!(BooleanOperation::NEQ.to_string(), "neq");
-        assert_eq!(BooleanOperation::Not.to_string(), "not");
     }
 
     #[test]
@@ -470,7 +433,6 @@ mod test {
         assert_eq!(ArithmeticOperation::Divide.to_string(), "div");
         assert_eq!(ArithmeticOperation::Modulo.to_string(), "mod");
         assert_eq!(ArithmeticOperation::Exponentiate.to_string(), "exp");
-        assert_eq!(ArithmeticOperation::Negate.to_string(), "neg");
     }
 
     #[test]

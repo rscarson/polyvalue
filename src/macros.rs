@@ -107,6 +107,10 @@ macro_rules! impl_value {
             fn inner_mut(&mut self) -> &mut $inner_type {
                 &mut self.0
             }
+
+            fn into_inner(self) -> $inner_type {
+                self.0
+            }
         }
 
         map_primitive!(from = $own_type, primitive = $inner_type);
@@ -147,7 +151,7 @@ macro_rules! overload_operator {
         impl std::ops::Add for $type {
             type Output = Result<Self, crate::Error>;
             fn add(self, rhs: Self) -> Self::Output {
-                Self::arithmetic_op(&self, &rhs, ArithmeticOperation::Add)
+                Self::arithmetic_op(self, rhs, ArithmeticOperation::Add)
             }
         }
     };
@@ -156,7 +160,7 @@ macro_rules! overload_operator {
         impl std::ops::Sub for $type {
             type Output = Result<Self, crate::Error>;
             fn sub(self, rhs: Self) -> Self::Output {
-                Self::arithmetic_op(&self, &rhs, ArithmeticOperation::Subtract)
+                Self::arithmetic_op(self, rhs, ArithmeticOperation::Subtract)
             }
         }
     };
@@ -165,7 +169,7 @@ macro_rules! overload_operator {
         impl std::ops::Mul for $type {
             type Output = Result<Self, crate::Error>;
             fn mul(self, rhs: Self) -> Self::Output {
-                Self::arithmetic_op(&self, &rhs, ArithmeticOperation::Multiply)
+                Self::arithmetic_op(self, rhs, ArithmeticOperation::Multiply)
             }
         }
     };
@@ -174,7 +178,7 @@ macro_rules! overload_operator {
         impl std::ops::Div for $type {
             type Output = Result<Self, crate::Error>;
             fn div(self, rhs: Self) -> Self::Output {
-                Self::arithmetic_op(&self, &rhs, ArithmeticOperation::Divide)
+                Self::arithmetic_op(self, rhs, ArithmeticOperation::Divide)
             }
         }
     };
@@ -183,7 +187,7 @@ macro_rules! overload_operator {
         impl std::ops::Rem for $type {
             type Output = Result<Self, crate::Error>;
             fn rem(self, rhs: Self) -> Self::Output {
-                Self::arithmetic_op(&self, &rhs, ArithmeticOperation::Modulo)
+                Self::arithmetic_op(self, rhs, ArithmeticOperation::Modulo)
             }
         }
     };
@@ -192,7 +196,7 @@ macro_rules! overload_operator {
         impl std::ops::Neg for $type {
             type Output = Result<Self, crate::Error>;
             fn neg(self) -> Self::Output {
-                Self::arithmetic_neg(&self)
+                Self::arithmetic_neg(self)
             }
         }
     };
@@ -210,7 +214,7 @@ macro_rules! overload_operator {
         impl std::ops::BitAnd for $type {
             type Output = Result<Self, crate::Error>;
             fn bitand(self, rhs: Self) -> Self::Output {
-                Self::bitwise_op(&self, &rhs, BitwiseOperation::And)
+                Self::bitwise_op(self, rhs, BitwiseOperation::And)
             }
         }
     };
@@ -219,7 +223,7 @@ macro_rules! overload_operator {
         impl std::ops::BitOr for $type {
             type Output = Result<Self, crate::Error>;
             fn bitor(self, rhs: Self) -> Self::Output {
-                Self::bitwise_op(&self, &rhs, BitwiseOperation::Or)
+                Self::bitwise_op(self, rhs, BitwiseOperation::Or)
             }
         }
     };
@@ -228,7 +232,7 @@ macro_rules! overload_operator {
         impl std::ops::BitXor for $type {
             type Output = Result<Self, crate::Error>;
             fn bitxor(self, rhs: Self) -> Self::Output {
-                Self::bitwise_op(&self, &rhs, BitwiseOperation::Xor)
+                Self::bitwise_op(self, rhs, BitwiseOperation::Xor)
             }
         }
     };
@@ -237,7 +241,7 @@ macro_rules! overload_operator {
         impl std::ops::Shl for $type {
             type Output = Result<Self, crate::Error>;
             fn shl(self, rhs: Self) -> Self::Output {
-                Self::bitwise_op(&self, &rhs, BitwiseOperation::LeftShift)
+                Self::bitwise_op(self, rhs, BitwiseOperation::LeftShift)
             }
         }
     };
@@ -246,7 +250,7 @@ macro_rules! overload_operator {
         impl std::ops::Shr for $type {
             type Output = Result<Self, crate::Error>;
             fn shr(self, rhs: Self) -> Self::Output {
-                Self::bitwise_op(&self, &rhs, BitwiseOperation::RightShift)
+                Self::bitwise_op(self, rhs, BitwiseOperation::RightShift)
             }
         }
     };
@@ -256,7 +260,7 @@ macro_rules! overload_operator {
         impl std::ops::Not for $type {
             type Output = Result<Value, crate::Error>;
             fn not(self) -> Self::Output {
-                Self::boolean_not(&self)
+                Self::boolean_not(self)
             }
         }
     };

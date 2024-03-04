@@ -34,6 +34,9 @@ pub trait ValueTrait:
 
     /// Returns a mutable reference to the inner value
     fn inner_mut(&mut self) -> &mut Self::Inner;
+
+    /// Consumes the value and returns the inner value
+    fn into_inner(self) -> Self::Inner;
 }
 
 /// Main value type
@@ -329,93 +332,54 @@ impl Value {
     /// assert!(a.own_type() == ValueType::Float);
     /// assert!(b.own_type() == ValueType::Float);
     /// ```
-    pub fn resolve(&self, other: &Self) -> Result<(Value, Value), Error> {
+    pub fn resolve(self, other: Self) -> Result<(Value, Value), Error> {
         let values = match self.type_for_comparison(&other) {
-            ValueType::Bool => (
-                Bool::try_from(self.clone())?.into(),
-                Bool::try_from(other.clone())?.into(),
-            ),
+            ValueType::Bool => (Bool::try_from(self)?.into(), Bool::try_from(other)?.into()),
 
             ValueType::Fixed => (
-                Fixed::try_from(self.clone())?.into(),
-                Fixed::try_from(other.clone())?.into(),
+                Fixed::try_from(self)?.into(),
+                Fixed::try_from(other)?.into(),
             ),
 
             ValueType::Float => (
-                Float::try_from(self.clone())?.into(),
-                Float::try_from(other.clone())?.into(),
+                Float::try_from(self)?.into(),
+                Float::try_from(other)?.into(),
             ),
 
             ValueType::Currency => {
-                let values: (Currency, Currency) = (
-                    Currency::try_from(self.clone())?,
-                    Currency::try_from(other.clone())?,
-                );
+                let values: (Currency, Currency) =
+                    (Currency::try_from(self)?, Currency::try_from(other)?);
 
                 // Resolve symbols and precisions too
-                let values = values.0.resolve(&values.1);
+                let values = values.0.resolve(values.1);
 
                 (values.0.into(), values.1.into())
             }
 
-            ValueType::U8 => (
-                U8::try_from(self.clone())?.into(),
-                U8::try_from(other.clone())?.into(),
-            ),
-
-            ValueType::U16 => (
-                U16::try_from(self.clone())?.into(),
-                U16::try_from(other.clone())?.into(),
-            ),
-
-            ValueType::U32 => (
-                U32::try_from(self.clone())?.into(),
-                U32::try_from(other.clone())?.into(),
-            ),
-
-            ValueType::U64 => (
-                U64::try_from(self.clone())?.into(),
-                U64::try_from(other.clone())?.into(),
-            ),
-
-            ValueType::I8 => (
-                I8::try_from(self.clone())?.into(),
-                I8::try_from(other.clone())?.into(),
-            ),
-
-            ValueType::I16 => (
-                I16::try_from(self.clone())?.into(),
-                I16::try_from(other.clone())?.into(),
-            ),
-
-            ValueType::I32 => (
-                I32::try_from(self.clone())?.into(),
-                I32::try_from(other.clone())?.into(),
-            ),
-
-            ValueType::I64 => (
-                I64::try_from(self.clone())?.into(),
-                I64::try_from(other.clone())?.into(),
-            ),
+            ValueType::U8 => (U8::try_from(self)?.into(), U8::try_from(other)?.into()),
+            ValueType::U16 => (U16::try_from(self)?.into(), U16::try_from(other)?.into()),
+            ValueType::U32 => (U32::try_from(self)?.into(), U32::try_from(other)?.into()),
+            ValueType::U64 => (U64::try_from(self)?.into(), U64::try_from(other)?.into()),
+            ValueType::I8 => (I8::try_from(self)?.into(), I8::try_from(other)?.into()),
+            ValueType::I16 => (I16::try_from(self)?.into(), I16::try_from(other)?.into()),
+            ValueType::I32 => (I32::try_from(self)?.into(), I32::try_from(other)?.into()),
+            ValueType::I64 => (I64::try_from(self)?.into(), I64::try_from(other)?.into()),
 
             ValueType::Array => (
-                Array::try_from(self.clone())?.into(),
-                Array::try_from(other.clone())?.into(),
+                Array::try_from(self)?.into(),
+                Array::try_from(other)?.into(),
             ),
 
             ValueType::Object => (
-                Object::try_from(self.clone())?.into(),
-                Object::try_from(other.clone())?.into(),
+                Object::try_from(self)?.into(),
+                Object::try_from(other)?.into(),
             ),
 
-            ValueType::String => (
-                Str::try_from(self.clone())?.into(),
-                Str::try_from(other.clone())?.into(),
-            ),
+            ValueType::String => (Str::try_from(self)?.into(), Str::try_from(other)?.into()),
 
             ValueType::Range => (
-                Range::try_from(self.clone())?.into(),
-                Range::try_from(other.clone())?.into(),
+                Range::try_from(self)?.into(),
+                Range::try_from(other)?.into(),
             ),
 
             ValueType::Int | ValueType::Numeric | ValueType::Collection | ValueType::Any => {
@@ -753,13 +717,15 @@ impl Value {
     }
 
     /// Compares two values, ignoring type
-    pub fn weak_equality(&self, other: &Self) -> Result<bool, Error> {
-        let (l, r) = self.clone().resolve(other)?;
+    /// Consumes both values
+    pub fn weak_equality(self, other: Self) -> Result<bool, Error> {
+        let (l, r) = self.resolve(other)?;
         Ok(l == r)
     }
 
     /// Compares two values, ignoring type
-    pub fn weak_ord(&self, other: &Self) -> Result<std::cmp::Ordering, Error> {
+    /// Consumes both values
+    pub fn weak_ord(self, other: Self) -> Result<std::cmp::Ordering, Error> {
         let (l, r) = self.resolve(other)?;
 
         let res = match l.own_type() {
@@ -799,7 +765,7 @@ impl Value {
             ValueType::Int | ValueType::Numeric | ValueType::Collection | ValueType::Any => {
                 unreachable!(
                     "Non-concrete type encountered in weak_ord: {:?}",
-                    self.own_type()
+                    l.own_type()
                 )
             }
         };
@@ -925,62 +891,6 @@ impl PartialOrd for Value {
             (InnerValue::Array(_), _) => Some(std::cmp::Ordering::Less),
             (_, InnerValue::Array(_)) => Some(std::cmp::Ordering::Greater),
         }
-
-        /*
-
-        let weak_order = self.weak_ord(other).ok()?;
-        if weak_order == std::cmp::Ordering::Equal && self.own_type() != other.own_type() {
-            match (self.inner(), other.inner()) {
-                (InnerValue::Bool(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::Bool(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::U8(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::U8(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::I8(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::I8(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::U16(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::U16(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::I16(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::I16(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::U32(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::U32(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::I32(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::I32(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::U64(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::U64(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::I64(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::I64(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::Float(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::Float(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::Fixed(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::Fixed(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::Currency(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::Currency(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::String(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::String(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::Range(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::Range(_)) => Some(std::cmp::Ordering::Greater),
-
-                (InnerValue::Array(_), _) => Some(std::cmp::Ordering::Less),
-                (_, InnerValue::Array(_)) => Some(std::cmp::Ordering::Greater),
-
-                _ => unreachable!("This covers Object <-> Object, which is not possible here"),
-            }
-        } else {
-            Some(weak_order)
-        } */
     }
 }
 
@@ -1003,273 +913,229 @@ impl Ord for Value {
 }
 
 impl BooleanOperationExt for Value {
-    fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Self, Error> {
-        let (left, right) = left.resolve(right)?;
+    fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Self, Error> {
+        let (left, right) = self.resolve(right)?;
         match (left.inner, right.inner) {
             (InnerValue::Bool(l), InnerValue::Bool(r)) => {
-                Bool::boolean_op(&l, &r, operation).map(Into::into)
+                Bool::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Fixed(l), InnerValue::Fixed(r)) => {
-                Fixed::boolean_op(&l, &r, operation).map(Into::into)
+                Fixed::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Float(l), InnerValue::Float(r)) => {
-                Float::boolean_op(&l, &r, operation).map(Into::into)
+                Float::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Currency(l), InnerValue::Currency(r)) => {
-                Currency::boolean_op(&l, &r, operation).map(Into::into)
+                Currency::boolean_op(l, r, operation).map(Into::into)
             }
 
             (InnerValue::U8(l), InnerValue::U8(r)) => {
-                U8::boolean_op(&l, &r, operation).map(Into::into)
+                U8::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::U16(l), InnerValue::U16(r)) => {
-                U16::boolean_op(&l, &r, operation).map(Into::into)
+                U16::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::U32(l), InnerValue::U32(r)) => {
-                U32::boolean_op(&l, &r, operation).map(Into::into)
+                U32::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::U64(l), InnerValue::U64(r)) => {
-                U64::boolean_op(&l, &r, operation).map(Into::into)
+                U64::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::I8(l), InnerValue::I8(r)) => {
-                I8::boolean_op(&l, &r, operation).map(Into::into)
+                I8::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::I16(l), InnerValue::I16(r)) => {
-                I16::boolean_op(&l, &r, operation).map(Into::into)
+                I16::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::I32(l), InnerValue::I32(r)) => {
-                I32::boolean_op(&l, &r, operation).map(Into::into)
+                I32::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::I64(l), InnerValue::I64(r)) => {
-                I64::boolean_op(&l, &r, operation).map(Into::into)
+                I64::boolean_op(l, r, operation).map(Into::into)
             }
 
             (InnerValue::String(l), InnerValue::String(r)) => {
-                Str::boolean_op(&l, &r, operation).map(Into::into)
+                Str::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Array(l), InnerValue::Array(r)) => {
-                Array::boolean_op(&l, &r, operation).map(Into::into)
+                Array::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Object(l), InnerValue::Object(r)) => {
-                Object::boolean_op(&l, &r, operation).map(Into::into)
+                Object::boolean_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Range(l), InnerValue::Range(r)) => {
-                Range::boolean_op(&l, &r, operation).map(Into::into)
+                Range::boolean_op(l, r, operation).map(Into::into)
             }
 
             _ => unreachable!("Invalid type combination for boolean operation"),
         }
     }
 
-    fn boolean_not(&self) -> Result<Value, crate::Error>
+    fn boolean_not(self) -> Result<Value, crate::Error>
     where
         Self: Sized,
     {
-        Self::boolean_op(self, &self.clone(), BooleanOperation::Not)
+        match self.inner {
+            InnerValue::Bool(l) => Bool::boolean_not(l).map(Into::into),
+            InnerValue::Fixed(l) => Fixed::boolean_not(l).map(Into::into),
+            InnerValue::Float(l) => Float::boolean_not(l).map(Into::into),
+            InnerValue::Currency(l) => Currency::boolean_not(l).map(Into::into),
+
+            InnerValue::U8(l) => U8::boolean_not(l).map(Into::into),
+            InnerValue::U16(l) => U16::boolean_not(l).map(Into::into),
+            InnerValue::U32(l) => U32::boolean_not(l).map(Into::into),
+            InnerValue::U64(l) => U64::boolean_not(l).map(Into::into),
+            InnerValue::I8(l) => I8::boolean_not(l).map(Into::into),
+            InnerValue::I16(l) => I16::boolean_not(l).map(Into::into),
+            InnerValue::I32(l) => I32::boolean_not(l).map(Into::into),
+            InnerValue::I64(l) => I64::boolean_not(l).map(Into::into),
+
+            InnerValue::String(l) => Str::boolean_not(l).map(Into::into),
+            InnerValue::Array(l) => Array::boolean_not(l).map(Into::into),
+            InnerValue::Object(l) => Object::boolean_not(l).map(Into::into),
+            InnerValue::Range(l) => Range::boolean_not(l).map(Into::into),
+        }
     }
 }
 
 impl BitwiseOperationExt for Value {
-    fn bitwise_op(left: &Self, right: &Self, operation: BitwiseOperation) -> Result<Self, Error> {
-        let (left, right) = left.resolve(right)?;
-        match (&left.inner, &right.inner) {
-            (InnerValue::U8(l), InnerValue::U8(r)) => {
-                U8::bitwise_op(l, r, operation).map(Into::into)
-            }
-            (InnerValue::U16(l), InnerValue::U16(r)) => {
-                U16::bitwise_op(l, r, operation).map(Into::into)
-            }
-            (InnerValue::U32(l), InnerValue::U32(r)) => {
-                U32::bitwise_op(l, r, operation).map(Into::into)
-            }
-            (InnerValue::U64(l), InnerValue::U64(r)) => {
-                U64::bitwise_op(l, r, operation).map(Into::into)
-            }
-            (InnerValue::I8(l), InnerValue::I8(r)) => {
-                I8::bitwise_op(l, r, operation).map(Into::into)
-            }
-            (InnerValue::I16(l), InnerValue::I16(r)) => {
-                I16::bitwise_op(l, r, operation).map(Into::into)
-            }
-            (InnerValue::I32(l), InnerValue::I32(r)) => {
-                I32::bitwise_op(l, r, operation).map(Into::into)
-            }
+    fn bitwise_op(self, right: Self, operation: BitwiseOperation) -> Result<Self, Error> {
+        let (left, right) = self.resolve(right)?;
 
-            _ => {
-                let left = left.as_a::<I64>()?;
-                let right = right.as_a::<I64>()?;
-                I64::bitwise_op(&left, &right, operation).map(Into::into)
+        if !left.is_a(ValueType::Int) {
+            let left = left.as_a::<I64>()?;
+            let right = right.as_a::<I64>()?;
+            left.bitwise_op(right, operation).map(Into::into)
+        } else {
+            match (left.into_inner(), right.into_inner()) {
+                (InnerValue::U8(l), InnerValue::U8(r)) => {
+                    l.bitwise_op(r, operation).map(Into::into)
+                }
+                (InnerValue::U16(l), InnerValue::U16(r)) => {
+                    l.bitwise_op(r, operation).map(Into::into)
+                }
+                (InnerValue::U32(l), InnerValue::U32(r)) => {
+                    l.bitwise_op(r, operation).map(Into::into)
+                }
+                (InnerValue::U64(l), InnerValue::U64(r)) => {
+                    l.bitwise_op(r, operation).map(Into::into)
+                }
+                (InnerValue::I8(l), InnerValue::I8(r)) => {
+                    l.bitwise_op(r, operation).map(Into::into)
+                }
+                (InnerValue::I16(l), InnerValue::I16(r)) => {
+                    l.bitwise_op(r, operation).map(Into::into)
+                }
+                (InnerValue::I32(l), InnerValue::I32(r)) => {
+                    l.bitwise_op(r, operation).map(Into::into)
+                }
+                (InnerValue::I64(l), InnerValue::I64(r)) => {
+                    l.bitwise_op(r, operation).map(Into::into)
+                }
+
+                _ => unreachable!("Invalid type combination for bitwise operation"),
             }
         }
     }
 
-    fn bitwise_not(&self) -> Result<Self, crate::Error>
+    fn bitwise_not(self) -> Result<Self, crate::Error>
     where
         Self: Sized,
     {
-        Self::bitwise_op(self, &self.clone(), BitwiseOperation::Not)
+        match self.inner {
+            InnerValue::U8(l) => U8::bitwise_not(l).map(Into::into),
+            InnerValue::U16(l) => U16::bitwise_not(l).map(Into::into),
+            InnerValue::U32(l) => U32::bitwise_not(l).map(Into::into),
+            InnerValue::U64(l) => U64::bitwise_not(l).map(Into::into),
+            InnerValue::I8(l) => I8::bitwise_not(l).map(Into::into),
+            InnerValue::I16(l) => I16::bitwise_not(l).map(Into::into),
+            InnerValue::I32(l) => I32::bitwise_not(l).map(Into::into),
+            _ => self.as_a::<I64>()?.bitwise_not().map(Into::into),
+        }
     }
 }
 
 impl ArithmeticOperationExt for Value {
-    fn arithmetic_op(
-        left: &Self,
-        right: &Self,
-        operation: ArithmeticOperation,
-    ) -> Result<Self, Error> {
-        let (left, right) = left.resolve(right)?;
-
+    fn arithmetic_op(self, right: Self, operation: ArithmeticOperation) -> Result<Self, Error> {
+        let (left, right) = self.resolve(right)?;
         match (left.inner, right.inner) {
             (InnerValue::Bool(l), InnerValue::Bool(r)) => {
-                Bool::arithmetic_op(&l, &r, operation).map(Into::into)
+                Bool::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Fixed(l), InnerValue::Fixed(r)) => {
-                Fixed::arithmetic_op(&l, &r, operation).map(Into::into)
+                Fixed::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Float(l), InnerValue::Float(r)) => {
-                Float::arithmetic_op(&l, &r, operation).map(Into::into)
+                Float::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Currency(l), InnerValue::Currency(r)) => {
-                Currency::arithmetic_op(&l, &r, operation).map(Into::into)
+                Currency::arithmetic_op(l, r, operation).map(Into::into)
             }
 
             (InnerValue::U8(l), InnerValue::U8(r)) => {
-                U8::arithmetic_op(&l, &r, operation).map(Into::into)
+                U8::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::U16(l), InnerValue::U16(r)) => {
-                U16::arithmetic_op(&l, &r, operation).map(Into::into)
+                U16::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::U32(l), InnerValue::U32(r)) => {
-                U32::arithmetic_op(&l, &r, operation).map(Into::into)
+                U32::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::U64(l), InnerValue::U64(r)) => {
-                U64::arithmetic_op(&l, &r, operation).map(Into::into)
+                U64::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::I8(l), InnerValue::I8(r)) => {
-                I8::arithmetic_op(&l, &r, operation).map(Into::into)
+                I8::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::I16(l), InnerValue::I16(r)) => {
-                I16::arithmetic_op(&l, &r, operation).map(Into::into)
+                I16::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::I32(l), InnerValue::I32(r)) => {
-                I32::arithmetic_op(&l, &r, operation).map(Into::into)
+                I32::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::I64(l), InnerValue::I64(r)) => {
-                I64::arithmetic_op(&l, &r, operation).map(Into::into)
+                I64::arithmetic_op(l, r, operation).map(Into::into)
             }
 
             (InnerValue::String(l), InnerValue::String(r)) => {
-                Str::arithmetic_op(&l, &r, operation).map(Into::into)
+                Str::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Array(l), InnerValue::Array(r)) => {
-                Array::arithmetic_op(&l, &r, operation).map(Into::into)
+                Array::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Object(l), InnerValue::Object(r)) => {
-                Object::arithmetic_op(&l, &r, operation).map(Into::into)
+                Object::arithmetic_op(l, r, operation).map(Into::into)
             }
             (InnerValue::Range(l), InnerValue::Range(r)) => {
-                Range::arithmetic_op(&l, &r, operation).map(Into::into)
+                Range::arithmetic_op(l, r, operation).map(Into::into)
             }
             _ => unreachable!("Invalid type combination during boolean operation"),
         }
     }
 
-    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    fn arithmetic_neg(self) -> Result<Self, crate::Error>
     where
         Self: Sized,
     {
-        Self::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
-    }
+        match self.inner {
+            InnerValue::Bool(l) => Bool::arithmetic_neg(l).map(Into::into),
+            InnerValue::Fixed(l) => Fixed::arithmetic_neg(l).map(Into::into),
+            InnerValue::Float(l) => Float::arithmetic_neg(l).map(Into::into),
+            InnerValue::Currency(l) => Currency::arithmetic_neg(l).map(Into::into),
 
-    fn is_operator_supported(&self, other: &Self, operation: ArithmeticOperation) -> bool {
-        match self.type_for_comparison(other) {
-            ValueType::Bool => Bool::is_operator_supported(
-                &self.clone().as_a::<Bool>().unwrap(),
-                &other.clone().as_a::<Bool>().unwrap(),
-                operation,
-            ),
-            ValueType::Fixed => Fixed::is_operator_supported(
-                &self.clone().as_a::<Fixed>().unwrap(),
-                &other.clone().as_a::<Fixed>().unwrap(),
-                operation,
-            ),
-            ValueType::Float => Float::is_operator_supported(
-                &self.clone().as_a::<Float>().unwrap(),
-                &other.clone().as_a::<Float>().unwrap(),
-                operation,
-            ),
-            ValueType::Currency => Currency::is_operator_supported(
-                &self.clone().as_a::<Currency>().unwrap(),
-                &other.clone().as_a::<Currency>().unwrap(),
-                operation,
-            ),
-            ValueType::U8 => U8::is_operator_supported(
-                &self.clone().as_a::<U8>().unwrap(),
-                &other.clone().as_a::<U8>().unwrap(),
-                operation,
-            ),
-            ValueType::U16 => U16::is_operator_supported(
-                &self.clone().as_a::<U16>().unwrap(),
-                &other.clone().as_a::<U16>().unwrap(),
-                operation,
-            ),
-            ValueType::U32 => U32::is_operator_supported(
-                &self.clone().as_a::<U32>().unwrap(),
-                &other.clone().as_a::<U32>().unwrap(),
-                operation,
-            ),
-            ValueType::U64 => U64::is_operator_supported(
-                &self.clone().as_a::<U64>().unwrap(),
-                &other.clone().as_a::<U64>().unwrap(),
-                operation,
-            ),
-            ValueType::I8 => I8::is_operator_supported(
-                &self.clone().as_a::<I8>().unwrap(),
-                &other.clone().as_a::<I8>().unwrap(),
-                operation,
-            ),
-            ValueType::I16 => I16::is_operator_supported(
-                &self.clone().as_a::<I16>().unwrap(),
-                &other.clone().as_a::<I16>().unwrap(),
-                operation,
-            ),
-            ValueType::I32 => I32::is_operator_supported(
-                &self.clone().as_a::<I32>().unwrap(),
-                &other.clone().as_a::<I32>().unwrap(),
-                operation,
-            ),
-            ValueType::I64 => I64::is_operator_supported(
-                &self.clone().as_a::<I64>().unwrap(),
-                &other.clone().as_a::<I64>().unwrap(),
-                operation,
-            ),
-            ValueType::String => Str::is_operator_supported(
-                &self.clone().as_a::<Str>().unwrap(),
-                &other.clone().as_a::<Str>().unwrap(),
-                operation,
-            ),
-            ValueType::Array => Array::is_operator_supported(
-                &self.clone().as_a::<Array>().unwrap(),
-                &other.clone().as_a::<Array>().unwrap(),
-                operation,
-            ),
-            ValueType::Object => Object::is_operator_supported(
-                &self.clone().as_a::<Object>().unwrap(),
-                &other.clone().as_a::<Object>().unwrap(),
-                operation,
-            ),
-            ValueType::Range => Range::is_operator_supported(
-                &self.clone().as_a::<Range>().unwrap(),
-                &other.clone().as_a::<Range>().unwrap(),
-                operation,
-            ),
+            InnerValue::U8(l) => U8::arithmetic_neg(l).map(Into::into),
+            InnerValue::U16(l) => U16::arithmetic_neg(l).map(Into::into),
+            InnerValue::U32(l) => U32::arithmetic_neg(l).map(Into::into),
+            InnerValue::U64(l) => U64::arithmetic_neg(l).map(Into::into),
+            InnerValue::I8(l) => I8::arithmetic_neg(l).map(Into::into),
+            InnerValue::I16(l) => I16::arithmetic_neg(l).map(Into::into),
+            InnerValue::I32(l) => I32::arithmetic_neg(l).map(Into::into),
+            InnerValue::I64(l) => I64::arithmetic_neg(l).map(Into::into),
 
-            ValueType::Int | ValueType::Numeric | ValueType::Collection | ValueType::Any => {
-                unreachable!(
-                    "Non-concrete type encountered in is_operator_supported: {:?}",
-                    self.own_type()
-                )
-            }
+            InnerValue::String(l) => Str::arithmetic_neg(l).map(Into::into),
+            InnerValue::Array(l) => Array::arithmetic_neg(l).map(Into::into),
+            InnerValue::Object(l) => Object::arithmetic_neg(l).map(Into::into),
+            InnerValue::Range(l) => Range::arithmetic_neg(l).map(Into::into),
         }
     }
 }
@@ -1609,49 +1475,49 @@ mod test {
     fn test_resolve() {
         let a = Value::from(1.0);
         let b = Value::from(2);
-        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        let (a, b) = a.resolve(b).expect("Could not resolve types");
         assert!(a.own_type() == ValueType::Float);
         assert!(b.own_type() == ValueType::Float);
 
         let a = Value::from(Fixed::zero());
         let b = Value::from(2);
-        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        let (a, b) = a.resolve(b).expect("Could not resolve types");
         assert!(a.own_type() == ValueType::Fixed);
         assert!(b.own_type() == ValueType::Fixed);
 
         let a = Value::from(false);
         let b = Value::from(true);
-        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        let (a, b) = a.resolve(b).expect("Could not resolve types");
         assert!(a.own_type() == ValueType::Bool);
         assert!(b.own_type() == ValueType::Bool);
 
         let a = Value::from(1);
         let b = Value::from(2);
-        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        let (a, b) = a.resolve(b).expect("Could not resolve types");
         assert!(a.own_type() == ValueType::I32);
         assert!(b.own_type() == ValueType::I32);
 
         let a = Value::from("abc");
         let b = Value::from(2);
-        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        let (a, b) = a.resolve(b).expect("Could not resolve types");
         assert!(a.own_type() == ValueType::String);
         assert!(b.own_type() == ValueType::String);
 
         let a = Value::from(1);
         let b = Value::from(vec![Value::from(1)]);
-        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        let (a, b) = a.resolve(b).expect("Could not resolve types");
         assert!(a.own_type() == ValueType::Array);
         assert!(b.own_type() == ValueType::Array);
 
         let a = Value::from(vec![Value::from(1)]);
         let b = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
-        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        let (a, b) = a.resolve(b).expect("Could not resolve types");
         assert!(a.own_type() == ValueType::Object);
         assert!(b.own_type() == ValueType::Object);
 
         let a = Value::from(CurrencyInner::as_dollars(Fixed::zero()));
         let b = Value::from(Fixed::zero());
-        let (a, b) = a.resolve(&b).expect("Could not resolve types");
+        let (a, b) = a.resolve(b).expect("Could not resolve types");
         assert!(a.own_type() == ValueType::Currency);
         assert!(b.own_type() == ValueType::Currency);
     }
@@ -2072,7 +1938,7 @@ mod test {
 
         // 2 different, but comparable - float to int
         assert_ne!(Value::from(1.0), Value::from(1));
-        assert!(Value::from(1.0).weak_equality(&Value::from(1)).unwrap());
+        assert!(Value::from(1.0).weak_equality(Value::from(1)).unwrap());
 
         // 2 different, not comparable - big array to int
         assert_ne!(
@@ -2098,121 +1964,79 @@ mod test {
         let b = Value::from(5.0);
 
         assert_eq!(
-            Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap(),
+            Value::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Add).unwrap(),
             Value::from(15.0)
         );
 
         assert_eq!(
-            Value::arithmetic_op(&a, &b, ArithmeticOperation::Subtract).unwrap(),
+            Value::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Subtract).unwrap(),
             Value::from(5.0)
         );
 
         assert_eq!(
-            Value::arithmetic_op(&a, &b, ArithmeticOperation::Multiply).unwrap(),
+            Value::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Multiply).unwrap(),
             Value::from(50.0)
         );
 
         assert_eq!(
-            Value::arithmetic_op(&a, &b, ArithmeticOperation::Divide).unwrap(),
+            Value::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Divide).unwrap(),
             Value::from(2.0)
         );
 
         assert_eq!(
-            Value::arithmetic_op(&a, &b, ArithmeticOperation::Modulo).unwrap(),
+            Value::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Modulo).unwrap(),
             Value::from(0.0)
         );
 
         assert_eq!(
-            Value::arithmetic_op(&a, &b, ArithmeticOperation::Exponentiate).unwrap(),
+            Value::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Exponentiate).unwrap(),
             Value::from(100000.0)
         );
 
-        assert_eq!(Value::arithmetic_neg(&a).unwrap(), Value::from(-10));
+        assert_eq!(Value::arithmetic_neg(a).unwrap(), Value::from(-10));
 
-        Value::arithmetic_neg(&Value::from("test")).unwrap();
-        Value::arithmetic_neg(&Value::from(false)).unwrap();
-        Value::arithmetic_neg(&Value::from(1)).unwrap();
-        Value::arithmetic_neg(&Value::from(1.0)).unwrap();
-        Value::arithmetic_neg(&Value::from(Fixed::zero())).unwrap();
-        Value::arithmetic_neg(&Value::from(CurrencyInner::as_dollars(Fixed::zero()))).unwrap();
+        Value::arithmetic_neg(Value::from("test")).unwrap();
+        Value::arithmetic_neg(Value::from(false)).unwrap();
+        Value::arithmetic_neg(Value::from(1)).unwrap();
+        Value::arithmetic_neg(Value::from(1.0)).unwrap();
+        Value::arithmetic_neg(Value::from(Fixed::zero())).unwrap();
+        Value::arithmetic_neg(Value::from(CurrencyInner::as_dollars(Fixed::zero()))).unwrap();
+        Value::arithmetic_op(Value::from(1u8), Value::from(1u8), ArithmeticOperation::Add).unwrap();
         Value::arithmetic_op(
-            &Value::from(1u8),
-            &Value::from(1u8),
+            Value::from(1u16),
+            Value::from(1u8),
             ArithmeticOperation::Add,
         )
         .unwrap();
         Value::arithmetic_op(
-            &Value::from(1u16),
-            &Value::from(1u8),
+            Value::from(1u32),
+            Value::from(1u8),
             ArithmeticOperation::Add,
         )
         .unwrap();
         Value::arithmetic_op(
-            &Value::from(1u32),
-            &Value::from(1u8),
-            ArithmeticOperation::Add,
-        )
-        .unwrap();
-        Value::arithmetic_op(
-            &Value::from(1u64),
-            &Value::from(1u8),
+            Value::from(1u64),
+            Value::from(1u8),
             ArithmeticOperation::Add,
         )
         .unwrap();
 
-        Value::arithmetic_neg(&Value::from(1i8)).unwrap();
-        Value::arithmetic_neg(&Value::from(1i16)).unwrap();
-        Value::arithmetic_neg(&Value::from(I32::new(1))).unwrap();
-        Value::arithmetic_neg(&Value::from(I64::new(1))).unwrap();
+        Value::arithmetic_neg(Value::from(1i8)).unwrap();
+        Value::arithmetic_neg(Value::from(1i16)).unwrap();
+        Value::arithmetic_neg(Value::from(I32::new(1))).unwrap();
+        Value::arithmetic_neg(Value::from(I64::new(1))).unwrap();
 
         let a = Value::from(vec![Value::from(1), Value::from(2)]);
         let b = Value::from(vec![Value::from(3), Value::from(4)]);
-        Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
+        Value::arithmetic_op(a, b, ArithmeticOperation::Add).unwrap();
 
         let a = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
         let b = Value::try_from(vec![(Value::from("b"), Value::from(2))]).unwrap();
-        Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
+        Value::arithmetic_op(a, b, ArithmeticOperation::Add).unwrap();
 
         let a = Value::from(1..=2);
         let b = Value::from(3..=4);
-        Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap_err();
-
-        assert!(
-            Value::from(false).is_operator_supported(&Value::from(false), ArithmeticOperation::Add)
-        );
-        assert!(Value::from("false")
-            .is_operator_supported(&Value::from(false), ArithmeticOperation::Add));
-        assert!(Value::from(1u8).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
-        assert!(Value::from(1i8).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
-        assert!(
-            Value::from(1u16).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
-        assert!(
-            Value::from(1i16).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
-        assert!(
-            Value::from(1u32).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
-        assert!(Value::from(I32::new(1))
-            .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
-        assert!(Value::from(I64::new(1))
-            .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
-        assert!(
-            Value::from(1u64).is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add)
-        );
-        assert!(Value::from(1).is_operator_supported(&Value::from(1), ArithmeticOperation::Add));
-        assert!(Value::from(1.0).is_operator_supported(&Value::from(1.0), ArithmeticOperation::Add));
-        assert!(Value::from(Fixed::zero())
-            .is_operator_supported(&Value::from(Fixed::zero()), ArithmeticOperation::Add));
-        assert!(Value::from(CurrencyInner::as_dollars(Fixed::zero()))
-            .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
-        assert!(!Value::from(0..=10)
-            .is_operator_supported(&Value::from(0..=10), ArithmeticOperation::Add));
-        assert!(Value::from(vec![Value::from(1)])
-            .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
-        assert!(Value::try_from(vec![(Value::from("a"), Value::from(1))])
-            .unwrap()
-            .is_operator_supported(&Value::from(1u8), ArithmeticOperation::Add));
+        Value::arithmetic_op(a, b, ArithmeticOperation::Add).unwrap_err();
     }
 
     #[test]
@@ -2221,105 +2045,100 @@ mod test {
         let b = Value::from(0);
 
         assert_eq!(
-            Value::boolean_op(&a, &b, BooleanOperation::And).unwrap(),
+            Value::boolean_op(a.clone(), b.clone(), BooleanOperation::And).unwrap(),
             Value::from(false)
         );
 
         assert_eq!(
-            Value::boolean_op(&a, &b, BooleanOperation::Or).unwrap(),
+            Value::boolean_op(a.clone(), b.clone(), BooleanOperation::Or).unwrap(),
             Value::from(true)
         );
 
         assert_eq!(
-            Value::boolean_op(&a, &b, BooleanOperation::Not).unwrap(),
+            Value::boolean_op(a.clone(), b.clone(), BooleanOperation::LT).unwrap(),
             Value::from(false)
         );
 
         assert_eq!(
-            Value::boolean_op(&a, &b, BooleanOperation::LT).unwrap(),
-            Value::from(false)
-        );
-
-        assert_eq!(
-            Value::boolean_op(&a, &b, BooleanOperation::GT).unwrap(),
+            Value::boolean_op(a.clone(), b.clone(), BooleanOperation::GT).unwrap(),
             Value::from(true)
         );
 
         assert_eq!(
-            Value::boolean_op(&a, &b, BooleanOperation::LTE).unwrap(),
+            Value::boolean_op(a.clone(), b.clone(), BooleanOperation::LTE).unwrap(),
             Value::from(false)
         );
 
         assert_eq!(
-            Value::boolean_op(&a, &b, BooleanOperation::GTE).unwrap(),
+            Value::boolean_op(a.clone(), b.clone(), BooleanOperation::GTE).unwrap(),
             Value::from(true)
         );
 
         assert_eq!(
-            Value::boolean_op(&a, &b, BooleanOperation::EQ).unwrap(),
+            Value::boolean_op(a.clone(), b.clone(), BooleanOperation::EQ).unwrap(),
             Value::from(false)
         );
 
         assert_eq!(
-            Value::boolean_op(&a, &b, BooleanOperation::NEQ).unwrap(),
+            Value::boolean_op(a.clone(), b.clone(), BooleanOperation::NEQ).unwrap(),
             Value::from(true)
         );
 
-        assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(false));
+        assert_eq!(Value::boolean_not(a).unwrap(), Value::from(false));
 
         // fixed, float, and currency - boolean_not
         let a = Value::from(1.0);
-        assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(false));
+        assert_eq!(Value::boolean_not(a).unwrap(), Value::from(false));
         let a = Value::from(Fixed::zero());
-        assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(true));
+        assert_eq!(Value::boolean_not(a).unwrap(), Value::from(true));
         let a = Value::from(CurrencyInner::as_dollars(Fixed::zero()));
-        assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(true));
+        assert_eq!(Value::boolean_not(a).unwrap(), Value::from(true));
 
         // string, array, object, range - boolean_not
         let a = Value::from("abc");
-        assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(false));
+        assert_eq!(Value::boolean_not(a).unwrap(), Value::from(false));
         let a = Value::from(vec![Value::from(1)]);
-        assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(false));
+        assert_eq!(Value::boolean_not(a).unwrap(), Value::from(false));
         let a = Value::try_from(vec![(Value::from("a"), Value::from(1))]).unwrap();
-        assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(false));
+        assert_eq!(Value::boolean_not(a).unwrap(), Value::from(false));
         let a = Value::from(1..=2);
-        assert_eq!(Value::boolean_not(&a).unwrap(), Value::from(false));
+        assert_eq!(Value::boolean_not(a).unwrap(), Value::from(false));
 
         // u8, i8, u16, i16, u32, i32, u64, i64 - boolean_not
         assert_eq!(
-            Value::boolean_not(&Value::from(1u8)).unwrap(),
+            Value::boolean_not(Value::from(1u8)).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Value::boolean_not(&Value::from(1i8)).unwrap(),
+            Value::boolean_not(Value::from(1i8)).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Value::boolean_not(&Value::from(1u16)).unwrap(),
+            Value::boolean_not(Value::from(1u16)).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Value::boolean_not(&Value::from(1i16)).unwrap(),
+            Value::boolean_not(Value::from(1i16)).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Value::boolean_not(&Value::from(1u32)).unwrap(),
+            Value::boolean_not(Value::from(1u32)).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Value::boolean_not(&Value::from(I32::new(1))).unwrap(),
+            Value::boolean_not(Value::from(I32::new(1))).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Value::boolean_not(&Value::from(I64::new(1))).unwrap(),
+            Value::boolean_not(Value::from(I64::new(1))).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Value::boolean_not(&Value::from(1u64)).unwrap(),
+            Value::boolean_not(Value::from(1u64)).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Value::boolean_not(&Value::from(1i64)).unwrap(),
+            Value::boolean_not(Value::from(1i64)).unwrap(),
             Value::from(false)
         );
     }
@@ -2473,90 +2292,87 @@ mod test {
         let r = Value::from(0b1100);
 
         assert_eq!(
-            Value::bitwise_op(&l, &r, BitwiseOperation::And).unwrap(),
+            Value::bitwise_op(l.clone(), r.clone(), BitwiseOperation::And).unwrap(),
             Value::from(0b1000)
         );
 
         assert_eq!(
-            Value::bitwise_op(&l, &r, BitwiseOperation::Or).unwrap(),
+            Value::bitwise_op(l.clone(), r.clone(), BitwiseOperation::Or).unwrap(),
             Value::from(0b1110)
         );
 
         assert_eq!(
-            Value::bitwise_op(&l, &r, BitwiseOperation::Xor).unwrap(),
+            Value::bitwise_op(l.clone(), r.clone(), BitwiseOperation::Xor).unwrap(),
             Value::from(0b0110)
         );
 
         assert_eq!(
-            Value::bitwise_op(&l, &Value::from(2), BitwiseOperation::LeftShift).unwrap(),
+            Value::bitwise_op(l.clone(), Value::from(2), BitwiseOperation::LeftShift).unwrap(),
             Value::from(0b101000)
         );
 
         assert_eq!(
-            Value::bitwise_op(&l, &Value::from(-2), BitwiseOperation::LeftShift).unwrap(),
+            Value::bitwise_op(l.clone(), Value::from(-2), BitwiseOperation::LeftShift).unwrap(),
             Value::from(2)
         );
 
         assert_eq!(
-            Value::bitwise_op(&l, &Value::from(2000), BitwiseOperation::LeftShift).unwrap(),
+            Value::bitwise_op(l.clone(), Value::from(2000), BitwiseOperation::LeftShift).unwrap(),
             Value::from(655360)
         );
 
         assert_eq!(
-            Value::bitwise_op(&l, &Value::from(2), BitwiseOperation::RightShift).unwrap(),
+            Value::bitwise_op(l.clone(), Value::from(2), BitwiseOperation::RightShift).unwrap(),
             Value::from(0b10)
         );
 
         assert_eq!(
-            Value::bitwise_op(&l, &Value::from(-1), BitwiseOperation::RightShift).unwrap(),
+            Value::bitwise_op(l.clone(), Value::from(-1), BitwiseOperation::RightShift).unwrap(),
             Value::from(20)
         );
 
         assert_eq!(
-            Value::bitwise_op(&l, &Value::from(64), BitwiseOperation::RightShift).unwrap(),
+            Value::bitwise_op(l.clone(), Value::from(64), BitwiseOperation::RightShift).unwrap(),
             Value::from(10)
         );
 
-        assert_eq!(Value::bitwise_not(&l).unwrap(), Value::from(-11));
+        assert_eq!(Value::bitwise_not(l.clone()).unwrap(), Value::from(-11));
         assert_eq!(
-            Value::bitwise_not(&Value::from(0u8)).unwrap(),
+            Value::bitwise_not(Value::from(0u8)).unwrap(),
             Value::u8(255)
         );
-        assert_eq!(
-            Value::bitwise_not(&Value::from(1)).unwrap(),
-            Value::from(-2)
-        );
+        assert_eq!(Value::bitwise_not(Value::from(1)).unwrap(), Value::from(-2));
 
         assert_eq!(
-            Value::bitwise_not(&Value::from(0u8)).unwrap(),
+            Value::bitwise_not(Value::from(0u8)).unwrap(),
             Value::from(u8::MAX)
         );
         assert_eq!(
-            Value::bitwise_not(&Value::from(0u16)).unwrap(),
+            Value::bitwise_not(Value::from(0u16)).unwrap(),
             Value::from(u16::MAX)
         );
         assert_eq!(
-            Value::bitwise_not(&Value::from(0u32)).unwrap(),
+            Value::bitwise_not(Value::from(0u32)).unwrap(),
             Value::from(u32::MAX)
         );
         assert_eq!(
-            Value::bitwise_not(&Value::from(0u64)).unwrap(),
+            Value::bitwise_not(Value::from(0u64)).unwrap(),
             Value::from(u64::MAX)
         );
         assert_eq!(
-            Value::bitwise_not(&Value::from(0i8)).unwrap(),
+            Value::bitwise_not(Value::from(0i8)).unwrap(),
             Value::from(-1_i8)
         );
         assert_eq!(
-            Value::bitwise_not(&Value::from(0i16)).unwrap(),
+            Value::bitwise_not(Value::from(0i16)).unwrap(),
             Value::from(-1_i16)
         );
         assert_eq!(
-            Value::bitwise_not(&Value::from(I32::new(0))).unwrap(),
+            Value::bitwise_not(Value::from(I32::new(0))).unwrap(),
             Value::from(I32::new(-1))
         );
         assert_eq!(
-            Value::bitwise_not(&Value::from(I64::new(0))).unwrap(),
+            Value::bitwise_not(Value::from(I64::new(0))).unwrap(),
             Value::from(I64::new(-1))
         );
     }

@@ -8,8 +8,8 @@
 use std::str::FromStr;
 
 use crate::{
-    inner_fixed::BoxedDecimal, operations::*, types::*, Error, InnerValue, Value, ValueTrait,
-    ValueType,
+    inner_types::fixed::BoxedDecimal, operations::*, types::*, Error, InnerValue, Value,
+    ValueTrait, ValueType,
 };
 use fpdec::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Dec, Decimal, Round};
 use serde::{Deserialize, Serialize};
@@ -236,69 +236,63 @@ impl FromStr for Fixed {
 
 impl ArithmeticOperationExt for Fixed {
     fn arithmetic_op(
-        left: &Self,
-        right: &Self,
+        self,
+        right: Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
-        let left_ = left.inner().clone();
-        let right_ = right.inner().clone();
+        let left = self.into_inner();
+        let right = right.into_inner();
 
         let result = match operation {
-            ArithmeticOperation::Add => left_.checked_add(right_),
-            ArithmeticOperation::Subtract => left_.checked_sub(right_),
-            ArithmeticOperation::Multiply => left_.checked_mul(right_),
-            ArithmeticOperation::Divide => left_.checked_div(right_),
-            ArithmeticOperation::Modulo => left_.checked_rem(right_),
+            ArithmeticOperation::Add => left.checked_add(right),
+            ArithmeticOperation::Subtract => left.checked_sub(right),
+            ArithmeticOperation::Multiply => left.checked_mul(right),
+            ArithmeticOperation::Divide => left.checked_div(right),
+            ArithmeticOperation::Modulo => left.checked_rem(right),
             ArithmeticOperation::Exponentiate => {
                 // Convert to floats
-                let left = Float::try_from(Value::from(left.clone()))?;
-                let right = Float::try_from(Value::from(right.clone()))?;
+                let left = Float::try_from(Value::from(left))?;
+                let right = Float::try_from(Value::from(right))?;
 
-                let result = Float::arithmetic_op(&left, &right, operation)?;
-                Some(Fixed::try_from(Value::from(result))?.inner().clone())
+                let result = left.arithmetic_op(right, operation)?;
+                Some(Fixed::try_from(Value::from(result))?.into_inner())
             }
-            ArithmeticOperation::Negate => Some(-left_),
         }
         .ok_or(Error::Overflow)?;
 
         Ok(result.into())
     }
 
-    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    fn arithmetic_neg(self) -> Result<Self, crate::Error>
     where
         Self: Sized,
     {
-        Fixed::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
-    }
-
-    fn is_operator_supported(&self, _: &Self, _: ArithmeticOperation) -> bool {
-        true
+        Ok(Fixed::try_from(Value::from(-self.into_inner()))?)
     }
 }
 
 impl BooleanOperationExt for Fixed {
-    fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
+    fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Value, Error> {
         let result = match operation {
-            BooleanOperation::And => left != &Fixed::zero() && right != &Fixed::zero(),
-            BooleanOperation::Or => left != &Fixed::zero() || right != &Fixed::zero(),
+            BooleanOperation::And => self != Fixed::zero() && right != Fixed::zero(),
+            BooleanOperation::Or => self != Fixed::zero() || right != Fixed::zero(),
 
-            BooleanOperation::LT => *left.inner() < *right.inner(),
-            BooleanOperation::GT => *left.inner() > *right.inner(),
-            BooleanOperation::LTE => *left.inner() <= *right.inner(),
-            BooleanOperation::GTE => *left.inner() >= *right.inner(),
-            BooleanOperation::EQ => *left.inner() == *right.inner(),
-            BooleanOperation::NEQ => *left.inner() != *right.inner(),
-            BooleanOperation::Not => left == &Fixed::zero(),
+            BooleanOperation::LT => *self.inner() < *right.inner(),
+            BooleanOperation::GT => *self.inner() > *right.inner(),
+            BooleanOperation::LTE => *self.inner() <= *right.inner(),
+            BooleanOperation::GTE => *self.inner() >= *right.inner(),
+            BooleanOperation::EQ => *self.inner() == *right.inner(),
+            BooleanOperation::NEQ => *self.inner() != *right.inner(),
         };
 
         Ok(result.into())
     }
 
-    fn boolean_not(&self) -> Result<Value, crate::Error>
+    fn boolean_not(self) -> Result<Value, crate::Error>
     where
         Self: Sized,
     {
-        Fixed::boolean_op(self, &self.clone(), BooleanOperation::Not)
+        Ok((self == Fixed::zero()).into())
     }
 }
 
@@ -314,19 +308,10 @@ mod tests {
 
     #[test]
     fn test_arithmetic() {
-        let fixed = Fixed::from_str("10.0").unwrap();
-        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Add));
-        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Subtract));
-        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Multiply));
-        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Divide));
-        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Modulo));
-        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Exponentiate));
-        assert!(fixed.is_operator_supported(&fixed, ArithmeticOperation::Negate));
-
         assert_eq!(
             Fixed::arithmetic_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 ArithmeticOperation::Add
             )
             .unwrap(),
@@ -335,8 +320,8 @@ mod tests {
 
         assert_eq!(
             Fixed::arithmetic_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 ArithmeticOperation::Subtract
             )
             .unwrap(),
@@ -345,8 +330,8 @@ mod tests {
 
         assert_eq!(
             Fixed::arithmetic_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 ArithmeticOperation::Multiply
             )
             .unwrap(),
@@ -355,8 +340,8 @@ mod tests {
 
         assert_eq!(
             Fixed::arithmetic_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 ArithmeticOperation::Divide
             )
             .unwrap(),
@@ -365,8 +350,8 @@ mod tests {
 
         assert_eq!(
             Fixed::arithmetic_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 ArithmeticOperation::Modulo
             )
             .unwrap(),
@@ -375,8 +360,8 @@ mod tests {
 
         assert_eq!(
             Fixed::arithmetic_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 ArithmeticOperation::Exponentiate
             )
             .unwrap(),
@@ -384,39 +369,17 @@ mod tests {
         );
 
         assert_eq!(
-            Fixed::arithmetic_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("0").unwrap(),
-                ArithmeticOperation::Negate
-            )
-            .unwrap(),
+            Fixed::arithmetic_neg(Fixed::from_str("10").unwrap()).unwrap(),
             Fixed::from_str("-10").unwrap()
         );
-
-        assert_eq!(
-            Fixed::arithmetic_neg(&Fixed::from_str("10").unwrap()).unwrap(),
-            Fixed::from_str("-10").unwrap()
-        );
-
-        assert!(Currency::is_operator_supported(
-            &Currency::from_str("$10.00").unwrap(),
-            &Currency::from_str("$10.00").unwrap(),
-            ArithmeticOperation::Add
-        ));
-
-        assert!(Currency::is_operator_supported(
-            &Currency::from_str("$10.00").unwrap(),
-            &Currency::from_str("$10.00").unwrap(),
-            ArithmeticOperation::Subtract
-        ));
     }
 
     #[test]
     fn test_boolean_logic() {
         assert_eq!(
             Fixed::boolean_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 BooleanOperation::And
             )
             .unwrap(),
@@ -425,8 +388,8 @@ mod tests {
 
         assert_eq!(
             Fixed::boolean_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 BooleanOperation::Or
             )
             .unwrap(),
@@ -435,8 +398,8 @@ mod tests {
 
         assert_eq!(
             Fixed::boolean_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 BooleanOperation::LT
             )
             .unwrap(),
@@ -445,8 +408,8 @@ mod tests {
 
         assert_eq!(
             Fixed::boolean_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 BooleanOperation::GT
             )
             .unwrap(),
@@ -455,8 +418,8 @@ mod tests {
 
         assert_eq!(
             Fixed::boolean_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 BooleanOperation::LTE
             )
             .unwrap(),
@@ -465,8 +428,8 @@ mod tests {
 
         assert_eq!(
             Fixed::boolean_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 BooleanOperation::GTE
             )
             .unwrap(),
@@ -475,8 +438,8 @@ mod tests {
 
         assert_eq!(
             Fixed::boolean_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 BooleanOperation::EQ
             )
             .unwrap(),
@@ -485,8 +448,8 @@ mod tests {
 
         assert_eq!(
             Fixed::boolean_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("5").unwrap(),
+                Fixed::from_str("10").unwrap(),
+                Fixed::from_str("5").unwrap(),
                 BooleanOperation::NEQ
             )
             .unwrap(),
@@ -494,17 +457,7 @@ mod tests {
         );
 
         assert_eq!(
-            Fixed::boolean_op(
-                &Fixed::from_str("10").unwrap(),
-                &Fixed::from_str("0").unwrap(),
-                BooleanOperation::Not
-            )
-            .unwrap(),
-            Value::from(false)
-        );
-
-        assert_eq!(
-            Fixed::boolean_not(&Fixed::from_str("10").unwrap()).unwrap(),
+            Fixed::boolean_not(Fixed::from_str("10").unwrap()).unwrap(),
             Value::from(false)
         );
     }

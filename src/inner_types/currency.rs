@@ -3,6 +3,7 @@
 //! This is a wrapper around `Fixed` that adds a currency symbol and a precision
 //!
 use crate::is_currency::IsCurrency;
+use crate::operations::ArithmeticOperationExt;
 use crate::{types::*, Error, ValueTrait};
 use fpdec::Round;
 use serde::{Deserialize, Serialize};
@@ -95,6 +96,16 @@ impl CurrencyInner {
         self.symbol = symbol;
     }
 
+    /// Return the properties of this value, consuming it
+    pub fn into_properties(self) -> (Fixed, i8, Option<String>) {
+        (self.value, self.precision, self.symbol)
+    }
+
+    /// Return the value of this `Currency`, consuming it
+    pub fn into_value(self) -> Fixed {
+        self.value
+    }
+
     /// Get the value of this `Currency`
     pub fn value(&self) -> &Fixed {
         &self.value
@@ -121,33 +132,55 @@ impl CurrencyInner {
     /// The precision will be set to the highest precision
     ///
     /// This is used for operations
-    pub fn resolve(&self, other: &Self) -> (Self, Self) {
-        let mut left = self.clone();
-        let mut right = other.clone();
-
+    pub fn resolve(mut self, mut other: Self) -> (Self, Self) {
         // resolve symbols
-        match (&left.symbol, &right.symbol) {
-            (Some(_), None) => right.symbol = left.symbol.clone(),
-            (None, Some(_)) => left.symbol = right.symbol.clone(),
+        match (&self.symbol, &other.symbol) {
+            (Some(_), None) => other.symbol = self.symbol.clone(),
+            (None, Some(_)) => self.symbol = other.symbol.clone(),
             (Some(_), Some(_)) => {
-                if left.symbol != right.symbol {
-                    left.symbol = None;
-                    right.symbol = None;
+                if self.symbol != other.symbol {
+                    self.symbol = None;
+                    other.symbol = None;
                 }
             }
             (None, None) => {}
         }
 
         // resolve precision
-        let precision = left.precision.max(right.precision);
-        left.precision = precision;
-        right.precision = precision;
+        let precision = self.precision.max(other.precision);
+        self.precision = precision;
+        other.precision = precision;
 
         // round values
-        left.value = left.value.round_to_precision(precision);
-        right.value = right.value.round_to_precision(precision);
+        self.value = self.value.round_to_precision(precision);
+        other.value = other.value.round_to_precision(precision);
 
-        (left, right)
+        (self, other)
+    }
+}
+
+impl ArithmeticOperationExt for CurrencyInner {
+    fn arithmetic_op(
+        self,
+        right: Self,
+        operation: crate::operations::ArithmeticOperation,
+    ) -> Result<Self, crate::Error>
+    where
+        Self: Sized,
+    {
+        let (left, right) = self.resolve(right);
+        let (left, right) = (left.into_properties(), right.into_properties());
+
+        let value = left.0.arithmetic_op(right.0, operation)?;
+        Ok(CurrencyInner::new(left.2, left.1, value))
+    }
+
+    fn arithmetic_neg(self) -> Result<Self, crate::Error>
+    where
+        Self: Sized,
+    {
+        let value = self.value.arithmetic_neg()?;
+        Ok(CurrencyInner::new(self.symbol, self.precision, value))
     }
 }
 
@@ -214,19 +247,19 @@ mod test {
     fn test_resolve() {
         let l = CurrencyInner::from_str("$1.00").unwrap();
         let r = CurrencyInner::from_str("€1.000").unwrap();
-        let (l, r) = l.resolve(&r);
+        let (l, r) = l.resolve(r);
         assert_eq!(l.to_string(), "1.000");
         assert_eq!(r.to_string(), "1.000");
 
         let l = CurrencyInner::from_str("$1.00").unwrap();
         let r = CurrencyInner::from_str("1.0").unwrap();
-        let (l, r) = l.resolve(&r);
+        let (l, r) = l.resolve(r);
         assert_eq!(l.to_string(), "$1.00");
         assert_eq!(r.to_string(), "$1.00");
 
         let l = CurrencyInner::from_str("1.00").unwrap();
         let r = CurrencyInner::from_str("1").unwrap();
-        let (l, r) = l.resolve(&r);
+        let (l, r) = l.resolve(r);
         assert_eq!(l.to_string(), "1.00");
         assert_eq!(r.to_string(), "1.00");
     }
@@ -255,7 +288,7 @@ mod test {
 
         let l = Value::from(2.2);
         let r = Value::from(CurrencyInner::from_str("$100.00").unwrap());
-        let (l, r) = l.resolve(&r).unwrap();
+        let (l, r) = l.resolve(r).unwrap();
         assert_eq!(l.to_string(), "$2.20");
         assert_eq!(r.to_string(), "$100.00");
     }

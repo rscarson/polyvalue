@@ -111,12 +111,11 @@ overload_operator!(Bool, deref);
 
 impl ArithmeticOperationExt for Bool {
     fn arithmetic_op(
-        left: &Self,
-        right: &Self,
+        self,
+        right: Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
-        let left = *left.inner();
-        let right = *right.inner();
+        let (left, right) = (self.into_inner(), right.into_inner());
         let result = match operation {
             ArithmeticOperation::Add => left ^ right,
             ArithmeticOperation::Subtract => left ^ right,
@@ -129,46 +128,41 @@ impl ArithmeticOperationExt for Bool {
                 left
             }
             ArithmeticOperation::Exponentiate => !right | left,
-            ArithmeticOperation::Negate => !left,
         };
 
         Ok(result.into())
     }
 
-    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    fn arithmetic_neg(self) -> Result<Self, crate::Error>
     where
         Self: Sized,
     {
-        Bool::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
-    }
-
-    fn is_operator_supported(&self, _other: &Self, _: ArithmeticOperation) -> bool {
-        true
+        Ok((!self.inner()).into())
     }
 }
 
 impl BooleanOperationExt for Bool {
-    fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
+    fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Value, Error> {
+        let (left, right) = (self.into_inner(), right.into_inner());
         let result = match operation {
-            BooleanOperation::And => *left.inner() && *right.inner(),
-            BooleanOperation::Or => *left.inner() || *right.inner(),
-            BooleanOperation::LT => !(*left.inner()) & *right.inner(),
-            BooleanOperation::GT => *left.inner() & !(*right.inner()),
-            BooleanOperation::LTE => *left.inner() <= *right.inner(),
-            BooleanOperation::GTE => *left.inner() >= *right.inner(),
-            BooleanOperation::EQ => *left.inner() == *right.inner(),
-            BooleanOperation::NEQ => *left.inner() != *right.inner(),
-            BooleanOperation::Not => !*left.inner(),
+            BooleanOperation::And => left && right,
+            BooleanOperation::Or => left || right,
+            BooleanOperation::LT => !left & right,
+            BooleanOperation::GT => left & !right,
+            BooleanOperation::LTE => left <= right,
+            BooleanOperation::GTE => left >= right,
+            BooleanOperation::EQ => left == right,
+            BooleanOperation::NEQ => left != right,
         };
 
         Ok(result.into())
     }
 
-    fn boolean_not(&self) -> Result<Value, crate::Error>
+    fn boolean_not(self) -> Result<Value, crate::Error>
     where
         Self: Sized,
     {
-        Bool::boolean_op(self, &self.clone(), BooleanOperation::Not)
+        Ok((!self.inner()).into())
     }
 }
 
@@ -182,38 +176,35 @@ mod test {
 
     #[test]
     fn test_arithmetic() {
-        let result = Bool::arithmetic_op(
-            &Bool::from(true),
-            &Bool::from(true),
-            ArithmeticOperation::Add,
-        )
-        .unwrap();
+        let result =
+            Bool::arithmetic_op(Bool::from(true), Bool::from(true), ArithmeticOperation::Add)
+                .unwrap();
         assert_eq!(result, Bool::from(false));
         let result = Bool::arithmetic_op(
-            &Bool::from(false),
-            &Bool::from(true),
+            Bool::from(false),
+            Bool::from(true),
             ArithmeticOperation::Add,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true));
 
         assert_eq!(
-            Bool::arithmetic_neg(&Bool::from(true)).unwrap(),
+            Bool::arithmetic_neg(Bool::from(true)).unwrap(),
             Bool::from(false)
         );
 
         // division by 0 is error
         assert!(Bool::arithmetic_op(
-            &Bool::from(true),
-            &Bool::from(false),
+            Bool::from(true),
+            Bool::from(false),
             ArithmeticOperation::Divide
         )
         .is_err());
 
         assert_eq!(
             Bool::arithmetic_op(
-                &Bool::from(true),
-                &Bool::from(true),
+                Bool::from(true),
+                Bool::from(true),
                 ArithmeticOperation::Divide
             )
             .unwrap(),
@@ -222,8 +213,8 @@ mod test {
 
         assert_eq!(
             Bool::arithmetic_op(
-                &Bool::from(true),
-                &Bool::from(true),
+                Bool::from(true),
+                Bool::from(true),
                 ArithmeticOperation::Subtract
             )
             .unwrap(),
@@ -232,8 +223,8 @@ mod test {
 
         assert_eq!(
             Bool::arithmetic_op(
-                &Bool::from(true),
-                &Bool::from(true),
+                Bool::from(true),
+                Bool::from(true),
                 ArithmeticOperation::Multiply
             )
             .unwrap(),
@@ -242,8 +233,8 @@ mod test {
 
         assert_eq!(
             Bool::arithmetic_op(
-                &Bool::from(true),
-                &Bool::from(false),
+                Bool::from(true),
+                Bool::from(false),
                 ArithmeticOperation::Multiply
             )
             .unwrap(),
@@ -253,8 +244,8 @@ mod test {
         // test that base-2 exponentiation holds
         assert_eq!(
             Bool::arithmetic_op(
-                &Bool::from(true),
-                &Bool::from(true),
+                Bool::from(true),
+                Bool::from(true),
                 ArithmeticOperation::Exponentiate
             )
             .unwrap(),
@@ -263,8 +254,8 @@ mod test {
 
         assert_eq!(
             Bool::arithmetic_op(
-                &Bool::from(true),
-                &Bool::from(false),
+                Bool::from(true),
+                Bool::from(false),
                 ArithmeticOperation::Exponentiate
             )
             .unwrap(),
@@ -273,61 +264,55 @@ mod test {
 
         assert_eq!(
             Bool::arithmetic_op(
-                &Bool::from(false),
-                &Bool::from(true),
+                Bool::from(false),
+                Bool::from(true),
                 ArithmeticOperation::Exponentiate
             )
             .unwrap(),
             Bool::from(false)
         );
-
-        assert!(Bool::is_operator_supported(
-            &Bool::from(true),
-            &Bool::from(true),
-            ArithmeticOperation::Add
-        ));
     }
 
     #[test]
     fn test_boolean_logic() {
         let result =
-            Bool::boolean_op(&Bool::from(true), &Bool::from(true), BooleanOperation::And).unwrap();
+            Bool::boolean_op(Bool::from(true), Bool::from(true), BooleanOperation::And).unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result =
-            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::And).unwrap();
+            Bool::boolean_op(Bool::from(true), Bool::from(false), BooleanOperation::And).unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result =
-            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::Or).unwrap();
+            Bool::boolean_op(Bool::from(true), Bool::from(false), BooleanOperation::Or).unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result =
-            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::LT).unwrap();
+            Bool::boolean_op(Bool::from(true), Bool::from(false), BooleanOperation::LT).unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result =
-            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::GT).unwrap();
+            Bool::boolean_op(Bool::from(true), Bool::from(false), BooleanOperation::GT).unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result =
-            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::LTE).unwrap();
+            Bool::boolean_op(Bool::from(true), Bool::from(false), BooleanOperation::LTE).unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result =
-            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::GTE).unwrap();
+            Bool::boolean_op(Bool::from(true), Bool::from(false), BooleanOperation::GTE).unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result =
-            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::EQ).unwrap();
+            Bool::boolean_op(Bool::from(true), Bool::from(false), BooleanOperation::EQ).unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result =
-            Bool::boolean_op(&Bool::from(true), &Bool::from(false), BooleanOperation::NEQ).unwrap();
+            Bool::boolean_op(Bool::from(true), Bool::from(false), BooleanOperation::NEQ).unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         assert_eq!(
-            Bool::boolean_not(&Bool::from(true)).unwrap(),
+            Bool::boolean_not(Bool::from(true)).unwrap(),
             Bool::from(false).into()
         );
     }

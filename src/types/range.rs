@@ -61,16 +61,12 @@ impl Default for Range {
 }
 
 impl BooleanOperationExt for Range {
-    fn boolean_op(
-        left: &Self,
-        right: &Self,
-        operation: BooleanOperation,
-    ) -> Result<Value, crate::Error>
+    fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Value, crate::Error>
     where
         Self: Sized,
     {
-        let left = left.inner().clone();
-        let right = right.inner().clone();
+        let left = self.into_inner();
+        let right = right.into_inner();
 
         let left_size = left.end() - left.start();
         let right_size = right.end() - right.start();
@@ -84,25 +80,22 @@ impl BooleanOperationExt for Range {
             BooleanOperation::GT => Ok(Bool::from(left_size > right_size)),
             BooleanOperation::LTE => Ok(Bool::from(left_size <= right_size)),
             BooleanOperation::GTE => Ok(Bool::from(left_size >= right_size)),
-            BooleanOperation::Not => Ok(Bool::from(left_size == 0)),
         }
         .map(Value::from)
     }
 
-    fn boolean_not(&self) -> Result<Value, crate::Error>
+    fn boolean_not(self) -> Result<Value, crate::Error>
     where
         Self: Sized,
     {
-        Self::boolean_op(self, self, BooleanOperation::Not)
+        let left = self.into_inner();
+        let left_size = left.end() - left.start();
+        Ok(Value::from(left_size == 0))
     }
 }
 
 impl ArithmeticOperationExt for Range {
-    fn arithmetic_op(
-        _: &Self,
-        _: &Self,
-        operation: ArithmeticOperation,
-    ) -> Result<Self, crate::Error>
+    fn arithmetic_op(self, _: Self, operation: ArithmeticOperation) -> Result<Self, crate::Error>
     where
         Self: Sized,
     {
@@ -112,15 +105,14 @@ impl ArithmeticOperationExt for Range {
         })
     }
 
-    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    fn arithmetic_neg(self) -> Result<Self, crate::Error>
     where
         Self: Sized,
     {
-        Self::arithmetic_op(self, self, ArithmeticOperation::Negate)
-    }
-
-    fn is_operator_supported(&self, _: &Self, _: ArithmeticOperation) -> bool {
-        false
+        Err(Error::UnsupportedOperation {
+            operation: "negation".to_string(),
+            actual_type: ValueType::Range,
+        })
     }
 }
 
@@ -377,63 +369,47 @@ mod test {
     #[test]
     fn test_boolean() {
         assert_eq!(
-            Range::boolean_op(
-                &Range::new(0..=10),
-                &Range::new(0..=10),
-                BooleanOperation::EQ
-            )
-            .unwrap(),
+            Range::boolean_op(Range::new(0..=10), Range::new(0..=10), BooleanOperation::EQ)
+                .unwrap(),
             true.into()
         );
         assert_eq!(
-            Range::boolean_op(
-                &Range::new(0..=10),
-                &Range::new(0..=11),
-                BooleanOperation::EQ
-            )
-            .unwrap(),
+            Range::boolean_op(Range::new(0..=10), Range::new(0..=11), BooleanOperation::EQ)
+                .unwrap(),
             false.into()
         );
         assert_eq!(
             Range::boolean_op(
-                &Range::new(0..=10),
-                &Range::new(0..=11),
+                Range::new(0..=10),
+                Range::new(0..=11),
                 BooleanOperation::NEQ
             )
             .unwrap(),
             true.into()
         );
         assert_eq!(
-            Range::boolean_op(
-                &Range::new(0..=10),
-                &Range::new(0..=11),
-                BooleanOperation::LT
-            )
-            .unwrap(),
+            Range::boolean_op(Range::new(0..=10), Range::new(0..=11), BooleanOperation::LT)
+                .unwrap(),
             true.into()
         );
         assert_eq!(
             Range::boolean_op(
-                &Range::new(0..=10),
-                &Range::new(0..=11),
+                Range::new(0..=10),
+                Range::new(0..=11),
                 BooleanOperation::LTE
             )
             .unwrap(),
             true.into()
         );
         assert_eq!(
-            Range::boolean_op(
-                &Range::new(0..=10),
-                &Range::new(0..=11),
-                BooleanOperation::GT
-            )
-            .unwrap(),
+            Range::boolean_op(Range::new(0..=10), Range::new(0..=11), BooleanOperation::GT)
+                .unwrap(),
             false.into()
         );
         assert_eq!(
             Range::boolean_op(
-                &Range::new(0..=10),
-                &Range::new(0..=11),
+                Range::new(0..=10),
+                Range::new(0..=11),
                 BooleanOperation::GTE
             )
             .unwrap(),
@@ -441,33 +417,20 @@ mod test {
         );
         assert_eq!(
             Range::boolean_op(
-                &Range::new(0..=10),
-                &Range::new(0..=11),
+                Range::new(0..=10),
+                Range::new(0..=11),
                 BooleanOperation::And
             )
             .unwrap(),
             true.into()
         );
         assert_eq!(
-            Range::boolean_op(
-                &Range::new(0..=10),
-                &Range::new(0..=11),
-                BooleanOperation::Or
-            )
-            .unwrap(),
+            Range::boolean_op(Range::new(0..=10), Range::new(0..=11), BooleanOperation::Or)
+                .unwrap(),
             true.into()
         );
         assert_eq!(
-            Range::boolean_op(
-                &Range::new(0..=10),
-                &Range::new(0..=11),
-                BooleanOperation::Not
-            )
-            .unwrap(),
-            false.into()
-        );
-        assert_eq!(
-            Range::boolean_not(&Range::new(0..=10)).unwrap(),
+            Range::boolean_not(Range::new(0..=10)).unwrap(),
             false.into()
         );
     }

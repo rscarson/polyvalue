@@ -175,12 +175,12 @@ impl std::hash::Hash for Float {
 
 impl ArithmeticOperationExt for Float {
     fn arithmetic_op(
-        left: &Self,
-        right: &Self,
+        self,
+        right: Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
-        let left = *left.inner();
-        let right = *right.inner();
+        let left = self.into_inner();
+        let right = right.into_inner();
 
         let result = match operation {
             ArithmeticOperation::Add => left + right,
@@ -189,7 +189,6 @@ impl ArithmeticOperationExt for Float {
             ArithmeticOperation::Divide => left / right,
             ArithmeticOperation::Modulo => left % right,
             ArithmeticOperation::Exponentiate => left.powf(right),
-            ArithmeticOperation::Negate => -left,
         };
 
         if result.is_infinite() || result.is_nan() {
@@ -199,41 +198,39 @@ impl ArithmeticOperationExt for Float {
         }
     }
 
-    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    fn arithmetic_neg(self) -> Result<Self, crate::Error>
     where
         Self: Sized,
     {
-        Float::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
-    }
-
-    fn is_operator_supported(&self, _: &Self, _: ArithmeticOperation) -> bool {
-        true
+        Ok(Self(-(self.into_inner())))
     }
 }
 
 impl BooleanOperationExt for Float {
-    fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
-        let result = match operation {
-            BooleanOperation::And => *left.inner() != 0.0 && *right.inner() != 0.0,
-            BooleanOperation::Or => *left.inner() != 0.0 || *right.inner() != 0.0,
+    fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Value, Error> {
+        let left = self.into_inner();
+        let right = right.into_inner();
 
-            BooleanOperation::LT => *left.inner() < *right.inner(),
-            BooleanOperation::GT => *left.inner() > *right.inner(),
-            BooleanOperation::LTE => *left.inner() <= *right.inner(),
-            BooleanOperation::GTE => *left.inner() >= *right.inner(),
-            BooleanOperation::EQ => *left.inner() == *right.inner(),
-            BooleanOperation::NEQ => *left.inner() != *right.inner(),
-            BooleanOperation::Not => *left.inner() == 0.0,
+        let result = match operation {
+            BooleanOperation::And => left != 0.0 && right != 0.0,
+            BooleanOperation::Or => left != 0.0 || right != 0.0,
+
+            BooleanOperation::LT => left < right,
+            BooleanOperation::GT => left > right,
+            BooleanOperation::LTE => left <= right,
+            BooleanOperation::GTE => left >= right,
+            BooleanOperation::EQ => left == right,
+            BooleanOperation::NEQ => left != right,
         };
 
         Ok(result.into())
     }
 
-    fn boolean_not(&self) -> Result<Value, crate::Error>
+    fn boolean_not(self) -> Result<Value, crate::Error>
     where
         Self: Sized,
     {
-        Float::boolean_op(self, &self.clone(), BooleanOperation::Not)
+        Ok((self.into_inner() == 0.0).into())
     }
 }
 
@@ -253,44 +250,34 @@ mod test {
         let b = Float::from(2.0);
 
         assert_eq!(
-            Float::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap(),
+            Float::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Add).unwrap(),
             Float::from(3.0)
         );
         assert_eq!(
-            Float::arithmetic_op(&a, &b, ArithmeticOperation::Subtract).unwrap(),
+            Float::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Subtract).unwrap(),
             Float::from(-1.0)
         );
         assert_eq!(
-            Float::arithmetic_op(&a, &b, ArithmeticOperation::Multiply).unwrap(),
+            Float::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Multiply).unwrap(),
             Float::from(2.0)
         );
         assert_eq!(
-            Float::arithmetic_op(&a, &b, ArithmeticOperation::Divide).unwrap(),
+            Float::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Divide).unwrap(),
             Float::from(0.5)
         );
         assert_eq!(
-            Float::arithmetic_op(&a, &b, ArithmeticOperation::Modulo).unwrap(),
+            Float::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Modulo).unwrap(),
             Float::from(1.0)
         );
         assert_eq!(
-            Float::arithmetic_op(&a, &b, ArithmeticOperation::Exponentiate).unwrap(),
+            Float::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Exponentiate).unwrap(),
             Float::from(1.0)
         );
-        assert_eq!(
-            Float::arithmetic_op(&a, &b, ArithmeticOperation::Negate).unwrap(),
-            Float::from(-1.0)
-        );
-        assert_eq!(Float::arithmetic_neg(&a).unwrap(), Float::from(-1.0));
-
-        assert!(Float::is_operator_supported(
-            &a,
-            &b,
-            ArithmeticOperation::Add
-        ));
+        assert_eq!(Float::arithmetic_neg(a.clone()).unwrap(), Float::from(-1.0));
 
         assert!(Float::arithmetic_op(
-            &Float::from(-1.0),
-            &Float::from(0.0),
+            Float::from(-1.0),
+            Float::from(0.0),
             ArithmeticOperation::Divide
         )
         .is_err());
@@ -302,43 +289,39 @@ mod test {
         let b = Float::from(2.0);
 
         assert_eq!(
-            Float::boolean_op(&a, &b, BooleanOperation::And).unwrap(),
+            Float::boolean_op(a.clone(), b.clone(), BooleanOperation::And).unwrap(),
             Value::from(true)
         );
         assert_eq!(
-            Float::boolean_op(&a, &b, BooleanOperation::Or).unwrap(),
+            Float::boolean_op(a.clone(), b.clone(), BooleanOperation::Or).unwrap(),
             Value::from(true)
         );
 
         assert_eq!(
-            Float::boolean_op(&a, &b, BooleanOperation::LT).unwrap(),
+            Float::boolean_op(a.clone(), b.clone(), BooleanOperation::LT).unwrap(),
             Value::from(true)
         );
         assert_eq!(
-            Float::boolean_op(&a, &b, BooleanOperation::GT).unwrap(),
+            Float::boolean_op(a.clone(), b.clone(), BooleanOperation::GT).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Float::boolean_op(&a, &b, BooleanOperation::LTE).unwrap(),
+            Float::boolean_op(a.clone(), b.clone(), BooleanOperation::LTE).unwrap(),
             Value::from(true)
         );
         assert_eq!(
-            Float::boolean_op(&a, &b, BooleanOperation::GTE).unwrap(),
+            Float::boolean_op(a.clone(), b.clone(), BooleanOperation::GTE).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Float::boolean_op(&a, &b, BooleanOperation::EQ).unwrap(),
+            Float::boolean_op(a.clone(), b.clone(), BooleanOperation::EQ).unwrap(),
             Value::from(false)
         );
         assert_eq!(
-            Float::boolean_op(&a, &b, BooleanOperation::NEQ).unwrap(),
+            Float::boolean_op(a.clone(), b.clone(), BooleanOperation::NEQ).unwrap(),
             Value::from(true)
         );
-        assert_eq!(
-            Float::boolean_op(&a, &b, BooleanOperation::Not).unwrap(),
-            Value::from(false)
-        );
-        assert_eq!(Float::boolean_not(&a).unwrap(), Value::from(false));
+        assert_eq!(Float::boolean_not(a.clone()).unwrap(), Value::from(false));
     }
 
     #[test]

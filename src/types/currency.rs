@@ -9,7 +9,7 @@ use crate::{operations::*, types::*, Error, InnerValue, Value, ValueTrait};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-pub use crate::inner_currency::CurrencyInner;
+pub use crate::inner_types::currency::CurrencyInner;
 
 /// Subtype of `Value` that represents a currency
 /// This is a wrapper around `Fixed` that adds a currency symbol
@@ -24,8 +24,8 @@ impl Currency {
     }
 
     /// Resolve the precision of this `Currency` with another `Currency`
-    pub fn resolve(&self, other: &Self) -> (Self, Self) {
-        let (left, right) = self.inner().resolve(other.inner());
+    pub fn resolve(self, other: Self) -> (Self, Self) {
+        let (left, right) = self.into_inner().resolve(other.into_inner());
         (Self(left), Self(right))
     }
 }
@@ -89,39 +89,31 @@ impl FromStr for Currency {
 }
 
 impl ArithmeticOperationExt for Currency {
-    fn arithmetic_op(
-        left: &Self,
-        right: &Self,
-        operation: ArithmeticOperation,
-    ) -> Result<Self, Error> {
-        let (left, right) = left.inner().resolve(right.inner());
-        let resulting_value = Fixed::arithmetic_op(left.value(), right.value(), operation)?;
-        let result = CurrencyInner::new(left.symbol().clone(), left.precision(), resulting_value);
-        Ok(Currency::from(result))
+    fn arithmetic_op(self, right: Self, operation: ArithmeticOperation) -> Result<Self, Error> {
+        let (left, right) = (self.into_inner(), right.into_inner());
+        left.arithmetic_op(right, operation).map(Self::from)
     }
 
-    fn arithmetic_neg(&self) -> Result<Self, Error>
+    fn arithmetic_neg(self) -> Result<Self, Error>
     where
         Self: Sized,
     {
-        Currency::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
-    }
-
-    fn is_operator_supported(&self, _: &Self, _: ArithmeticOperation) -> bool {
-        true
+        self.into_inner().arithmetic_neg().map(Self::from)
     }
 }
 
 impl BooleanOperationExt for Currency {
-    fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
-        Fixed::boolean_op(left.inner().value(), right.inner().value(), operation)
+    fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Value, Error> {
+        self.into_inner()
+            .into_value()
+            .boolean_op(right.into_inner().into_value(), operation)
     }
 
-    fn boolean_not(&self) -> Result<Value, Error>
+    fn boolean_not(self) -> Result<Value, Error>
     where
         Self: Sized,
     {
-        Currency::boolean_op(self, &self.clone(), BooleanOperation::Not)
+        self.into_inner().into_value().boolean_not()
     }
 }
 
@@ -140,107 +132,105 @@ mod test {
         let a = Currency::from_str("$10.00").unwrap();
         let b = Currency::from_str("$5.00").unwrap();
 
-        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
+        let result =
+            Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Add).unwrap();
         assert_eq!(result.to_string(), "$15.00".to_string());
 
-        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Subtract).unwrap();
+        let result =
+            Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Subtract).unwrap();
         assert_eq!(result.to_string(), "$5.00".to_string());
 
-        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Multiply).unwrap();
+        let result =
+            Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Multiply).unwrap();
         assert_eq!(result.to_string(), "$50.00".to_string());
 
-        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Divide).unwrap();
+        let result =
+            Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Divide).unwrap();
         assert_eq!(result.to_string(), "$2.00".to_string());
 
-        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Exponentiate).unwrap();
+        let result =
+            Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Exponentiate)
+                .unwrap();
         assert_eq!(result.to_string(), "$100000.00".to_string());
-
-        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Negate).unwrap();
-        assert_eq!(result.to_string(), "$-10.00".to_string());
 
         // Different symbols and precisions
         let a = Currency::from_str("$10.00").unwrap();
         let b = Currency::from_str("¥5").unwrap();
-        let result = Currency::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
+        let result =
+            Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Add).unwrap();
         assert_eq!(result.to_string(), "15.00".to_string());
 
-        let result = Currency::arithmetic_neg(&Currency::from_str("$10.00").unwrap()).unwrap();
+        let result = Currency::arithmetic_neg(Currency::from_str("$10.00").unwrap()).unwrap();
         assert_eq!(result.to_string(), "$-10.00".to_string());
-
-        assert!(Currency::is_operator_supported(
-            &Currency::from_str("$10.00").unwrap(),
-            &Currency::from_str("$10.00").unwrap(),
-            ArithmeticOperation::Add
-        ));
     }
 
     #[test]
     fn test_boolean_logic() {
         let result = Currency::boolean_op(
-            &Currency::from_str("$0.00").unwrap(),
-            &Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
             BooleanOperation::And,
         )
         .unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result = Currency::boolean_op(
-            &Currency::from_str("$0.00").unwrap(),
-            &Currency::from_str("$1.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$1.00").unwrap(),
             BooleanOperation::Or,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Currency::boolean_op(
-            &Currency::from_str("$1.00").unwrap(),
-            &Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$1.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
             BooleanOperation::LT,
         )
         .unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result = Currency::boolean_op(
-            &Currency::from_str("$1.00").unwrap(),
-            &Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$1.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
             BooleanOperation::GT,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Currency::boolean_op(
-            &Currency::from_str("$0.00").unwrap(),
-            &Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
             BooleanOperation::LTE,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Currency::boolean_op(
-            &Currency::from_str("$0.00").unwrap(),
-            &Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
             BooleanOperation::GTE,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Currency::boolean_op(
-            &Currency::from_str("$0.00").unwrap(),
-            &Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
             BooleanOperation::EQ,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Currency::boolean_op(
-            &Currency::from_str("$0.00").unwrap(),
-            &Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("$0.00").unwrap(),
             BooleanOperation::NEQ,
         )
         .unwrap();
         assert_eq!(result, Bool::from(false).into());
 
-        let result = Currency::boolean_not(&Currency::from_str("$10.00").unwrap()).unwrap();
+        let result = Currency::boolean_not(Currency::from_str("$10.00").unwrap()).unwrap();
         assert_eq!(result, Bool::from(false).into());
     }
 

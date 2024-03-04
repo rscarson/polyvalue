@@ -253,23 +253,16 @@ impl MatchingOperationExt for Str {
 
 impl ArithmeticOperationExt for Str {
     fn arithmetic_op(
-        left: &Self,
-        right: &Self,
+        self,
+        right: Self,
         operation: ArithmeticOperation,
     ) -> Result<Self, crate::Error> {
-        let left = left.inner().to_string();
-        let right = right.inner().to_string();
+        let left = self.into_inner();
+        let right = right.into_inner();
+
         let result = match operation {
             ArithmeticOperation::Add => left + right.as_str(),
-
             ArithmeticOperation::Subtract => left.replace(&right, ""),
-
-            // reverse string
-            ArithmeticOperation::Negate => {
-                let mut result = left.clone();
-                result = result.chars().rev().collect();
-                result
-            }
 
             _ => Err(Error::UnsupportedOperation {
                 operation: operation.to_string(),
@@ -279,44 +272,40 @@ impl ArithmeticOperationExt for Str {
         Ok(result.into())
     }
 
-    fn arithmetic_neg(&self) -> Result<Self, crate::Error>
+    fn arithmetic_neg(self) -> Result<Self, crate::Error>
     where
         Self: Sized,
     {
-        Str::arithmetic_op(self, &self.clone(), ArithmeticOperation::Negate)
-    }
-
-    fn is_operator_supported(&self, _: &Self, operation: ArithmeticOperation) -> bool {
-        matches!(
-            operation,
-            ArithmeticOperation::Add | ArithmeticOperation::Subtract | ArithmeticOperation::Negate
-        )
+        let s: String = self.chars().rev().collect();
+        Ok(s.into())
     }
 }
 
 impl BooleanOperationExt for Str {
-    fn boolean_op(left: &Self, right: &Self, operation: BooleanOperation) -> Result<Value, Error> {
-        let result = match operation {
-            BooleanOperation::And => !left.inner().is_empty() && !right.inner().is_empty(),
-            BooleanOperation::Or => !left.inner().is_empty() || !right.inner().is_empty(),
+    fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Value, Error> {
+        let left = self.into_inner();
+        let right = right.into_inner();
 
-            BooleanOperation::LT => *left.inner() < *right.inner(),
-            BooleanOperation::GT => *left.inner() > *right.inner(),
-            BooleanOperation::LTE => *left.inner() <= *right.inner(),
-            BooleanOperation::GTE => *left.inner() >= *right.inner(),
-            BooleanOperation::EQ => *left.inner() == *right.inner(),
-            BooleanOperation::NEQ => *left.inner() != *right.inner(),
-            BooleanOperation::Not => left.inner().is_empty(),
+        let result = match operation {
+            BooleanOperation::And => !left.is_empty() && !right.is_empty(),
+            BooleanOperation::Or => !left.is_empty() || !right.is_empty(),
+
+            BooleanOperation::LT => left < right,
+            BooleanOperation::GT => left > right,
+            BooleanOperation::LTE => left <= right,
+            BooleanOperation::GTE => left >= right,
+            BooleanOperation::EQ => left == right,
+            BooleanOperation::NEQ => left != right,
         };
 
         Ok(result.into())
     }
 
-    fn boolean_not(&self) -> Result<Value, crate::Error>
+    fn boolean_not(self) -> Result<Value, crate::Error>
     where
         Self: Sized,
     {
-        Str::boolean_op(self, &self.clone(), BooleanOperation::Not)
+        Ok(self.into_inner().is_empty().into())
     }
 }
 
@@ -555,114 +544,103 @@ mod test {
     #[test]
     fn test_arithmetic() {
         let result = Str::arithmetic_op(
-            &Str::from("Hello, "),
-            &Str::from("world!"),
+            Str::from("Hello, "),
+            Str::from("world!"),
             ArithmeticOperation::Add,
         )
         .unwrap();
         assert_eq!(result, Str::from("Hello, world!"));
 
         let result = Str::arithmetic_op(
-            &Str::from("Hello, world!"),
-            &Str::from("d!"),
+            Str::from("Hello, world!"),
+            Str::from("d!"),
             ArithmeticOperation::Subtract,
         )
         .unwrap();
         assert_eq!(result, Str::from("Hello, worl"));
 
-        let result = Str::arithmetic_neg(&Str::from("Hello, world!")).unwrap();
+        let result = Str::arithmetic_neg(Str::from("Hello, world!")).unwrap();
         assert_eq!(result, Str::from("!dlrow ,olleH"));
 
         // now with emojis
-        let result = Str::arithmetic_neg(&Str::from("👋🌎")).unwrap();
+        let result = Str::arithmetic_neg(Str::from("👋🌎")).unwrap();
         assert_eq!(result, Str::from("🌎👋"));
 
         Str::arithmetic_op(
-            &Str::from("👋🌎"),
-            &Str::from("🌎"),
+            Str::from("👋🌎"),
+            Str::from("🌎"),
             ArithmeticOperation::Divide,
         )
         .unwrap_err();
-
-        assert!(Str::is_operator_supported(
-            &Str::from("Hello, world!"),
-            &Str::from("d!"),
-            ArithmeticOperation::Subtract
-        ));
-        assert!(!Str::is_operator_supported(
-            &Str::from("Hello, world!"),
-            &Str::from("d!"),
-            ArithmeticOperation::Divide
-        ));
     }
 
     #[test]
     fn test_boolean_logic() {
         let result = Str::boolean_op(
-            &Str::from("Hello, "),
-            &Str::from("world!"),
+            Str::from("Hello, "),
+            Str::from("world!"),
             BooleanOperation::And,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Str::boolean_op(
-            &Str::from("Hello, "),
-            &Str::from("world!"),
+            Str::from("Hello, "),
+            Str::from("world!"),
             BooleanOperation::Or,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Str::boolean_op(
-            &Str::from("Hello, "),
-            &Str::from("world!"),
+            Str::from("Hello, "),
+            Str::from("world!"),
             BooleanOperation::LT,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Str::boolean_op(
-            &Str::from("Hello, "),
-            &Str::from("world!"),
+            Str::from("Hello, "),
+            Str::from("world!"),
             BooleanOperation::GT,
         )
         .unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result = Str::boolean_op(
-            &Str::from("Hello, "),
-            &Str::from("world!"),
+            Str::from("Hello, "),
+            Str::from("world!"),
             BooleanOperation::LTE,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Str::boolean_op(
-            &Str::from("Hello, "),
-            &Str::from("world!"),
+            Str::from("Hello, "),
+            Str::from("world!"),
             BooleanOperation::GTE,
         )
         .unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result = Str::boolean_op(
-            &Str::from("Hello, "),
-            &Str::from("world!"),
+            Str::from("Hello, "),
+            Str::from("world!"),
             BooleanOperation::EQ,
         )
         .unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result = Str::boolean_op(
-            &Str::from("Hello, "),
-            &Str::from("world!"),
+            Str::from("Hello, "),
+            Str::from("world!"),
             BooleanOperation::NEQ,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
-        let result = Str::boolean_not(&Str::from("Hello, world!")).unwrap();
+        let result = Str::boolean_not(Str::from("Hello, world!")).unwrap();
         assert_eq!(result, Bool::from(false).into());
     }
 }

@@ -25,7 +25,7 @@ fn main() {
     // Therefore, the int value is coerced to a compatible currency value with a value of
     // $1.000
     let (left, right) = Value::from(1)
-        .resolve(&Value::from(CurrencyInner::from_str("$50.000").unwrap()))
+        .resolve(Value::from(CurrencyInner::from_str("$50.000").unwrap()))
         .unwrap();
     assert_eq!(
         left,
@@ -38,14 +38,14 @@ fn main() {
 
     // Here, the string value is higher priority, so both values are coerced to strings
     let (left, right) = Value::from("hello world")
-        .resolve(&Value::from(false))
+        .resolve(Value::from(false))
         .unwrap();
     assert_eq!(left, Value::from("hello world"));
     assert_eq!(right, Value::from("false"));
 
     // Here the integer value is cooerced to an array
     let (_, right) = Value::from(vec![Value::from(1), Value::from(2)])
-        .resolve(&Value::from(3))
+        .resolve(Value::from(3))
         .unwrap();
     assert_eq!(right, Value::from(vec![Value::from(3)]));
 }
