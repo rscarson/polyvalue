@@ -1,5 +1,9 @@
 # Polyvalue
-Single concrete type for representing values of different types
+A dynamic type system for rust
+
+[![Crates.io](https://img.shields.io/crates/v/polyvalue.svg)](https://crates.io/crates/polyvalue)
+[![Build Status](https://github.com/rscarson/polyvalue/workflows/Rust/badge.svg)](https://github.com/rscarson/polyvalue/actions?workflow=Rust)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/rscarson/polyvalue/master/LICENSE)
 
 Built for [lavendeux-parser](https://github.com/rscarson/lavendeux-parser)
 
