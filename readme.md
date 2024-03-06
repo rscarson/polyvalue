@@ -24,7 +24,7 @@ At this point, remaining types are numeric and will be coerced to the type conta
 - Currency
 - Fixed
 - Float
-- Int
+- Int (I64, U64, ... down to U8)
 - Bool
 
 ## Operations
@@ -44,7 +44,7 @@ fn main() {
     let v = Value::from(1);
     assert_eq!(v, Value::Int(Int::new(1)));
 
-    let v = Value::from(1.0).arithmetic_op(&Value::from(2.0), ArithmeticOperation::Add).unwrap();
+    let v = Value::from(1.0).arithmetic_op(Value::from(2.0), ArithmeticOperation::Add).unwrap();
     assert_eq!(v, Value::Float(Float::new(3.0)));
 }
 ```
