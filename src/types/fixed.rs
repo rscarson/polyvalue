@@ -156,7 +156,7 @@ map_value!(
                 // Ok this is an ugly hack. A bad bad hack.
                 // It is slow and inefficient, BUT it works.
                 // It is intended to fix floating point errors by leveraging the fact that
-                // f64 strings somehow have the correct precision.
+                // f64 strings calculate the correct precision.
 
                 // Todo: find a better way to do this
                 let intended_precision = v
@@ -197,14 +197,16 @@ map_value!(
                 }
             }
             InnerValue::Object(v) => {
-                if v.inner().len() == 1 {
-                    let v = v.inner().values().next().unwrap().clone();
-                    Fixed::try_from(v)
-                } else {
-                    Err(Error::ValueConversion {
+                let len = v.inner().len();
+                match v.inner().values().next() {
+                    Some(v) if len == 1 => {
+                        Fixed::try_from(v.clone())
+                    }
+
+                    _ => Err(Error::ValueConversion {
                         src_type: ValueType::Object,
                         dst_type: ValueType::Fixed,
-                    })
+                    }),
                 }
             }
         }

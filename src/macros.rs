@@ -42,7 +42,7 @@ macro_rules! map_type {
         impl TryFrom<$target> for $source {
             type Error = crate::Error;
             fn try_from(value: $target) -> Result<Self, Self::Error> {
-                Self::try_from(Value::from(value))
+                Ok(Self::try_from(Value::from(value))?)
             }
         }
     };

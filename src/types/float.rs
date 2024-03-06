@@ -109,14 +109,16 @@ map_value!(
                 }
             }
             InnerValue::Object(v) => {
-                if v.inner().len() == 1 {
-                    let v = v.inner().values().next().unwrap().clone();
-                    Float::try_from(v)
-                } else {
-                    Err(Error::ValueConversion {
+                let len = v.inner().len();
+                match v.inner().values().next() {
+                    Some(v) if len == 1 => {
+                        Float::try_from(v.clone())
+                    }
+
+                    _ => Err(Error::ValueConversion {
                         src_type: ValueType::Object,
                         dst_type: ValueType::Float,
-                    })
+                    }),
                 }
             }
         }
@@ -157,13 +159,13 @@ impl Eq for Float {}
 
 impl PartialOrd for Float {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.inner().total_cmp(other.inner()))
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for Float {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
+        self.inner().total_cmp(other.inner())
     }
 }
 

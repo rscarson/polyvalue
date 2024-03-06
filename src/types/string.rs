@@ -354,10 +354,18 @@ where
 
     // Check if the string contains a regex pattern
     if input.starts_with('/') {
-        let end = input.rfind('/').unwrap();
-        if end != 0 {
-            pattern = input[1..end].to_string();
-            flags = Some(input[end + 1..].to_string());
+        match input[1..].rfind('/') {
+            Some(end) => {
+                if &input[end..=end] != "\\" {
+                    pattern = input[1..=end].to_string();
+
+                    let remainder = &input[end..];
+                    if remainder.len() > 2 {
+                        flags = Some(remainder[2..].to_string());
+                    }
+                }
+            }
+            None => {}
         }
     }
 

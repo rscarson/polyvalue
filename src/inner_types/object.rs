@@ -108,19 +108,19 @@ impl std::hash::Hash for ObjectInner {
 
 impl PartialOrd for ObjectInner {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.eq(other) == true {
-            Some(std::cmp::Ordering::Equal)
-        } else {
-            let tree_a = self.0.iter().collect::<BTreeMap<_, _>>();
-            let tree_b = other.0.iter().collect::<BTreeMap<_, _>>();
-            Some(tree_a.cmp(&tree_b))
-        }
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for ObjectInner {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
+        if self.eq(other) == true {
+            std::cmp::Ordering::Equal
+        } else {
+            let tree_a = self.0.iter().collect::<BTreeMap<_, _>>();
+            let tree_b = other.0.iter().collect::<BTreeMap<_, _>>();
+            tree_a.cmp(&tree_b)
+        }
     }
 }
 

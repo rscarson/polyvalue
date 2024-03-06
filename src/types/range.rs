@@ -43,14 +43,14 @@ impl Range {
 
 impl PartialOrd for Range {
     fn partial_cmp(&self, other: &Range) -> Option<std::cmp::Ordering> {
-        (self.inner().end() - self.inner().start())
-            .partial_cmp(&(other.inner().end() - other.inner().start()))
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for Range {
     fn cmp(&self, other: &Range) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
+        (self.inner().end() - self.inner().start())
+            .cmp(&(other.inner().end() - other.inner().start()))
     }
 }
 

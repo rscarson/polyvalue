@@ -56,7 +56,7 @@ pub trait ArithmeticOperationExt {
     /// let a = Value::from(1);
     /// let b = Value::from(2);
     ///
-    /// let result = Value::arithmetic_op(&a, &b, ArithmeticOperation::Add).unwrap();
+    /// let result = a.arithmetic_op(b, ArithmeticOperation::Add).unwrap();
     /// assert_eq!(result, Value::from(3));
     /// ```
     fn arithmetic_op(
@@ -130,7 +130,7 @@ pub trait BitwiseOperationExt {
     /// let a = Value::from(0x0F);
     /// let b = Value::from(0xF0);
     ///
-    /// let result = Value::bitwise_op(&a, &b, BitwiseOperation::And).unwrap();
+    /// let result = a.bitwise_op(b, BitwiseOperation::And).unwrap();
     /// assert_eq!(result, Value::from(0x00));
     /// ```
     fn bitwise_op(self, right: Self, operation: BitwiseOperation) -> Result<Self, crate::Error>
@@ -217,7 +217,7 @@ pub trait BooleanOperationExt {
     /// let a = Value::from(1);
     /// let b = Value::from(2);
     ///
-    /// let result = Value::boolean_op(&a, &b, BooleanOperation::LT).unwrap();
+    /// let result = a.boolean_op(b, BooleanOperation::LT).unwrap();
     /// assert_eq!(result, Value::from(true));
     fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Value, crate::Error>
     where

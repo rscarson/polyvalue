@@ -292,14 +292,16 @@ mod macros {
                             }
                         }
                         InnerValue::Object(v) => {
-                            if v.inner().len() == 1 {
-                                let v = v.inner().values().next().unwrap().clone();
-                                $name::try_from(v)
-                            } else {
-                                Err(Error::ValueConversion {
+                            let len = v.inner().len();
+                            match v.inner().values().next() {
+                                Some(v) if len == 1 => {
+                                    $name::try_from(v.clone())
+                                }
+
+                                _ => Err(Error::ValueConversion {
                                     src_type: ValueType::Object,
                                     dst_type: ValueType::$name,
-                                })
+                                }),
                             }
                         }
                     }

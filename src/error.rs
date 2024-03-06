@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use crate::ValueType;
 use thiserror::Error;
 
@@ -91,4 +93,10 @@ pub enum Error {
     /// An error caused by large allocations
     #[error("Memory allocation error")]
     TryReserveError(#[from] std::collections::TryReserveError),
+}
+
+impl From<Infallible> for Error {
+    fn from(x: Infallible) -> Self {
+        match x {}
+    }
 }

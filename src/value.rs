@@ -144,8 +144,15 @@ impl TryFrom<serde_json::Value> for Value {
             serde_json::Value::Number(v) => {
                 if v.is_f64() {
                     Ok(Value::from(v.as_f64().unwrap()))
-                } else {
+                } else if v.is_i64() {
                     Ok(Value::from(v.as_i64().unwrap()))
+                } else if v.is_u64() {
+                    Ok(Value::from(v.as_u64().unwrap()))
+                } else {
+                    Err(Error::ValueConversion {
+                        src_type: ValueType::Numeric,
+                        dst_type: ValueType::Int,
+                    })
                 }
             }
         }
@@ -669,7 +676,7 @@ impl Value {
     /// Returns true if the value is truthy
     /// This is a convenience method for boolean values
     pub fn is_truthy(&self) -> bool {
-        *self.clone().as_a::<Bool>().unwrap().inner()
+        Bool::is_truthy(self)
     }
 
     /// Returns the length of the value
@@ -728,49 +735,29 @@ impl Value {
     pub fn weak_ord(self, other: Self) -> Result<std::cmp::Ordering, Error> {
         let (l, r) = self.resolve(other)?;
 
-        let res = match l.own_type() {
-            ValueType::Bool => Bool::cmp(&l.as_a::<Bool>().unwrap(), &r.as_a::<Bool>().unwrap()),
-            ValueType::Fixed => {
-                Fixed::cmp(&l.as_a::<Fixed>().unwrap(), &r.as_a::<Fixed>().unwrap())
-            }
-            ValueType::Float => {
-                Float::cmp(&l.as_a::<Float>().unwrap(), &r.as_a::<Float>().unwrap())
-            }
-            ValueType::Currency => Currency::cmp(
-                &l.as_a::<Currency>().unwrap(),
-                &r.as_a::<Currency>().unwrap(),
-            ),
+        Ok(match (l.into_inner(), r.into_inner()) {
+            (InnerValue::Bool(l), InnerValue::Bool(r)) => l.cmp(&r),
+            (InnerValue::Fixed(l), InnerValue::Fixed(r)) => l.cmp(&r),
+            (InnerValue::Float(l), InnerValue::Float(r)) => l.cmp(&r),
+            (InnerValue::Currency(l), InnerValue::Currency(r)) => l.cmp(&r),
 
-            ValueType::U8 => U8::cmp(&l.as_a::<U8>().unwrap(), &r.as_a::<U8>().unwrap()),
-            ValueType::U16 => U16::cmp(&l.as_a::<U16>().unwrap(), &r.as_a::<U16>().unwrap()),
-            ValueType::U32 => U32::cmp(&l.as_a::<U32>().unwrap(), &r.as_a::<U32>().unwrap()),
-            ValueType::U64 => U64::cmp(&l.as_a::<U64>().unwrap(), &r.as_a::<U64>().unwrap()),
+            (InnerValue::U8(l), InnerValue::U8(r)) => l.cmp(&r),
+            (InnerValue::U16(l), InnerValue::U16(r)) => l.cmp(&r),
+            (InnerValue::U32(l), InnerValue::U32(r)) => l.cmp(&r),
+            (InnerValue::U64(l), InnerValue::U64(r)) => l.cmp(&r),
 
-            ValueType::I8 => I8::cmp(&l.as_a::<I8>().unwrap(), &r.as_a::<I8>().unwrap()),
-            ValueType::I16 => I16::cmp(&l.as_a::<I16>().unwrap(), &r.as_a::<I16>().unwrap()),
-            ValueType::I32 => I32::cmp(&l.as_a::<I32>().unwrap(), &r.as_a::<I32>().unwrap()),
-            ValueType::I64 => I64::cmp(&l.as_a::<I64>().unwrap(), &r.as_a::<I64>().unwrap()),
+            (InnerValue::I8(l), InnerValue::I8(r)) => l.cmp(&r),
+            (InnerValue::I16(l), InnerValue::I16(r)) => l.cmp(&r),
+            (InnerValue::I32(l), InnerValue::I32(r)) => l.cmp(&r),
+            (InnerValue::I64(l), InnerValue::I64(r)) => l.cmp(&r),
 
-            ValueType::String => Str::cmp(&l.as_a::<Str>().unwrap(), &r.as_a::<Str>().unwrap()),
-            ValueType::Range => {
-                Range::cmp(&l.as_a::<Range>().unwrap(), &r.as_a::<Range>().unwrap())
-            }
-            ValueType::Array => {
-                Array::cmp(&l.as_a::<Array>().unwrap(), &r.as_a::<Array>().unwrap())
-            }
-            ValueType::Object => {
-                Object::cmp(&l.as_a::<Object>().unwrap(), &r.as_a::<Object>().unwrap())
-            }
+            (InnerValue::String(l), InnerValue::String(r)) => l.cmp(&r),
+            (InnerValue::Range(l), InnerValue::Range(r)) => l.cmp(&r),
+            (InnerValue::Array(l), InnerValue::Array(r)) => l.cmp(&r),
+            (InnerValue::Object(l), InnerValue::Object(r)) => l.cmp(&r),
 
-            ValueType::Int | ValueType::Numeric | ValueType::Collection | ValueType::Any => {
-                unreachable!(
-                    "Non-concrete type encountered in weak_ord: {:?}",
-                    l.own_type()
-                )
-            }
-        };
-
-        Ok(res)
+            _ => unreachable!("`resolve()` should have resolved both values to the same type"),
+        })
     }
 }
 

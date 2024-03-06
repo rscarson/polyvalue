@@ -18,69 +18,59 @@ impl_value!(Bool, bool, |v: &Self| if *v.inner() {
     "false"
 });
 
-map_value!(
-    from = Bool,
-    handle_into = (v) { Value::bool(v) },
-    handle_from = (v) {
-        match v.inner() {
-            InnerValue::Range(v) => {
-                Ok(Bool::from(v.inner().start() != v.inner().end()))
-            }
-            InnerValue::Bool(v) => Ok(v.clone()),
-
-            InnerValue::U8(v) => {
-                Ok(Bool::from(*v.inner() != 0))
-            }
-
-            InnerValue::U16(v) => {
-                Ok(Bool::from(*v.inner() != 0))
-            }
-
-            InnerValue::U32(v) => {
-                Ok(Bool::from(*v.inner() != 0))
-            }
-
-            InnerValue::U64(v) => {
-                Ok(Bool::from(*v.inner() != 0))
-            }
-
-            InnerValue::I8(v) => {
-                Ok(Bool::from(*v.inner() != 0))
-            }
-
-            InnerValue::I16(v) => {
-                Ok(Bool::from(*v.inner() != 0))
-            }
-
-            InnerValue::I32(v) => {
-                Ok(Bool::from(*v.inner() != 0))
-            }
-
-            InnerValue::I64(v) => {
-                Ok(Bool::from(*v.inner() != 0))
-            }
-
-            InnerValue::Float(v) => {
-                Ok(Bool::from(*v.inner() != 0.0))
-            }
-            InnerValue::Fixed(v) => {
-                Ok(Bool::from(v != &Fixed::zero()))
-            }
-            InnerValue::Currency(v) => {
-                Ok(Bool::from(v.inner().value() == &Fixed::zero()))
-            }
-            InnerValue::String(v) => {
-                Ok(Bool::from(!v.inner().is_empty()))
-            }
-            InnerValue::Array(v) => {
-                Ok(Bool::from(!v.inner().is_empty()))
-            }
-            InnerValue::Object(v) => {
-                Ok(Bool::from(!v.inner().is_empty()))
-            }
+impl Bool {
+    /// Determine if a value is truthy (not empty or 0)
+    pub fn is_truthy(value: &Value) -> bool {
+        match value.inner() {
+            InnerValue::Bool(v) => *v.inner(),
+            InnerValue::Float(v) => *v.inner() != 0.0,
+            InnerValue::U8(v) => *v.inner() != 0,
+            InnerValue::I8(v) => *v.inner() != 0,
+            InnerValue::U16(v) => *v.inner() != 0,
+            InnerValue::I16(v) => *v.inner() != 0,
+            InnerValue::U32(v) => *v.inner() != 0,
+            InnerValue::I32(v) => *v.inner() != 0,
+            InnerValue::U64(v) => *v.inner() != 0,
+            InnerValue::I64(v) => *v.inner() != 0,
+            InnerValue::Fixed(v) => *v != Fixed::zero(),
+            InnerValue::Currency(v) => v.value() != &Fixed::zero(),
+            InnerValue::String(v) => !v.is_empty(),
+            InnerValue::Range(v) => v.start() != v.end(),
+            InnerValue::Array(v) => !v.is_empty(),
+            InnerValue::Object(v) => !v.is_empty(),
         }
     }
-);
+}
+
+impl From<Bool> for Value {
+    fn from(value: Bool) -> Self {
+        Value::bool(value)
+    }
+}
+
+impl From<Value> for Bool {
+    fn from(value: Value) -> Self {
+        match value.into_inner() {
+            InnerValue::Bool(v) => v.into_inner(),
+            InnerValue::Float(v) => v.into_inner() != 0.0,
+            InnerValue::U8(v) => v.into_inner() != 0,
+            InnerValue::I8(v) => v.into_inner() != 0,
+            InnerValue::U16(v) => v.into_inner() != 0,
+            InnerValue::I16(v) => v.into_inner() != 0,
+            InnerValue::U32(v) => v.into_inner() != 0,
+            InnerValue::I32(v) => v.into_inner() != 0,
+            InnerValue::U64(v) => v.into_inner() != 0,
+            InnerValue::I64(v) => v.into_inner() != 0,
+            InnerValue::Fixed(v) => v != Fixed::zero(),
+            InnerValue::Currency(v) => v.into_inner().into_value() != Fixed::zero(),
+            InnerValue::String(v) => !v.is_empty(),
+            InnerValue::Range(v) => v.start() != v.end(),
+            InnerValue::Array(v) => !v.is_empty(),
+            InnerValue::Object(v) => !v.is_empty(),
+        }
+        .into()
+    }
+}
 
 impl FromStr for Bool {
     type Err = Error;
@@ -373,7 +363,7 @@ mod test {
 
         assert_eq!(
             Bool::try_from(Value::from(Currency::from_str("0.0").unwrap())).unwrap(),
-            Bool::from(true)
+            Bool::from(false)
         );
 
         assert_eq!(Bool::try_from(Value::from(1_u8)).unwrap(), Bool::from(true));
