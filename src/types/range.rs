@@ -33,7 +33,7 @@ impl_value!(Range, RangeInner, |v: &Self| format!(
 impl Range {
     /// Length of the range
     pub fn len(&self) -> RangeIndex {
-        self.inner().end() - self.inner().start()
+        1 + self.inner().end() - self.inner().start()
     }
 }
 
@@ -49,8 +49,7 @@ impl PartialOrd for Range {
 
 impl Ord for Range {
     fn cmp(&self, other: &Range) -> std::cmp::Ordering {
-        (self.inner().end() - self.inner().start())
-            .cmp(&(other.inner().end() - other.inner().start()))
+        (self.len()).cmp(&(other.len()))
     }
 }
 
@@ -331,6 +330,12 @@ mod test {
         Range::try_from(Value::from(0)).unwrap_err();
         Range::try_from(Value::from(0.0)).unwrap_err();
         Range::try_from(Value::from("")).unwrap_err();
+    }
+
+    #[test]
+    fn test_len() {
+        assert_eq!(Range::new(0..=10).len(), 11);
+        assert_eq!(Range::new(0..=0).len(), 1);
     }
 
     #[test]
