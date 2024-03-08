@@ -352,7 +352,7 @@ mod test {
         );
 
         assert_eq!(
-            Bool::try_from(Value::try_from(vec![(1.into(), 2.into())]).unwrap()).unwrap(),
+            Bool::try_from(Value::try_from(vec![(1, 2)]).unwrap()).unwrap(),
             Bool::from(true)
         );
 

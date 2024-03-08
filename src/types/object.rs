@@ -56,17 +56,25 @@ impl_value!(
     }
 );
 
-impl TryFrom<Vec<(Value, Value)>> for Value {
+impl<KV, VV> TryFrom<Vec<(KV, VV)>> for Object
+where
+    Value: From<KV>,
+    Value: From<VV>,
+{
     type Error = Error;
-    fn try_from(value: Vec<(Value, Value)>) -> Result<Self, Self::Error> {
-        Ok(Object::try_from(value)?.into())
+    fn try_from(value: Vec<(KV, VV)>) -> Result<Self, Self::Error> {
+        Ok(ObjectInner::try_from(value)?.into())
     }
 }
 
-impl TryFrom<Vec<(Value, Value)>> for Object {
+impl<KV, VV> TryFrom<Vec<(KV, VV)>> for Value
+where
+    Value: From<KV>,
+    Value: From<VV>,
+{
     type Error = Error;
-    fn try_from(value: Vec<(Value, Value)>) -> Result<Self, Self::Error> {
-        Ok(ObjectInner::try_from(value)?.into())
+    fn try_from(value: Vec<(KV, VV)>) -> Result<Self, Self::Error> {
+        Ok(Object::try_from(value)?.into())
     }
 }
 
@@ -598,7 +606,7 @@ mod test {
         assert_eq!(result, Value::from(true));
 
         assert_eq!(
-            Object::boolean_not(Object::try_from(vec![]).unwrap()).unwrap(),
+            Object::boolean_not(Object::try_from(Vec::<(Value, Value)>::new()).unwrap()).unwrap(),
             Value::from(true)
         );
     }

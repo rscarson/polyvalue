@@ -494,7 +494,7 @@ mod test {
 
     #[test]
     fn test_indexing() {
-        let value_range = Array::from(vec![0.into(), 1.into(), 2.into()]);
+        let value_range = Array::from(vec![0, 1, 2]);
         let value_range = Value::from(value_range);
         let value_range = Str::index_value_to_range(&value_range).unwrap();
         let value_range = value_range.start()..=value_range.end();
@@ -535,13 +535,11 @@ mod test {
         assert_eq!(s, "S👋B".into());
 
         let s = Str::from("S👋🌎");
-        let s = s
-            .get_indices(&Value::from(vec![0.into(), 2.into()]))
-            .unwrap();
+        let s = s.get_indices(&Value::from(vec![0, 2])).unwrap();
         assert_eq!(s, "S🌎".into());
 
         let s = Str::from("S👋🌎");
-        let s = s.get_indices(&Value::from(vec![])).unwrap();
+        let s = s.get_indices(&Value::from(Vec::<Value>::new())).unwrap();
         assert_eq!(s, "".into());
 
         let s = Str::from("S👋🌎");

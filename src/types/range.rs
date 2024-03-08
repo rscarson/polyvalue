@@ -326,8 +326,8 @@ mod test {
     #[test]
     fn test_from() {
         assert_eq!(Range::from(0..=10), Range::new(0..=10));
-        Range::try_from(Value::from(vec![0.into()])).unwrap_err();
-        Range::try_from(Value::try_from(vec![(0.into(), 0.into())]).unwrap()).unwrap_err();
+        Range::try_from(Value::from(vec![0])).unwrap_err();
+        Range::try_from(Value::try_from(vec![(0, 0)]).unwrap()).unwrap_err();
         Range::try_from(Value::from(0)).unwrap_err();
         Range::try_from(Value::from(0.0)).unwrap_err();
         Range::try_from(Value::from("")).unwrap_err();
@@ -352,7 +352,7 @@ mod test {
         );
         assert_eq!(
             Range::new(1..=10)
-                .get_indices(&Value::from(vec![0.into(), 2.into()]))
+                .get_indices(&Value::from(vec![0, 2]))
                 .unwrap(),
             vec![Value::i64(1), Value::i64(3),].into()
         );

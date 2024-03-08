@@ -1905,13 +1905,12 @@ mod test {
 
         assert_ord!(
             vec![Value::from(1), Value::from(2)],
-            ObjectInner::try_from(vec![(0i64.into(), 1.into()), (1i64.into(), 2.into())]).unwrap()
+            ObjectInner::try_from(vec![(0i64, 1), (1i64, 2)]).unwrap()
         );
 
         assert_ord!(
             1..=2,
-            ObjectInner::try_from(vec![(0i64.into(), 1i64.into()), (1i64.into(), 2i64.into())])
-                .unwrap()
+            ObjectInner::try_from(vec![(0i64, 1i64), (1i64, 2i64)]).unwrap()
         );
 
         assert_ord!(1, 1..=2);

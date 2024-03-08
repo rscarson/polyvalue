@@ -102,7 +102,7 @@ impl From<TaggedValue> for Value {
             TaggedValue::String(v) => Value::string(v),
             TaggedValue::Range(v) => Value::range(v),
             TaggedValue::Array(v) => {
-                let array = v.into_iter().map(|v| v.into()).collect::<Vec<_>>();
+                let array = v.into_iter().map(|v| Value::from(v)).collect::<Vec<_>>();
                 Value::array(array)
             }
             TaggedValue::Object(v) => {
@@ -208,9 +208,9 @@ mod test {
         assert_from_value!(CurrencyInner::from_fixed(Fixed::one()), Currency);
         assert_from_value!("a", String);
         assert_from_value!(1..=2, Range);
-        assert_from_value!(vec![1.into(), 2.into()], Array);
+        assert_from_value!(vec![1, 2], Array);
         assert_from_value!(
-            Object::new(ObjectInner::try_from(vec![(1.into(), 2.into())]).unwrap()),
+            Object::new(ObjectInner::try_from(vec![(1, 2)]).unwrap()),
             Object
         );
     }
@@ -243,7 +243,7 @@ mod test {
         assert_into_value!(1..=2, Range);
         assert_into_value!(vec![TaggedValue::U8(1u8.into())], Array);
         assert_into_value!(
-            Object::new(ObjectInner::try_from(vec![(1.into(), 2.into())]).unwrap()),
+            Object::new(ObjectInner::try_from(vec![(1, 2)]).unwrap()),
             Object
         );
     }

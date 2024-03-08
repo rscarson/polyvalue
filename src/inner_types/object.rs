@@ -124,12 +124,16 @@ impl Ord for ObjectInner {
     }
 }
 
-impl TryFrom<Vec<(Value, Value)>> for ObjectInner {
+impl<KV, VV> TryFrom<Vec<(KV, VV)>> for ObjectInner
+where
+    Value: From<KV>,
+    Value: From<VV>,
+{
     type Error = Error;
-    fn try_from(value: Vec<(Value, Value)>) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<(KV, VV)>) -> Result<Self, Self::Error> {
         let mut map = Self::new();
         for (k, v) in value {
-            map.insert(k, v)?;
+            map.insert(Value::from(k), Value::from(v))?;
         }
         Ok(map)
     }
