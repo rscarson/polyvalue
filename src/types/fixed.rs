@@ -283,8 +283,8 @@ impl BooleanOperationExt for Fixed {
             BooleanOperation::GT => *self.inner() > *right.inner(),
             BooleanOperation::LTE => *self.inner() <= *right.inner(),
             BooleanOperation::GTE => *self.inner() >= *right.inner(),
-            BooleanOperation::EQ => *self.inner() == *right.inner(),
-            BooleanOperation::NEQ => *self.inner() != *right.inner(),
+            BooleanOperation::EQ | BooleanOperation::StrictEQ => *self.inner() == *right.inner(),
+            BooleanOperation::NEQ | BooleanOperation::StrictNEQ => *self.inner() != *right.inner(),
         };
 
         Ok(result.into())

@@ -901,6 +901,12 @@ impl Ord for Value {
 
 impl BooleanOperationExt for Value {
     fn boolean_op(self, right: Self, operation: BooleanOperation) -> Result<Self, Error> {
+        if operation == BooleanOperation::StrictEQ && self.own_type() != right.own_type() {
+            return Ok(Bool::from(false).into());
+        } else if operation == BooleanOperation::StrictNEQ && self.own_type() != right.own_type() {
+            return Ok(Bool::from(true).into());
+        }
+
         let (left, right) = self.resolve(right)?;
         match (left.inner, right.inner) {
             (InnerValue::Bool(l), InnerValue::Bool(r)) => {
@@ -2029,6 +2035,35 @@ mod test {
     fn test_boolean_logic() {
         let a = Value::from(true);
         let b = Value::from(0);
+
+        assert_eq!(
+            Value::from(false)
+                .boolean_op(Value::from(0), BooleanOperation::EQ)
+                .unwrap()
+                .is_truthy(),
+            true
+        );
+        assert_eq!(
+            Value::from(false)
+                .boolean_op(Value::from(0), BooleanOperation::StrictEQ)
+                .unwrap()
+                .is_truthy(),
+            false
+        );
+        assert_eq!(
+            Value::from(false)
+                .boolean_op(Value::from(0), BooleanOperation::NEQ)
+                .unwrap()
+                .is_truthy(),
+            false
+        );
+        assert_eq!(
+            Value::from(false)
+                .boolean_op(Value::from(0), BooleanOperation::StrictNEQ)
+                .unwrap()
+                .is_truthy(),
+            true
+        );
 
         assert_eq!(
             Value::boolean_op(a.clone(), b.clone(), BooleanOperation::And).unwrap(),

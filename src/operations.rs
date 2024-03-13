@@ -185,6 +185,12 @@ pub enum BooleanOperation {
 
     /// Perform a not equal to comparison
     NEQ,
+
+    /// Perform an equal to comparison, also checking type
+    StrictEQ,
+
+    /// Perform a not equal to comparison, also checking type
+    StrictNEQ,
 }
 impl std::fmt::Display for BooleanOperation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -197,6 +203,8 @@ impl std::fmt::Display for BooleanOperation {
             BooleanOperation::GTE => write!(f, "gte"),
             BooleanOperation::EQ => write!(f, "eq"),
             BooleanOperation::NEQ => write!(f, "neq"),
+            BooleanOperation::StrictEQ => write!(f, "strict-eq"),
+            BooleanOperation::StrictNEQ => write!(f, "strict-neq"),
         }
     }
 }

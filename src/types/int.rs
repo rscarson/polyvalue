@@ -389,8 +389,8 @@ mod macros {
                         BooleanOperation::GT => left > right,
                         BooleanOperation::LTE => left <= right,
                         BooleanOperation::GTE => left >= right,
-                        BooleanOperation::EQ => left == right,
-                        BooleanOperation::NEQ => left != right,
+                        BooleanOperation::EQ | BooleanOperation::StrictEQ => left == right,
+                        BooleanOperation::NEQ | BooleanOperation::StrictNEQ => left != right,
                     };
 
                     Ok(result.into())

@@ -73,8 +73,8 @@ impl BooleanOperationExt for Range {
         match operation {
             BooleanOperation::And => Ok(Bool::from(left_size != 0 && right_size != 0)),
             BooleanOperation::Or => Ok(Bool::from(left_size != 0 || right_size != 0)),
-            BooleanOperation::EQ => Ok(Bool::from(left == right)),
-            BooleanOperation::NEQ => Ok(Bool::from(left != right)),
+            BooleanOperation::EQ | BooleanOperation::StrictEQ => Ok(Bool::from(left == right)),
+            BooleanOperation::NEQ | BooleanOperation::StrictNEQ => Ok(Bool::from(left != right)),
             BooleanOperation::LT => Ok(Bool::from(left_size < right_size)),
             BooleanOperation::GT => Ok(Bool::from(left_size > right_size)),
             BooleanOperation::LTE => Ok(Bool::from(left_size <= right_size)),
