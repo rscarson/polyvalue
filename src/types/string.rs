@@ -349,43 +349,61 @@ fn convert_regex_string<F>(input: &str, formatting_callback: F) -> Result<regex:
 where
     F: Fn(String) -> String,
 {
-    let mut pattern = input.to_string();
-    let mut flags = None;
+    const FLAG_INREGEX: usize = 0b0001;
+    const FLAG_INFLAGS: usize = 0b0010;
+    const FLAG_ESCAPE: usize = 0b0100;
 
-    // Check if the string contains a regex pattern
-    if input.starts_with('/') {
-        match input[1..].rfind('/') {
-            Some(end) => {
-                if &input[end..=end] != "\\" {
-                    pattern = input[1..=end].to_string();
-
-                    let remainder = &input[end..];
-                    if remainder.len() > 2 {
-                        flags = Some(remainder[2..].to_string());
-                    }
-                }
-            }
-            None => {}
+    let mut pattern = String::new();
+    let mut flags = Vec::new();
+    let mut state = 0;
+    for char in input.chars() {
+        if state & FLAG_ESCAPE != 0 {
+            state &= !FLAG_ESCAPE;
+            pattern.push(char);
+            continue;
         }
+
+        match char {
+            '/' if state & FLAG_INREGEX == 0 => {
+                state |= FLAG_INREGEX;
+            }
+            '/' => {
+                state &= !FLAG_INREGEX;
+                state |= FLAG_INFLAGS;
+            }
+            '\\' => {
+                state |= FLAG_ESCAPE;
+                pattern.push(char);
+            }
+            _ if state & FLAG_INFLAGS != 0 => {
+                flags.push(char);
+            }
+            _ => {
+                pattern.push(char);
+            }
+        }
+    }
+
+    // Catch the case where the string starts with a / but doesn't end with one
+    if state & FLAG_INREGEX != 0 {
+        pattern = input.to_string();
     }
 
     pattern = formatting_callback(pattern);
 
     let mut regex = regex::RegexBuilder::new(&pattern);
-    if let Some(flags) = flags {
-        for flag in flags.chars() {
-            match flag {
-                'i' => regex.case_insensitive(true),
-                'm' => regex.multi_line(true),
-                's' => regex.dot_matches_new_line(true),
-                'U' => regex.swap_greed(true),
-                'u' => regex.unicode(true),
-                'x' => regex.ignore_whitespace(true),
-                _ => {
-                    return Err(Error::InvalidRegexFlag(flag.to_string()));
-                }
-            };
-        }
+    for flag in flags {
+        match flag {
+            'i' => regex.case_insensitive(true),
+            'm' => regex.multi_line(true),
+            's' => regex.dot_matches_new_line(true),
+            'U' => regex.swap_greed(true),
+            'u' => regex.unicode(true),
+            'x' => regex.ignore_whitespace(true),
+            _ => {
+                return Err(Error::InvalidRegexFlag(flag.to_string()));
+            }
+        };
     }
 
     Ok(regex.build()?)
@@ -398,6 +416,30 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_decode_regex() {
+        let result = convert_regex_string("/pattern/", |s: String| s).unwrap();
+        assert_eq!(result.as_str(), "pattern");
+
+        let result = convert_regex_string("/pattern/i", |s: String| s).unwrap();
+        assert_eq!(result.as_str(), "pattern");
+        assert!(result.is_match("PATTERN"));
+
+        let result = convert_regex_string("pattern", |s: String| s).unwrap();
+        assert_eq!(result.as_str(), "pattern");
+
+        let result = convert_regex_string("/patt\\[ern", |s: String| s).unwrap();
+        assert_eq!(result.as_str(), "/patt\\[ern");
+
+        let result = convert_regex_string("/؋/", |s: String| s).unwrap();
+        assert_eq!(result.as_str(), "؋");
+
+        convert_regex_string("/\\؋/i", |s: String| s).unwrap_err();
+        let result = convert_regex_string("/؋/i", |s: String| s).unwrap();
+        assert_eq!(result.as_str(), "؋");
+        assert!(result.is_match("؋"));
+    }
 
     #[test]
     fn test_to_escaped_string() {
