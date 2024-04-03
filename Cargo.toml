@@ -1,6 +1,6 @@
 [package]
 name = "polyvalue"
-version = "0.3.3"
+version = "0.3.4"
 description = "A weak-typed analog for rust"
 authors = ["@rscarson"]
 license = "MIT"
