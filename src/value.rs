@@ -1830,7 +1830,7 @@ mod test {
 
         assert_eq!(
             Value::from(CurrencyInner::as_dollars(Fixed::zero())).to_string(),
-            "$0.00"
+            "0.00$"
         );
 
         assert_eq!(Value::from(1u8).to_string(), "1");

@@ -190,7 +190,7 @@ impl std::fmt::Display for CurrencyInner {
         let value = self.value.inner();
         let precision = self.precision;
 
-        write!(f, "{}{:.*}", symbol, precision as usize, value)
+        write!(f, "{:.*}{}", precision as usize, value, symbol)
     }
 }
 
@@ -200,7 +200,7 @@ impl std::fmt::Debug for CurrencyInner {
         let value = self.value.inner();
         let precision = self.precision;
 
-        write!(f, "{}{:.*}", symbol, precision as usize, value)
+        write!(f, "{:.*}{}", precision as usize, value, symbol)
     }
 }
 
@@ -251,11 +251,11 @@ mod test {
         assert_eq!(l.to_string(), "1.000");
         assert_eq!(r.to_string(), "1.000");
 
-        let l = CurrencyInner::from_str("$1.00").unwrap();
+        let l = CurrencyInner::from_str("1.00$").unwrap();
         let r = CurrencyInner::from_str("1.0").unwrap();
         let (l, r) = l.resolve(r);
-        assert_eq!(l.to_string(), "$1.00");
-        assert_eq!(r.to_string(), "$1.00");
+        assert_eq!(l.to_string(), "1.00$");
+        assert_eq!(r.to_string(), "1.00$");
 
         let l = CurrencyInner::from_str("1.00").unwrap();
         let r = CurrencyInner::from_str("1").unwrap();
@@ -287,10 +287,10 @@ mod test {
         assert_eq!(silly_value.precision, 1);
 
         let l = Value::from(2.2);
-        let r = Value::from(CurrencyInner::from_str("$100.00").unwrap());
+        let r = Value::from(CurrencyInner::from_str("100.00$").unwrap());
         let (l, r) = l.resolve(r).unwrap();
-        assert_eq!(l.to_string(), "$2.20");
-        assert_eq!(r.to_string(), "$100.00");
+        assert_eq!(l.to_string(), "2.20$");
+        assert_eq!(r.to_string(), "100.00$");
     }
 
     #[test]
@@ -298,16 +298,16 @@ mod test {
         let fixed = fixed!(1.0);
         assert_eq!(
             CurrencyInner::as_dollars(fixed.clone()).to_string(),
-            "$1.00"
+            "1.00$"
         );
-        assert_eq!(CurrencyInner::as_euros(fixed.clone()).to_string(), "€1.00");
-        assert_eq!(CurrencyInner::as_pounds(fixed.clone()).to_string(), "£1.00");
-        assert_eq!(CurrencyInner::as_yen(fixed.clone()).to_string(), "¥1");
-        assert_eq!(CurrencyInner::as_rupees(fixed.clone()).to_string(), "₹1.00");
-        assert_eq!(CurrencyInner::as_rubles(fixed.clone()).to_string(), "₽1.00");
-        assert_eq!(CurrencyInner::as_yuan(fixed.clone()).to_string(), "¥1.00");
-        assert_eq!(CurrencyInner::as_won(fixed.clone()).to_string(), "₩1.00");
-        assert_eq!(CurrencyInner::as_krona(fixed.clone()).to_string(), "kr1.00");
+        assert_eq!(CurrencyInner::as_euros(fixed.clone()).to_string(), "1.00€");
+        assert_eq!(CurrencyInner::as_pounds(fixed.clone()).to_string(), "1.00£");
+        assert_eq!(CurrencyInner::as_yen(fixed.clone()).to_string(), "1¥");
+        assert_eq!(CurrencyInner::as_rupees(fixed.clone()).to_string(), "1.00₹");
+        assert_eq!(CurrencyInner::as_rubles(fixed.clone()).to_string(), "1.00₽");
+        assert_eq!(CurrencyInner::as_yuan(fixed.clone()).to_string(), "1.00¥");
+        assert_eq!(CurrencyInner::as_won(fixed.clone()).to_string(), "1.00₩");
+        assert_eq!(CurrencyInner::as_krona(fixed.clone()).to_string(), "1.00kr");
     }
 
     #[test]
@@ -315,15 +315,15 @@ mod test {
         let mut currency = CurrencyInner::as_dollars(fixed!(1.0));
         currency.set_precision(4);
 
-        assert_eq!(currency.to_string(), "$1.0000");
+        assert_eq!(currency.to_string(), "1.0000$");
 
         currency.set_symbol(Some("€".to_string()));
-        assert_eq!(currency.to_string(), "€1.0000");
+        assert_eq!(currency.to_string(), "1.0000€");
 
         currency.set_value(fixed!(2.0));
-        assert_eq!(currency.to_string(), "€2.0000");
+        assert_eq!(currency.to_string(), "2.0000€");
 
         currency.set_precision(2);
-        assert_eq!(currency.to_string(), "€2.00");
+        assert_eq!(currency.to_string(), "2.00€");
     }
 }

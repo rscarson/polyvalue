@@ -129,121 +129,121 @@ mod test {
 
     #[test]
     fn test_arithmetic() {
-        let a = Currency::from_str("$10.00").unwrap();
-        let b = Currency::from_str("$5.00").unwrap();
+        let a = Currency::from_str("10.00$").unwrap();
+        let b = Currency::from_str("5.00$").unwrap();
 
         let result =
             Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Add).unwrap();
-        assert_eq!(result.to_string(), "$15.00".to_string());
+        assert_eq!(result.to_string(), "15.00$".to_string());
 
         let result =
             Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Subtract).unwrap();
-        assert_eq!(result.to_string(), "$5.00".to_string());
+        assert_eq!(result.to_string(), "5.00$".to_string());
 
         let result =
             Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Multiply).unwrap();
-        assert_eq!(result.to_string(), "$50.00".to_string());
+        assert_eq!(result.to_string(), "50.00$".to_string());
 
         let result =
             Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Divide).unwrap();
-        assert_eq!(result.to_string(), "$2.00".to_string());
+        assert_eq!(result.to_string(), "2.00$".to_string());
 
         let result =
             Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Exponentiate)
                 .unwrap();
-        assert_eq!(result.to_string(), "$100000.00".to_string());
+        assert_eq!(result.to_string(), "100000.00$".to_string());
 
         // Different symbols and precisions
-        let a = Currency::from_str("$10.00").unwrap();
-        let b = Currency::from_str("¥5").unwrap();
+        let a = Currency::from_str("10.00$").unwrap();
+        let b = Currency::from_str("5¥").unwrap();
         let result =
             Currency::arithmetic_op(a.clone(), b.clone(), ArithmeticOperation::Add).unwrap();
         assert_eq!(result.to_string(), "15.00".to_string());
 
-        let result = Currency::arithmetic_neg(Currency::from_str("$10.00").unwrap()).unwrap();
-        assert_eq!(result.to_string(), "$-10.00".to_string());
+        let result = Currency::arithmetic_neg(Currency::from_str("10.00$").unwrap()).unwrap();
+        assert_eq!(result.to_string(), "-10.00$".to_string());
     }
 
     #[test]
     fn test_boolean_logic() {
         let result = Currency::boolean_op(
-            Currency::from_str("$0.00").unwrap(),
-            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
             BooleanOperation::And,
         )
         .unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result = Currency::boolean_op(
-            Currency::from_str("$0.00").unwrap(),
-            Currency::from_str("$1.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
+            Currency::from_str("1.00").unwrap(),
             BooleanOperation::Or,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Currency::boolean_op(
-            Currency::from_str("$1.00").unwrap(),
-            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("1.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
             BooleanOperation::LT,
         )
         .unwrap();
         assert_eq!(result, Bool::from(false).into());
 
         let result = Currency::boolean_op(
-            Currency::from_str("$1.00").unwrap(),
-            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("1.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
             BooleanOperation::GT,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Currency::boolean_op(
-            Currency::from_str("$0.00").unwrap(),
-            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
             BooleanOperation::LTE,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Currency::boolean_op(
-            Currency::from_str("$0.00").unwrap(),
-            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
             BooleanOperation::GTE,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Currency::boolean_op(
-            Currency::from_str("$0.00").unwrap(),
-            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
             BooleanOperation::EQ,
         )
         .unwrap();
         assert_eq!(result, Bool::from(true).into());
 
         let result = Currency::boolean_op(
-            Currency::from_str("$0.00").unwrap(),
-            Currency::from_str("$0.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
+            Currency::from_str("0.00").unwrap(),
             BooleanOperation::NEQ,
         )
         .unwrap();
         assert_eq!(result, Bool::from(false).into());
 
-        let result = Currency::boolean_not(Currency::from_str("$10.00").unwrap()).unwrap();
+        let result = Currency::boolean_not(Currency::from_str("10.00").unwrap()).unwrap();
         assert_eq!(result, Bool::from(false).into());
     }
 
     #[test]
     fn test_to_string() {
-        let value = Currency::from_str("$10.00").unwrap();
-        assert_eq!(value.to_string(), "$10.00".to_string());
+        let value = Currency::from_str("10.00").unwrap();
+        assert_eq!(value.to_string(), "10.00".to_string());
 
         let value = Currency::from_str("10").unwrap();
         assert_eq!(value.to_string(), "10".to_string());
 
         let value = Currency::from_str("¥10").unwrap();
-        assert_eq!(value.to_string(), "¥10".to_string());
+        assert_eq!(value.to_string(), "10¥".to_string());
 
         let value = Currency::new(CurrencyInner::new(None, 5, fixed!(10.123456789)));
         assert_eq!(value.to_string(), "10.12346".to_string());
@@ -296,7 +296,7 @@ mod test {
 
     #[test]
     fn test_parse() {
-        let value = Currency::from_str("$10.00").unwrap();
+        let value = Currency::from_str("10.00$").unwrap();
         assert_eq!(value.symbol(), &Some("$".to_string()));
         assert_eq!(value.precision(), 2);
         assert_eq!(*value.value(), fixed!(10.00));

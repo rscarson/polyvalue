@@ -4,7 +4,7 @@ use crate::ValueType;
 use thiserror::Error;
 
 /// This type is used for all errors that can be returned by Polyvalue
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum Error {
     /// An error caused by attempting to use a value of the wrong type in a calculation
     #[error("Cannot perform {operation} on {actual_type}")]
